@@ -9,7 +9,8 @@ import React, {
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
-  motion
+  motion,
+  AnimatePresence
 } from "framer-motion";
 
 // --- Start of code from chuansuo.tsx ---
@@ -31,7 +32,7 @@ const createGlowTexture = () => {
     return new THREE.CanvasTexture(canvas);
 };
 
-const Starfield = ({ speed = 2, particleCount = 1500, warpSpeedActive = false, accelerationDuration = 2, maxSpeed = 50 }) => {
+const Starfield = ({ speed = 2, particleCount = 1500, warpSpeedActive = false, accelerationDuration = 2, maxSpeed = 50 }: { speed?: number, particleCount?: number, warpSpeedActive?: boolean, accelerationDuration?: number, maxSpeed?: number }) => {
   const ref = useRef<THREE.Points>(null);
   const warpStartTime = useRef(0);
   const particleTexture = useMemo(() => createGlowTexture(), []);
@@ -248,28 +249,36 @@ const Scene = () => {
 
 // --- Merged Page Component ---
 export default function Page() {
-  const [showAnimation, setShowAnimation] = useState(true);
+  // 我们需要检查 window对象是否存在以确保 sessionStorage 可用 (为了兼容服务器端渲染)
+  const hasVisitedInitially = typeof window !== 'undefined' && sessionStorage.getItem('hasVisitedHomePage') === 'true';
 
-  useEffect(() => {
-    // On mount, check if the user has already seen the animation in this session.
-    if (sessionStorage.getItem('hasVisitedHomePage') === 'true') {
-      setShowAnimation(false);
-    }
-  }, []); // The empty dependency array ensures this effect runs only once on mount.
+  const [showAnimation, setShowAnimation] = useState(!hasVisitedInitially);
+  const [isSceneVisible, setIsSceneVisible] = useState(hasVisitedInitially);
 
-  // Callback function to be passed to the animation component.
+  // 此回调函数将传递给动画组件。
+  // 当介绍动画的内部逻辑决定该进行过渡时，此函数将被调用。
   const handleAnimationFinish = () => {
-    setShowAnimation(false);
+    setShowAnimation(false); // 这将触发 OpeningAnimation 的退场动画
+    setIsSceneVisible(true);  // 这将触发主场景的淡入动画
   };
 
   return (
     // 主容器，设置背景渐变和全屏样式
     <div className="relative min-h-screen w-full bg-[#000] text-white flex flex-col items-center justify-center p-8 overflow-hidden" style={{background: 'linear-gradient(to bottom right, #000, #1A2428)'}}>
-      {/* Conditionally render the OpeningAnimation as an overlay. */}
-      {showAnimation && <OpeningAnimation onAnimationFinish={handleAnimationFinish} />}
+      {/* AnimatePresence 允许 OpeningAnimation 在从 React 树中移除时执行退场动画。 */}
+      <AnimatePresence>
+        {showAnimation && <OpeningAnimation onAnimationFinish={handleAnimationFinish} />}
+      </AnimatePresence>
       
-      {/* The original Scene component is always rendered underneath. */}
-      <Scene />
+      {/* 主场景被包裹在一个 motion.div 中，以控制其淡入动画。 */}
+      <motion.div
+        className="absolute inset-0 w-full h-full"
+        initial={false} // 如果场景本应可见，则阻止在初始加载时播放动画
+        animate={{ opacity: isSceneVisible ? 1 : 0 }}
+        transition={{ duration: 2.0, ease: 'easeInOut' }}
+      >
+        <Scene />
+      </motion.div>
     </div>
   );
 };
