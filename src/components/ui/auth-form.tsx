@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X } from 'lucide-react';
-import { loginUser, registerUser } from "@/app/actions";
+// 引入新的服务器动作
+import { loginUser, registerUser, sendVerificationEmail } from "@/app/actions";
 
-// --- 共享类型定义 (与 page.tsx 保持一致) ---
+// 共享类型定义
 interface User {
   name: string;
   email: string;
@@ -13,7 +14,7 @@ interface LoginSuccessData {
   token: string;
 }
 
-// --- 自定义微信图标 ---
+// 自定义微信图标
 const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -37,7 +38,8 @@ const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20
   </svg>
 );
 
-// --- 标准输入框组件 ---
+
+// 标准输入框组件
 interface FormFieldProps {
   type: string;
   placeholder: string;
@@ -90,7 +92,7 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
   );
 };
 
-// --- 社交媒体登录按钮 ---
+// 社交媒体登录按钮
 const SocialButton: React.FC<{ icon: React.ReactNode; name: string }> = ({ icon, name }) => {
   return (
     <button
@@ -104,7 +106,7 @@ const SocialButton: React.FC<{ icon: React.ReactNode; name: string }> = ({ icon,
   );
 };
 
-// --- 主组件: 登录/注册表单 ---
+// 主组件: 登录/注册表单
 interface AuthFormComponentProps {
     onClose: () => void;
     onLoginSuccess: (data: LoginSuccessData) => void; 
@@ -148,6 +150,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     }
   }, [isSignUp]);
 
+  // 修改: 调用后端发送邮件的动作
   const handleSendVerificationEmail = async () => {
     if (!email) {
       alert("请输入邮箱地址");
@@ -158,32 +161,43 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       return;
     }
     setIsSending(true);
-    setCountdown(60);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000)); 
-      console.log(`(模拟) 已向 ${email} 发送验证码`);
-    } catch (error) {
-      console.error(error);
-      alert("验证码发送失败，请稍后再试。");
-      setCountdown(0);
-    } finally {
-      setIsSending(false);
+    
+    const result = await sendVerificationEmail(email);
+
+    if (result.success) {
+      alert('验证码已发送，请检查您的邮箱。');
+      setCountdown(60);
+    } else {
+      alert(`发送失败: ${result.message}`);
     }
+
+    setIsSending(false);
   };
 
+  // 修改: 提交时传递所有需要验证的数据
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     if (isSignUp) {
-      const userInfo = { name, email, phone, password };
+      const userInfo = { 
+        name, 
+        email, 
+        phone, 
+        password,
+        graphicalCaptchaAnswer: captcha,
+        graphicalCaptchaInput: captchaInput,
+        emailVerificationCode
+      };
       const result = await registerUser(userInfo);
       if (result.success) {
         alert('注册成功！现在您可以登录了。');
         toggleMode(); 
       } else {
         alert(`注册失败: ${result.message}`);
+        generateCaptcha();
+        setCaptchaInput('');
       }
     } else {
       const credentials = {
@@ -191,7 +205,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         password,
       };
       const result = await loginUser(credentials);
-      // 修正: 增加一个 result.data 的存在性检查来满足 TypeScript
       if (result.success && result.data) {
         onLoginSuccess(result.data);
       } else {
@@ -245,23 +258,8 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                   </button>
               </AnimatedFormField>
               <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />
-            </>
-        ) : (
-            loginMethod === 'email' ? 
-            <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} />
-            : 
-            <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />
-        )}
-
-        <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />}>
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-        </AnimatedFormField>
-        
-        {isSignUp && (
-            <>
-                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
+              <AnimatedFormField type="password" placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
+               <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
                     <div className="flex items-center space-x-2">
                         <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
                         <button type="button" onClick={generateCaptcha} className="text-white hover:text-gray-300 transition-colors"><RefreshCw size={18}/></button>
@@ -269,8 +267,20 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                 </AnimatedFormField>
                 <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} />
             </>
+        ) : (
+            <>
+              {loginMethod === 'email' ? 
+              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} />
+              : 
+              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />}
+               <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />}>
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+              </AnimatedFormField>
+            </>
         )}
-
+        
         <div className="flex items-center justify-between">
             <label className="flex items-center space-x-2 cursor-pointer group">
               <input
