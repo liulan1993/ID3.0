@@ -1,6 +1,7 @@
 /*
  * 文件: src/app/actions.ts
  * 描述: 服务器动作文件，已将图形验证码校验提前至邮件发送环节。
+ * 修正: 对用户提交的邮箱验证码进行 trim() 清理，防止因空格导致验证失败。
  */
 'use server';
 
@@ -22,7 +23,6 @@ interface FooterEmailData {
     email: string;
 }
 
-// 修正: 注册信息不再需要图形验证码，因为它在发送邮件时已验证
 interface RegistrationInfo {
   name: string;
   email: string;
@@ -67,9 +67,9 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
 }
 
 
-// --- 邮件发送函数 (已修改) ---
+// --- 邮件发送函数 ---
 export async function sendVerificationEmail(email: string, graphicalCaptchaInput: string, graphicalCaptchaAnswer: string) {
-  // 关键修正 1: 发送邮件前，必须先验证图形验证码
+  // 发送邮件前，必须先验证图形验证码
   if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
     console.log(`[调试] 发送邮件前图形验证码失败。正确答案: "${graphicalCaptchaAnswer}", 用户输入: "${graphicalCaptchaInput}"`);
     return { success: false, message: '图形验证码不正确。' };
@@ -89,6 +89,7 @@ export async function sendVerificationEmail(email: string, graphicalCaptchaInput
   const verificationKey = `verification:${normalizedEmail}`;
 
   try {
+    // 设置验证码，有效期为 900 秒 (15 分钟)
     await kv.set(verificationKey, code, { ex: 900 }); 
 
     const msg = {
@@ -110,15 +111,14 @@ export async function sendVerificationEmail(email: string, graphicalCaptchaInput
 }
 
 
-// --- 注册函数 (已修改) ---
+// --- 注册函数 (已修正) ---
 export async function registerUser(userInfo: RegistrationInfo) {
   try {
     const { email, password, name, phone, emailVerificationCode } = userInfo;
     
     const normalizedEmail = email.trim().toLowerCase();
     
-    // 关键修正 2: 图形验证码的校验逻辑已移至 sendVerificationEmail 函数
-    // 此处不再需要重复验证
+    // 图形验证码的校验逻辑已移至 sendVerificationEmail 函数，此处无需重复验证
 
     const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string>(verificationKey);
@@ -126,7 +126,14 @@ export async function registerUser(userInfo: RegistrationInfo) {
     if (!storedCode) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
     }
-    if (storedCode !== emailVerificationCode) {
+
+    // =================================================================
+    // 【关键修正】
+    // 在比较之前，对用户输入的验证码使用 .trim() 移除可能存在的前后空格。
+    // 这是解决问题的核心。
+    // =================================================================
+    if (storedCode !== emailVerificationCode.trim()) {
+      console.error(`[调试] 验证码不匹配。KV中存储的值: "${storedCode}", 用户传入的值: "${emailVerificationCode}"`);
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
 
@@ -146,6 +153,8 @@ export async function registerUser(userInfo: RegistrationInfo) {
       createdAt: new Date().toISOString(),
     };
     await kv.set(userKey, JSON.stringify(newUser));
+    
+    // 验证成功后，删除验证码，防止重复使用
     await kv.del(verificationKey);
 
     console.log(`[成功] 新用户已注册: ${normalizedEmail}`);
@@ -179,6 +188,7 @@ export async function loginUser(credentials: UserCredentials) {
       email: storedUser.email,
     };
 
+    // 在真实生产环境中，这里应该生成一个真实的 JWT (JSON Web Token)
     return { 
         success: true, 
         data: { 
