@@ -6,6 +6,8 @@ import React, {
     useState,
     useMemo
 } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
@@ -19,6 +21,11 @@ import {
 import { Transition } from "@headlessui/react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { Slot } from "@radix-ui/react-slot"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
+
 
 // ============================================================================
 // 辅助函数 (新增)
@@ -635,7 +642,7 @@ const Testimonials = () => {
 };
 
 // ============================================================================
-// 3. 第二页组件 (新增)
+// 3. 第二页组件 (已修改)
 // ============================================================================
 
 interface Tab {
@@ -855,7 +862,7 @@ const VelocityScroll = () => {
   });
   const skewVelocity = useTransform(smoothVelocity, [-1, 1], ["30deg", "-30deg"]);
 
-  const translateX = useTransform(scrollYProgress, [0.1, 0.9], [0, -4500]); 
+  const translateX = useTransform(scrollYProgress, [0.2, 0.8], [0, -4500]); 
   
   const text = "Apex是一家总部位于新加坡的综合性专业服务机构。我们深刻理解全球高净值人士与出海企业所面临的机遇。";
   const textContent = ` ${text} `.repeat(5);
@@ -863,9 +870,10 @@ const VelocityScroll = () => {
   return (
     <section 
       ref={containerRef} 
-      className={cn("relative h-[600vh] text-white bg-black")}
+      className={cn("relative h-[800vh] text-white")}
     >
       <div className="sticky top-0 left-0 right-0 h-screen overflow-hidden">
+        {/* 指令修改: 移除这里的 MainScene */}
         <Header />
         
         <div className="absolute inset-0 flex w-full items-center justify-between px-8 md:px-16 lg:px-24">
@@ -891,9 +899,172 @@ const VelocityScroll = () => {
   );
 };
 
+// ============================================================================
+// 4. 页脚组件 (新增)
+// ============================================================================
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean
+}
+
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    return (
+      <Comp
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    )
+  },
+)
+Button.displayName = "Button"
+
+
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, ...props }, ref) => {
+    return (
+      <input
+        type={type}
+        className={cn(
+          "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Input.displayName = "Input"
+
+
+const labelVariants = cva(
+  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+)
+
+const Label = React.forwardRef<
+  React.ElementRef<typeof LabelPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root> &
+    VariantProps<typeof labelVariants>
+>(({ className, ...props }, ref) => (
+  <LabelPrimitive.Root
+    ref={ref}
+    className={cn(labelVariants(), className)}
+    {...props}
+  />
+))
+Label.displayName = LabelPrimitive.Root.displayName
+
+
+function StackedCircularFooter() {
+  return (
+    <footer className="bg-transparent py-12">
+      <div className="container mx-auto px-4 md:px-6">
+        <div className="flex flex-col items-center">
+          
+          <div className="mb-8 flex h-[400px] w-[400px] flex-col items-center justify-center rounded-lg p-6">
+            <h2 className="mb-4 text-2xl font-bold text-white">官方公众号</h2>
+            <div className="flex-grow flex items-center justify-center">
+                <Image 
+                  src="https://zh.apex-elite-service.com/wenjian/weixingongzhonghao.png" 
+                  alt="官方公众号二维码" 
+                  width={300} 
+                  height={300}
+                  className="rounded-md"
+                />
+            </div>
+          </div>
+
+          <nav className="mb-8 flex flex-wrap justify-center gap-x-6 gap-y-2">
+            <Link href="/" className="text-gray-400 hover:text-white">Apex</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">留学</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">医疗</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">企业服务</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">敬请期待</Link>
+          </nav>
+          
+          <div className="mb-8 flex space-x-4">
+            <Button variant="outline" size="icon" className="rounded-full bg-transparent text-gray-400 hover:bg-white/10 hover:text-white border-gray-600">
+              <Facebook className="h-4 w-4" />
+              <span className="sr-only">Facebook</span>
+            </Button>
+            <Button variant="outline" size="icon" className="rounded-full bg-transparent text-gray-400 hover:bg-white/10 hover:text-white border-gray-600">
+              <Twitter className="h-4 w-4" />
+              <span className="sr-only">Twitter</span>
+            </Button>
+            <Button variant="outline" size="icon" className="rounded-full bg-transparent text-gray-400 hover:bg-white/10 hover:text-white border-gray-600">
+              <Instagram className="h-4 w-4" />
+              <span className="sr-only">Instagram</span>
+            </Button>
+            <Button variant="outline" size="icon" className="rounded-full bg-transparent text-gray-400 hover:bg-white/10 hover:text-white border-gray-600">
+              <Linkedin className="h-4 w-4" />
+              <span className="sr-only">LinkedIn</span>
+            </Button>
+          </div>
+          
+          <div className="mb-8 w-full max-w-md">
+            <form className="flex space-x-2">
+              <div className="flex-grow">
+                <Label htmlFor="email" className="sr-only">Email</Label>
+                <Input 
+                  id="email" 
+                  placeholder="输入您的邮箱" 
+                  type="email" 
+                  className="rounded-full bg-black/50 border-gray-600 text-white placeholder-gray-400 focus:ring-white" 
+                />
+              </div>
+              <Button type="submit" className="rounded-full bg-white text-black hover:bg-gray-200">提交</Button>
+            </form>
+          </div>
+          
+          <div className="text-center">
+            <p className="text-sm text-gray-500">
+              © 2024 Your Company. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  )
+}
 
 // ============================================================================
-// 4. 主页面组件
+// 5. 主页面组件 (已修改)
 // ============================================================================
 
 export default function Page() {
@@ -920,24 +1091,38 @@ export default function Page() {
             </AnimatePresence>
             
             <motion.div 
+                className="relative z-10"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: mainContentVisible ? 1 : 0 }}
                 transition={{ duration: 1.5, ease: "easeInOut" }}
             >
                 {isClient && (
                     <>
-                        <div className='relative w-full h-screen overflow-hidden'>
-                            <MainScene />
-                            <div className="absolute inset-0 z-10 grid grid-rows-[50vh_50vh] pointer-events-auto">
-                                <div className="flex items-end justify-center pb-8">
-                                    <HomePageTitle />
-                                </div>
-                                <div className="flex items-start justify-center pt-8">
-                                    <Testimonials />
+                        {/* Layer 1: Fixed Background */}
+                        <div className="fixed inset-0 z-0">
+                           <MainScene />
+                        </div>
+
+                        {/* Layer 2: Scrollable Content */}
+                        <div className="relative z-10">
+                            {/* Section 1: Initial Viewport */}
+                            <div className='relative w-full h-screen'>
+                                <div className="absolute inset-0 grid grid-rows-[50vh_50vh] pointer-events-auto">
+                                    <div className="flex items-end justify-center pb-8">
+                                        <HomePageTitle />
+                                    </div>
+                                    <div className="flex items-start justify-center pt-8">
+                                        <Testimonials />
+                                    </div>
                                 </div>
                             </div>
+                            
+                            {/* Section 2: Velocity Scroll part */}
+                            <VelocityScroll />
+
+                            {/* Section 3: Footer */}
+                            <StackedCircularFooter />
                         </div>
-                        <VelocityScroll />
                     </>
                 )}
             </motion.div>
