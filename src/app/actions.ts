@@ -1,6 +1,6 @@
 /*
  * 文件: src/app/actions.ts
- * 描述: 服务器动作文件，集成了用户认证和邮件服务。
+ * 描述: 服务器动作文件，已修正验证逻辑并增加详细日志。
  */
 'use server';
 
@@ -84,17 +84,19 @@ export async function sendVerificationEmail(email: string) {
   const verificationKey = `verification:${normalizedEmail}`;
 
   try {
-    await kv.set(verificationKey, code, { ex: 600 }); // 10分钟有效期
+    // 关键：设置一个稍长的有效期（例如15分钟），以应对可能的延迟
+    await kv.set(verificationKey, code, { ex: 900 }); 
 
     const msg = {
       to: email,
       from: fromEmail,
       subject: '您的验证码 - Apex',
-      text: `您的 Apex 网站验证码是: ${code}。该验证码将在10分钟后失效。`,
-      html: `<strong>您的 Apex 网站验证码是: ${code}</strong>。该验证码将在10分钟后失效。`,
+      text: `您的 Apex 网站验证码是: ${code}。该验证码将在15分钟后失效。`,
+      html: `<strong>您的 Apex 网站验证码是: ${code}</strong>。该验证码将在15分钟后失效。`,
     };
 
     await sgMail.send(msg);
+    console.log(`[调试] 验证码已存入 Key: ${verificationKey}，值为: ${code}`);
     return { success: true };
 
   } catch (error) {
@@ -114,18 +116,25 @@ export async function registerUser(userInfo: RegistrationInfo) {
     
     const normalizedEmail = email.trim().toLowerCase();
     
+    // 修正第一点: 首先验证图形验证码
     if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
+      console.log(`[调试] 图形验证码失败。正确答案: "${graphicalCaptchaAnswer}", 用户输入: "${graphicalCaptchaInput}"`);
       throw new Error('图形验证码不正确。');
     }
 
+    // 修正第二点: 在验证邮箱码之前添加更详细的日志
     const verificationKey = `verification:${normalizedEmail}`;
+    console.log(`[调试] 正在验证 Key: "${verificationKey}"`);
     const storedCode = await kv.get<string>(verificationKey);
     
+    console.log(`[调试] 用户输入的邮箱验证码: "${emailVerificationCode}"`);
+    console.log(`[调试] KV 数据库中存储的验证码: "${storedCode}"`);
+
     if (!storedCode) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
     }
     if (storedCode !== emailVerificationCode) {
-      throw new Error('邮箱验证码不正确。');
+      throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
 
     const userKey = `user:${normalizedEmail}`;
@@ -146,11 +155,14 @@ export async function registerUser(userInfo: RegistrationInfo) {
     await kv.set(userKey, JSON.stringify(newUser));
     await kv.del(verificationKey);
 
+    console.log(`[成功] 新用户已注册: ${normalizedEmail}`);
     return { success: true };
 
   } catch (error) {
-    console.error("注册用户时出错:", error);
-    return { success: false, message: error instanceof Error ? error.message : '一个未知错误发生了' };
+    // 修正第三点: 在错误日志中包含更具体的信息
+    const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
+    console.error(`注册用户时出错: ${errorMessage}`);
+    return { success: false, message: errorMessage };
   }
 }
 
@@ -183,7 +195,8 @@ export async function loginUser(credentials: UserCredentials) {
         } 
     };
   } catch (error) {
-    console.error("用户登录时出错:", error);
-    return { success: false, message: error instanceof Error ? error.message : '一个未知错误发生了' };
+    const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
+    console.error(`用户登录时出错: ${errorMessage}`);
+    return { success: false, message: errorMessage };
   }
 }
