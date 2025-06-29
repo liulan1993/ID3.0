@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X, Edit3 } from 'lucide-react';
-// 引入服务器动作
-import { loginUser, registerUser, sendVerificationEmail } from "@/app/actions";
+// 引入服务器动作，并新增 checkWechatUser
+import { loginUser, registerUser, sendVerificationEmail, checkWechatUser } from "@/app/actions";
 
 // --- 类型定义 ---
 interface User {
@@ -64,9 +64,9 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
   const [isSending, setIsSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isEmailLocked, setIsEmailLocked] = useState(false);
-  // --- 新增: 用于控制二维码弹窗的显示状态 ---
   const [showQrCode, setShowQrCode] = useState(false);
-
+  // --- 新增: 用于处理微信用户检查的加载状态 ---
+  const [isCheckingWechat, setIsCheckingWechat] = useState(false);
 
   const generateCaptcha = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -88,7 +88,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     if (isSignUp) {
       generateCaptcha();
     }
-  }, [isSignUp]);
+  }, [isSignUp, loginMethod]);
 
   const handleSendVerificationEmail = async () => {
     if (!email) {
@@ -149,14 +149,42 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     setIsSubmitting(false);
   };
   
-  // --- 修改: 微信登录处理函数，改为弹出二维码窗口 ---
   const handleWechatLogin = () => {
     setShowQrCode(true);
   };
 
+  // --- 修改: 处理扫码后的操作，增加用户存在性检查 ---
+  const handleQrScanned = async () => {
+    if (isCheckingWechat) return;
+    setIsCheckingWechat(true);
+
+    try {
+        const result = await checkWechatUser(); // 调用后端检查函数
+        if (result.success) {
+            if (result.exists && result.data) {
+                // 用户存在，直接登录
+                alert("欢迎回来！已为您自动登录。");
+                onLoginSuccess(result.data);
+            } else {
+                // 用户不存在，引导注册
+                setShowQrCode(false);
+                setIsSignUp(true);
+                setName("微信用户"); 
+                setLoginMethod('email');
+            }
+        } else {
+            alert(`微信登录检查失败: ${result.message}`);
+        }
+    } catch (error) {
+        alert("检查微信用户时发生错误，请稍后再试。");
+    } finally {
+        setIsCheckingWechat(false);
+    }
+  };
+
   const resetRegistrationForm = () => {
     setEmail(""); setPhone(""); setPassword(""); setName("");
-    setShowPassword(false); setLoginMethod('email');
+    setShowPassword(false);
     setCaptchaInput(''); setEmailVerificationCode('');
     setCountdown(0); setIsSending(false);
     setIsEmailLocked(false);
@@ -165,6 +193,9 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
     resetRegistrationForm();
+    if(isSignUp) {
+        setLoginMethod('email');
+    }
   };
 
   return (
@@ -173,7 +204,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-full mb-4 border border-gray-800"><User className="w-8 h-8 text-white" /></div>
             <h1 className="text-3xl font-bold text-white mb-2">{isSignUp ? '创建账户' : '欢迎回来'}</h1>
-            <p className="text-gray-400">{isSignUp ? '注册以开始使用' : '登录以继续'}</p>
+            <p className="text-gray-400">{isSignUp ? '请完善您的注册信息' : '登录以继续'}</p>
         </div>
         
         {!isSignUp && (
@@ -207,7 +238,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                   )}
               </AnimatedFormField>
               <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />
-              <AnimatedFormField type="password" placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
+              <AnimatedFormField type="password" placeholder="设置密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
                     <div className="flex items-center space-x-2">
                         <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
@@ -246,7 +277,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
 
         <div className="mt-8">
           <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800" /></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-black text-gray-400">或使用以下方式继续</span></div></div>
-          {/* --- 修改: 绑定微信登录事件 --- */}
           <div className="mt-6 flex justify-center"><div className="w-1/3 px-2"><SocialButton icon={<WechatIcon />} name="微信" onClick={handleWechatLogin} /></div></div>
         </div>
 
@@ -257,14 +287,14 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
           </p>
         </div>
 
-        {/* --- 新增: 二维码弹窗 --- */}
+        {/* --- 修改: 二维码弹窗的下一步按钮，增加加载状态 --- */}
         {showQrCode && (
             <div 
                 className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-sm"
                 onClick={() => setShowQrCode(false)}
             >
                 <div 
-                    className="relative bg-gray-900 border border-gray-700 rounded-lg p-8 text-center"
+                    className="relative bg-gray-900 border border-gray-700 rounded-lg p-8 text-center flex flex-col items-center"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <button 
@@ -276,7 +306,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                     </button>
                     <h3 className="text-lg font-semibold text-white mb-4">使用微信扫码登录</h3>
                     <div className="bg-white p-2 rounded-md inline-block">
-                        {/* 这是一个占位二维码，你可以替换成真实的二维码图片 */}
                         <img 
                             src="https://placehold.co/200x200/FFFFFF/000000?text=模拟微信二维码" 
                             alt="模拟微信登录二维码" 
@@ -285,6 +314,17 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                         />
                     </div>
                     <p className="text-sm text-gray-400 mt-4">这是一个模拟二维码，仅用于开发测试</p>
+                    <button 
+                        onClick={handleQrScanned}
+                        disabled={isCheckingWechat}
+                        className="mt-6 w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                        {isCheckingWechat ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            '我已扫码，下一步'
+                        )}
+                    </button>
                 </div>
             </div>
         )}

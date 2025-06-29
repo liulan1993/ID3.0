@@ -184,7 +184,7 @@ export async function loginUser(credentials: UserCredentials) {
   }
 }
 
-// --- 新增: 微信登录逻辑 ---
+// --- 真实的微信登录逻辑 (保留) ---
 export async function loginWithWechat(code: string) {
   try {
     // !! 重要: 请替换为您的真实 AppID 和 AppSecret
@@ -251,5 +251,41 @@ export async function loginWithWechat(code: string) {
     const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
     console.error(`微信登录时出错: ${errorMessage}`);
     return { success: false, message: errorMessage };
+  }
+}
+
+// --- 新增: 模拟检查微信用户是否已注册 ---
+export async function checkWechatUser() {
+  try {
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 为了练习，我们用 50% 的概率随机决定用户是否存在
+    // 在真实场景中，这里应该是查询数据库的逻辑
+    const userExists = Math.random() > 0.5;
+
+    if (userExists) {
+      // 如果用户存在，返回一个模拟的用户数据和 token
+      console.log("模拟微信用户检查：用户已存在，将直接登录。");
+      return {
+        success: true,
+        exists: true,
+        data: {
+          user: { name: '已注册的微信用户', email: 'existing.wechat.user@example.com' },
+          token: 'mock-token-for-existing-wechat-user'
+        }
+      };
+    } else {
+      // 如果用户不存在，告诉前端需要注册
+      console.log("模拟微信用户检查：用户不存在，将引导注册。");
+      return {
+        success: true,
+        exists: false,
+        data: null
+      };
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '检查微信用户时发生未知错误';
+    return { success: false, exists: false, message: errorMessage, data: null };
   }
 }
