@@ -1,7 +1,7 @@
 /*
  * 文件: src/app/actions.ts
- * 描述: 服务器动作文件，已将图形验证码校验提前至邮件发送环节。
- * 修正: 对用户提交的邮箱验证码进行 trim() 清理，防止因空格导致验证失败。
+ * 描述: 【特殊诊断版本】此版本的代码不是为了修复问题，而是为了获取决定性的调试信息。
+ *      它会中断正常的注册流程，并通过弹窗将服务器端看到的所有关键数据返回给前端。
  */
 'use server';
 
@@ -69,7 +69,7 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
 
 // --- 邮件发送函数 ---
 export async function sendVerificationEmail(email: string, graphicalCaptchaInput: string, graphicalCaptchaAnswer: string) {
-  // 发送邮件前，必须先验证图形验证码
+  // 关键修正 1: 发送邮件前，必须先验证图形验证码
   if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
     console.log(`[调试] 发送邮件前图形验证码失败。正确答案: "${graphicalCaptchaAnswer}", 用户输入: "${graphicalCaptchaInput}"`);
     return { success: false, message: '图形验证码不正确。' };
@@ -89,7 +89,6 @@ export async function sendVerificationEmail(email: string, graphicalCaptchaInput
   const verificationKey = `verification:${normalizedEmail}`;
 
   try {
-    // 设置验证码，有效期为 900 秒 (15 分钟)
     await kv.set(verificationKey, code, { ex: 900 }); 
 
     const msg = {
@@ -111,59 +110,60 @@ export async function sendVerificationEmail(email: string, graphicalCaptchaInput
 }
 
 
-// --- 注册函数 (已修正) ---
+// --- 注册函数 (已修改为诊断模式) ---
 export async function registerUser(userInfo: RegistrationInfo) {
   try {
-    const { email, password, name, phone, emailVerificationCode } = userInfo;
+    const { email, emailVerificationCode } = userInfo;
     
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmailFromUser = email.trim().toLowerCase();
+    const verificationKey = `verification:${normalizedEmailFromUser}`;
     
-    // 图形验证码的校验逻辑已移至 sendVerificationEmail 函数，此处无需重复验证
-
-    const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string>(verificationKey);
+
+    // =================================================================
+    // 【诊断核心】
+    // 我们将在这里中断程序，并构建一个详细的诊断信息字符串。
+    // 这个字符串将作为错误消息返回，并显示在前端的 alert() 中。
+    // =================================================================
     
-    if (!storedCode) {
-      throw new Error('邮箱验证码已过期或不存在，请重新发送。');
-    }
-
-    // =================================================================
-    // 【关键修正】
-    // 在比较之前，对用户输入的验证码使用 .trim() 移除可能存在的前后空格。
-    // 这是解决问题的核心。
-    // =================================================================
-    if (storedCode !== emailVerificationCode.trim()) {
-      console.error(`[调试] 验证码不匹配。KV中存储的值: "${storedCode}", 用户传入的值: "${emailVerificationCode}"`);
-      throw new Error('您输入的邮箱验证码与系统记录不符。');
-    }
-
-    const userKey = `user:${normalizedEmail}`;
-    const existingUser = await kv.get(userKey);
-    if (existingUser) {
-      throw new Error('该邮箱地址已被注册。');
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    const newUser = {
-      name,
-      email: normalizedEmail,
-      phone: phone || '',
-      hashedPassword,
-      createdAt: new Date().toISOString(),
+    // 将字符串转换为十六进制编码，这可以暴露任何不可见字符
+    const toHex = (str: string | null | undefined) => {
+        if (str === null || str === undefined) return 'null or undefined';
+        return [...str].map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
     };
-    await kv.set(userKey, JSON.stringify(newUser));
-    
-    // 验证成功后，删除验证码，防止重复使用
-    await kv.del(verificationKey);
 
-    console.log(`[成功] 新用户已注册: ${normalizedEmail}`);
-    return { success: true };
+    const diagnosticMessage = `
+    --- VERCEL KV 服务器端诊断报告 ---
+
+    [1] 邮箱信息:
+    - 前端传入的邮箱 (处理后): "${normalizedEmailFromUser}"
+    - 用于查询 KV 的 Key: "${verificationKey}"
+
+    [2] 查询结果:
+    - KV.get() 是否找到记录: ${storedCode ? '是' : '否'}
+    - 从 KV 中取出的验证码 (原始值): "${storedCode}"
+
+    [3] 验证码详细比对:
+    - (服务器端) 存储的验证码:
+      - 值: [${storedCode}]
+      - 类型: ${typeof storedCode}
+      - 长度: ${storedCode?.length ?? 'N/A'}
+      - 十六进制: ${toHex(storedCode)}
+
+    - (浏览器端) 用户输入的验证码:
+      - 值: [${emailVerificationCode}]
+      - 类型: ${typeof emailVerificationCode}
+      - 长度: ${emailVerificationCode?.length ?? 'N/A'}
+      - 十六进制: ${toHex(emailVerificationCode)}
+    `;
+
+    // 直接返回诊断信息，让前端弹窗显示
+    return { success: false, message: diagnosticMessage };
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
-    console.error(`注册用户时出错: ${errorMessage}`);
-    return { success: false, message: errorMessage };
+    console.error(`诊断过程中捕获到意外错误: ${errorMessage}`);
+    return { success: false, message: `诊断过程中捕获到意外错误: ${errorMessage}` };
   }
 }
 
@@ -188,7 +188,6 @@ export async function loginUser(credentials: UserCredentials) {
       email: storedUser.email,
     };
 
-    // 在真实生产环境中，这里应该生成一个真实的 JWT (JSON Web Token)
     return { 
         success: true, 
         data: { 
