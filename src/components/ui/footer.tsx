@@ -31,10 +31,10 @@ function StackedCircularFooter() {
 
           <nav className="mb-8 flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-2 text-sm sm:text-base">
             <Link href="/" className="text-gray-400 hover:text-white">Apex</Link>
-            <Link href="/about" className="text-gray-400 hover:text-white">留学</Link>
-            <Link href="/projects" className="text-gray-400 hover:text-white">医疗</Link>
-            <Link href="/services" className="text-gray-400 hover:text-white">企业服务</Link>
-            <Link href="/contact" className="text-gray-400 hover:text-white">敬请期待</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">留学</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">医疗</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">企业服务</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">敬请期待</Link>
           </nav>
           
           <div className="mb-8 w-full max-w-md px-4">
