@@ -176,6 +176,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
             alert(`微信登录检查失败: ${result.message}`);
         }
     } catch (error) {
+        console.error("检查微信用户时发生错误:", error); // 修正: 使用 error 变量
         alert("检查微信用户时发生错误，请稍后再试。");
     } finally {
         setIsCheckingWechat(false);
