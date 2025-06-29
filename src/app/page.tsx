@@ -1,8 +1,8 @@
 "use client";
 
-import React, { 
-    useRef, 
-    useEffect, 
+import React, {
+    useRef,
+    useEffect,
     useState,
     useMemo
 } from 'react';
@@ -13,95 +13,37 @@ import * as THREE from 'three';
 import {
   motion,
   AnimatePresence,
-  useScroll, 
-  useTransform, 
-  useVelocity, 
+  useScroll,
+  useTransform,
+  useVelocity,
   useSpring
 } from "framer-motion";
 import { Transition } from "@headlessui/react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Slot } from "@radix-ui/react-slot";
-import * as LabelPrimitive from "@radix-ui/react-label";
-import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "@radix-ui/react-slot"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import { cva, type VariantProps } from "class-variance-authority"
 import { Facebook, Instagram, Linkedin, Twitter, Menu, MoveRight, X } from "lucide-react";
 import { ChevronDownIcon } from '@radix-ui/react-icons';
 import * as NavigationMenuPrimitive from '@radix-ui/react-navigation-menu';
 
+
 // ============================================================================
-// 辅助函数 (cn)
+// 辅助函数 (来自 shadcn/ui)
 // ============================================================================
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 // ============================================================================
-// START: 从 header.tsx 拷贝并整合的代码
+// 1. 页眉 (Header) 组件及其依赖项
 // ============================================================================
 
-// ============================================================================
-// 1. 页眉的依赖组件和样式
-// ============================================================================
-
-// 自定义 Link 组件 (已重命名为 CustomLink 以避免与 next/link 冲突)
-interface CustomLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
-  href: string;
-  children: React.ReactNode;
-}
-
-const CustomLink = ({ href, children, ...props }: CustomLinkProps) => {
-    return <a href={href} {...props}>{children}</a>;
-};
-CustomLink.displayName = "CustomLink";
-
-// 页眉的 Button 组件 (基于 CVA)
-const buttonVariantsHeader = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
-  {
-    variants: {
-      variant: {
-        default: "bg-white text-black hover:bg-white/90",
-        destructive: "bg-red-500 text-slate-50 hover:bg-red-500/90",
-        outline: "border border-slate-700 bg-transparent hover:bg-slate-800",
-        secondary: "bg-slate-100 text-slate-900 hover:bg-slate-100/80",
-        ghost: "hover:bg-slate-800 hover:text-slate-50",
-        link: "text-slate-900 underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
+const navigationMenuTriggerStyle = cva(
+  "group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 transition-colors hover:bg-slate-800 hover:text-white focus:bg-slate-800 focus:text-white focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-slate-800/50 data-[state=open]:bg-slate-800/50"
 );
 
-export interface ButtonPropsHeader
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariantsHeader> {
-  asChild?: boolean
-}
-
-const ButtonHeader = React.forwardRef<HTMLButtonElement, ButtonPropsHeader>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button";
-    return (
-      <Comp
-        className={cn(buttonVariantsHeader({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    );
-  }
-);
-ButtonHeader.displayName = "ButtonHeader";
-
-// NavigationMenu 组件 (基于 Radix UI)
 const NavigationMenu = React.forwardRef<
   React.ElementRef<typeof NavigationMenuPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Root>
@@ -138,10 +80,6 @@ NavigationMenuList.displayName = NavigationMenuPrimitive.List.displayName;
 const NavigationMenuItem = NavigationMenuPrimitive.Item;
 NavigationMenuItem.displayName = "NavigationMenuItem";
 
-const navigationMenuTriggerStyle = cva(
-  "group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 transition-colors hover:bg-slate-800 hover:text-white focus:bg-slate-800 focus:text-white focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-slate-800/50 data-[state=open]:bg-slate-800/50"
-);
-
 const NavigationMenuTrigger = React.forwardRef<
   React.ElementRef<typeof NavigationMenuPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Trigger>
@@ -175,14 +113,7 @@ const NavigationMenuContent = React.forwardRef<
 ));
 NavigationMenuContent.displayName = NavigationMenuPrimitive.Content.displayName;
 
-const NavigationMenuLink = React.forwardRef<
-    React.ElementRef<'a'>,
-    React.ComponentPropsWithoutRef<'a'> & { asChild?: boolean }
->(({ className, asChild, ...props }, ref) => {
-    const Comp = asChild ? Slot : 'a';
-    return <Comp ref={ref} className={cn("focus:shadow-md", className)} {...props} />;
-});
-NavigationMenuLink.displayName = 'NavigationMenuLink';
+const NavigationMenuLink = NavigationMenuPrimitive.Link;
 
 const NavigationMenuViewport = React.forwardRef<
   React.ElementRef<typeof NavigationMenuPrimitive.Viewport>,
@@ -201,9 +132,6 @@ const NavigationMenuViewport = React.forwardRef<
 ));
 NavigationMenuViewport.displayName = NavigationMenuPrimitive.Viewport.displayName;
 
-// ============================================================================
-// 2. 主页眉组件 (AppNavigationBar)
-// ============================================================================
 const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick: () => void; onProtectedLinkClick: (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => void; }) => {
     const navigationItems = [
         { title: "主页", href: "/", description: "" },
@@ -239,9 +167,9 @@ const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick
                                 <NavigationMenuItem key={item.title}>
                                     {item.href ? (
                                         <NavigationMenuLink asChild>
-                                            <CustomLink href={item.href}>
-                                                <ButtonHeader variant="ghost" className="text-base md:text-lg">{item.title}</ButtonHeader>
-                                            </CustomLink>
+                                            <Link href={item.href} className={cn(navigationMenuTriggerStyle(), "text-base md:text-lg")}>
+                                                {item.title}
+                                            </Link>
                                         </NavigationMenuLink>
                                     ) : (
                                         <>
@@ -257,24 +185,24 @@ const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick
                                                                 {item.description}
                                                             </p>
                                                         </div>
-                                                        <CustomLink href="#">
-                                                            <ButtonHeader size="sm" className="mt-10 text-base md:text-lg" variant="outline">
+                                                        <Link href="#">
+                                                            <Button size="sm" className="mt-10 text-base md:text-lg" variant="outline">
                                                                 商业洞察
-                                                            </ButtonHeader>
-                                                        </CustomLink>
+                                                            </Button>
+                                                        </Link>
                                                     </div>
                                                     <div className="flex flex-col text-base md:text-lg h-full justify-end">
                                                         {item.items?.map((subItem) => (
-                                                            <NavigationMenuLink asChild key={subItem.title}>
-                                                                <a
-                                                                    href={subItem.href}
-                                                                    onClick={(e) => onProtectedLinkClick(e, subItem.href)}
-                                                                    className="flex flex-row justify-between items-center hover:bg-slate-800 py-2 px-4 rounded"
-                                                                >
-                                                                    <span>{subItem.title}</span>
-                                                                    <MoveRight className="w-4 h-4 text-neutral-400" />
-                                                                </a>
-                                                            </NavigationMenuLink>
+                                                          <NavigationMenuLink asChild key={subItem.title}>
+                                                              <Link
+                                                                  href={subItem.href}
+                                                                  onClick={(e) => onProtectedLinkClick(e as any, subItem.href)}
+                                                                  className="flex flex-row justify-between items-center hover:bg-slate-800 py-2 px-4 rounded"
+                                                              >
+                                                                  <span>{subItem.title}</span>
+                                                                  <MoveRight className="w-4 h-4 text-neutral-400" />
+                                                              </Link>
+                                                          </NavigationMenuLink>
                                                         ))}
                                                     </div>
                                                 </div>
@@ -287,38 +215,38 @@ const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick
                     </NavigationMenu>
                 </div>
                 <div className="flex lg:justify-center">
-                    <CustomLink href="/" className="text-3xl md:text-[40px] font-semibold leading-tight md:leading-[53px]">
+                    <Link href="/" className="text-3xl md:text-[40px] font-semibold leading-tight md:leading-[53px]">
                       Apex
-                    </CustomLink>
+                    </Link>
                 </div>
                 <div className="flex justify-end w-full gap-2 md:gap-4">
-                    <ButtonHeader variant="ghost" className="hidden md:inline text-base md:text-lg">
+                    <Button variant="ghost" className="hidden md:inline text-base md:text-lg">
                         欢迎您！
-                    </ButtonHeader>
+                    </Button>
                     <div className="border-r border-slate-700 hidden md:inline"></div>
-                    <ButtonHeader variant="outline" onClick={onLoginClick} className="text-base md:text-lg">提交</ButtonHeader>
-                    <CustomLink href="#">
-                        <ButtonHeader variant="default" className="text-base md:text-lg">商业洞察</ButtonHeader>
-                    </CustomLink>
+                    <Button variant="outline" onClick={onLoginClick} className="text-base md:text-lg">提交</Button>
+                    <Link href="#">
+                        <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
+                    </Link>
                 </div>
                 <div className="flex w-12 shrink lg:hidden items-end justify-end">
-                    <ButtonHeader variant="ghost" onClick={() => setOpen(!isOpen)}>
+                    <Button variant="ghost" onClick={() => setOpen(!isOpen)}>
                         {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                    </ButtonHeader>
+                    </Button>
                     {isOpen && (
                         <div className="absolute top-20 border-t border-slate-800 flex flex-col w-full right-0 bg-black shadow-lg py-4 container gap-8">
                             {navigationItems.map((item) => (
                                 <div key={item.title}>
                                     <div className="flex flex-col gap-2">
                                         {item.href ? (
-                                            <a
+                                            <Link
                                                 href={item.href}
                                                 className="flex justify-between items-center"
                                                 onClick={() => setOpen(false)}
                                             >
                                                 <span className="text-base md:text-lg">{item.title}</span>
                                                 <MoveRight className="w-4 h-4 stroke-1 text-neutral-400" />
-                                            </a>
+                                            </Link>
                                         ) : (
                                             <p className="font-semibold text-base md:text-lg">{item.title}</p>
                                         )}
@@ -351,13 +279,9 @@ const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick
 }
 AppNavigationBar.displayName = "AppNavigationBar";
 
-// ============================================================================
-// END: 从 header.tsx 拷贝并整合的代码
-// ============================================================================
-
 
 // ============================================================================
-// 1. 开场动画组件 (无修改)
+// 2. 开场动画组件 (无修改)
 // ============================================================================
 
 const createGlowTexture = () => {
@@ -642,7 +566,7 @@ OpeningAnimation.displayName = "OpeningAnimation";
 
 
 // ============================================================================
-// 2. 主场景组件 (无修改)
+// 3. 主场景组件 (无修改)
 // ============================================================================
 
 const Box = ({ position, rotation }: { position: [number, number, number], rotation: [number, number, number] }) => {
@@ -964,7 +888,7 @@ const Testimonials = () => {
 };
 
 // ============================================================================
-// 3. 第二页组件 (无修改)
+// 4. 第二页组件 (已修改)
 // ============================================================================
 
 interface Tab {
@@ -1113,8 +1037,6 @@ const AnimatedTabs = ({
   );
 };
 
-const Header = () => null;
-
 const Title = () => (
     <div className="px-4 text-center md:text-left"> 
       <h1 className="text-4xl font-bold sm:text-5xl md:text-7xl">
@@ -1156,8 +1078,6 @@ const VelocityScroll = () => {
       className={cn("relative h-[400vh] md:h-[600vh] lg:h-[800vh] text-white")}
     >
       <div className="sticky top-0 left-0 right-0 h-screen overflow-hidden">
-        <Header />
-        
         <div className="absolute inset-0 flex flex-col md:flex-row w-full items-center justify-center md:justify-between gap-8 md:gap-0 px-4 sm:px-8 md:px-16 lg:px-24">
             <Title />
             <AnimatedTabs />
@@ -1182,23 +1102,20 @@ const VelocityScroll = () => {
 };
 
 // ============================================================================
-// 4. 页脚组件 (已修改)
+// 5. 页脚及表单组件
 // ============================================================================
 
-const footerButtonVariants = cva( // Renamed from buttonVariants to avoid conflict
+const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-        secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        default: "bg-white text-black hover:bg-white/90",
+        destructive: "bg-red-500 text-slate-50 hover:bg-red-500/90",
+        outline: "border border-slate-700 bg-transparent hover:bg-slate-800",
+        secondary: "bg-slate-100 text-slate-900 hover:bg-slate-100/80",
+        ghost: "hover:bg-slate-800 hover:text-slate-50",
+        link: "text-slate-50 underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -1211,28 +1128,28 @@ const footerButtonVariants = cva( // Renamed from buttonVariants to avoid confli
       variant: "default",
       size: "default",
     },
-  },
-)
+  }
+);
 
-export interface FooterButtonProps // Renamed from ButtonProps
+export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof footerButtonVariants> {
+    VariantProps<typeof buttonVariants> {
   asChild?: boolean
 }
 
-const FooterButton = React.forwardRef<HTMLButtonElement, FooterButtonProps>( // Renamed from Button
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
-        className={cn(footerButtonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
       />
     )
   },
 )
-FooterButton.displayName = "FooterButton"
+Button.displayName = "Button"
 
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement>
@@ -1311,7 +1228,7 @@ function StackedCircularFooter() {
                   className="rounded-full bg-black/50 border-gray-600 text-white placeholder-gray-400 focus:ring-white" 
                 />
               </div>
-              <FooterButton type="submit" className="rounded-full bg-white text-black hover:bg-gray-200 w-full sm:w-auto">提交</FooterButton>
+              <Button type="submit" className="rounded-full bg-white text-black hover:bg-gray-200 w-full sm:w-auto">提交</Button>
             </form>
           </div>
           
@@ -1327,7 +1244,7 @@ function StackedCircularFooter() {
 }
 
 // ============================================================================
-// 5. 主页面组件 (已修改)
+// 6. 主页面组件 (已修改)
 // ============================================================================
 
 export default function Page() {
@@ -1345,23 +1262,25 @@ export default function Page() {
         setMainContentVisible(true);
     };
 
-    // 为页眉组件提供事件处理函数
     const handleLoginClick = () => {
-      // 在真实应用中，这里会触发登录逻辑
-      console.log("Login button clicked!");
+        // 在此处处理登录逻辑
+        console.log("Login button clicked");
     };
 
     const handleProtectedLinkClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => {
-      // 在真实应用中，这里会检查用户认证状态
-      e.preventDefault();
-      console.log(`Protected link clicked! Prevented navigation to: ${href}`);
+        // 在此处处理受保护链接的点击逻辑
+        e.preventDefault();
+        console.log(`Protected link to ${href} clicked`);
+        // 示例: 检查认证状态，如果未登录则跳转登录页
+        // if (!isAuthenticated) {
+        //   router.push('/login');
+        // } else {
+        //   window.location.href = href;
+        // }
     };
 
     return (
         <div className="relative w-full bg-black text-white">
-            {/* 已安装的页眉组件 */}
-            <AppNavigationBar onLoginClick={handleLoginClick} onProtectedLinkClick={handleProtectedLinkClick} />
-            
             <AnimatePresence>
                 {isClient && !mainContentVisible &&
                     <OpeningAnimation onAnimationFinish={handleAnimationFinish} />
@@ -1369,13 +1288,19 @@ export default function Page() {
             </AnimatePresence>
             
             <motion.div 
-                className="relative z-10"
+                className="relative"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: mainContentVisible ? 1 : 0 }}
                 transition={{ duration: 1.5, ease: "easeInOut" }}
             >
                 {isClient && (
                     <>
+                        {/* Layer 0: Header */}
+                        <AppNavigationBar 
+                            onLoginClick={handleLoginClick}
+                            onProtectedLinkClick={handleProtectedLinkClick}
+                        />
+
                         {/* Layer 1: Fixed Background */}
                         <div className="fixed inset-0 z-0">
                            <MainScene />
