@@ -1,7 +1,7 @@
 // src/components/ui/header.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Menu, MoveRight, X } from "lucide-react";
 import {
@@ -55,8 +55,24 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
     ];
 
     const [isOpen, setOpen] = useState(false);
-    // --- 新增: 用于控制自定义下拉菜单的状态 ---
+    // --- 修改: 用于控制自定义下拉菜单的状态 ---
     const [isDropdownOpen, setDropdownOpen] = useState(false);
+    // --- 新增: 用于获取下拉菜单容器的引用 ---
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // --- 新增: 处理点击菜单外部关闭菜单的逻辑 ---
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [dropdownRef]);
+
 
     return (
         <header className="w-full z-50 fixed top-0 left-0 bg-black/50 backdrop-blur-sm">
@@ -120,31 +136,31 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                       Apex
                     </Link>
                 </div>
-                {/* --- 根据登录状态显示不同内容 (已修改为手动实现下拉菜单) --- */}
+                {/* --- 根据登录状态显示不同内容 (已修改为点击触发) --- */}
                 <div className="flex justify-end w-full gap-2 md:gap-4 items-center">
                     {isAuthenticated && user ? (
                         <>
-                            {/* --- 手动实现的下拉菜单 --- */}
-                            <div 
-                                className="relative hidden md:inline-block"
-                                onMouseEnter={() => setDropdownOpen(true)}
-                                onMouseLeave={() => setDropdownOpen(false)}
-                            >
-                                <Button variant="ghost" className="text-base md:text-lg hover:bg-slate-800">
+                            {/* --- 手动实现的下拉菜单 (点击触发) --- */}
+                            <div ref={dropdownRef} className="relative hidden md:inline-block">
+                                <Button 
+                                    variant="ghost" 
+                                    className="text-base md:text-lg hover:bg-slate-800"
+                                    onClick={() => setDropdownOpen(!isDropdownOpen)}
+                                >
                                     欢迎, {user.name}!
                                 </Button>
                                 {isDropdownOpen && (
-                                    <div className="absolute right-0 mt-2 w-40 bg-black border border-slate-700 rounded-md shadow-lg py-1 z-50">
-                                        <Link href="/profile" className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-slate-800">
+                                    <div className="absolute right-0 mt-2 w-48 bg-black border border-slate-700 rounded-md shadow-lg py-2 z-50">
+                                        <Link href="/profile" className="block w-full text-left px-4 py-3 text-base md:text-lg text-white hover:bg-slate-800 transition-colors duration-200">
                                             我的资料
                                         </Link>
-                                        <Link href="/application-status" className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-slate-800">
+                                        <Link href="/application-status" className="block w-full text-left px-4 py-3 text-base md:text-lg text-white hover:bg-slate-800 transition-colors duration-200">
                                             申请进度
                                         </Link>
-                                        <div className="border-t border-slate-700 my-1"></div>
+                                        <div className="border-t border-slate-700 my-2"></div>
                                         <button
-                                            onClick={onLogoutClick}
-                                            className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-slate-800"
+                                            onClick={() => { onLogoutClick(); setDropdownOpen(false); }}
+                                            className="block w-full text-left px-4 py-3 text-base md:text-lg text-white hover:bg-slate-800 transition-colors duration-200"
                                         >
                                             退出
                                         </button>
@@ -152,7 +168,6 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                 )}
                             </div>
                             
-                            {/* 将原先的“退出”按钮替换为“商业洞察” */}
                             <Link href="/business-insights">
                                 <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
                             </Link>
