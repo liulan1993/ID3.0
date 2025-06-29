@@ -16,7 +16,7 @@ import {
 import { Transition } from "@headlessui/react"; // 为 testimonials 组件添加
 
 // ============================================================================
-// 1. 开场动画组件 (已按要求修改)
+// 1. 开场动画组件 (无修改)
 // ============================================================================
 
 const createGlowTexture = () => {
@@ -515,8 +515,11 @@ const HomePageTitle = () => {
     );
 };
 
+// ============================================================================
 // 用户评价组件 (已按要求修改)
+// ============================================================================
 interface Testimonial {
+  // img 字段不再需要，但保留接口以减少代码改动
   img: string;
   quote: string;
   role: string;
@@ -524,18 +527,18 @@ interface Testimonial {
 
 const testimonialsData: Testimonial[] = [
     {
-      img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-      quote: "这个引擎的",
+      img: '',
+      quote: "这个引擎的渲染效果令人惊叹，极大地提升了我们项目的视觉品质。",
       role: '首席美术师',
     },
     {
-      img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-      quote: "无与伦比的性",
+      img: '',
+      quote: "无与伦比的性能和稳定性，让开发过程如丝般顺滑。",
       role: '技术总监',
     },
     {
-      img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
-      quote: "工具链非常",
+      img: '',
+      quote: "工具链非常完善且易于上手，文档清晰，节省了大量的学习成本。",
       role: '独立开发者',
     },
 ];
@@ -556,36 +559,35 @@ const Testimonials = () => {
   }, [active, autorotate]);
 
   return (
-    <div className="w-full max-w-3xl mx-auto text-center">
-      <div className="relative h-28">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[480px] h-[480px] pointer-events-none">
-          <div className="h-40 [mask-image:_linear-gradient(0deg,transparent,theme(colors.white)_20%,theme(colors.white))]">
-            {testimonialsData.map((testimonial, index) => (
-              <Transition
-                as="div"
-                key={index}
-                show={active === index}
-                className="absolute inset-0 -z-10 h-full"
-                enter="transition ease-[cubic-bezier(0.68,-0.3,0.32,1)] duration-700 order-first"
-                enterFrom="opacity-0 -rotate-[60deg]"
-                enterTo="opacity-100 rotate-0"
-                leave="transition ease-[cubic-bezier(0.68,-0.3,0.32,1)] duration-700"
-                leaveFrom="opacity-100 rotate-0"
-                leaveTo="opacity-0 rotate-[60deg]"
-              >
-                <Image
-                  className="relative left-1/2 top-8 -translate-x-1/2 rounded-full"
-                  src={testimonial.img}
-                  width={80}
-                  height={80}
-                  alt={testimonial.role}
-                />
-              </Transition>
-            ))}
-          </div>
+    <div className="w-full max-w-3xl mx-auto text-center flex flex-col items-center">
+      {/* 指令: 修改光球特效 */}
+      <div className="mb-8">
+        <div className="relative w-24 h-24 flex items-center justify-center">
+            {/* 1. 静态哑光金光环 */}
+            <div className="absolute w-24 h-24 rounded-full border-2 border-amber-600/50"></div>
+
+            {/* 2. 动态金色扫光动画 */}
+            <motion.div
+                className="absolute w-full h-full"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 4, ease: "linear", repeat: Infinity }}
+            >
+                <div className="absolute w-full h-full rounded-full"
+                     style={{
+                        background: 'conic-gradient(from 0deg, transparent 0% 70%, #FDE68A 95%, transparent 100%)'
+                     }}
+                ></div>
+            </motion.div>
+
+            {/* 3. 白色基底 */}
+            <div className="absolute w-20 h-20 rounded-full bg-white shadow-[0_0_30px_10px_rgba(255,255,255,0.5)]"></div>
+            
+            {/* 4. 内部渐变色彩层，添加闪烁动画 */}
+            <div className="absolute w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 via-blue-400 to-cyan-300 animate-pulse"></div>
         </div>
       </div>
-      <div className="mb-5">
+      
+      <div className="mb-5 w-full">
         <div className="relative grid min-h-[6rem] items-center">
           {testimonialsData.map((testimonial, index) => (
             <Transition
@@ -600,22 +602,23 @@ const Testimonials = () => {
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <div className="text-xl text-slate-200">
-                {testimonial.quote}
+              <div className="text-lg md:text-2xl text-slate-200 px-4">
+                "{testimonial.quote}"
               </div>
             </Transition>
           ))}
         </div>
       </div>
-      {/* 指令1: 修改字体大小和格式 */}
+      
+      {/* 指令: 修改按钮样式 */}
       <div className="flex flex-wrap justify-center">
         {testimonialsData.map((testimonial, index) => (
           <button
             key={index}
-            className={`m-4 cursor-pointer text-xl transition-colors duration-150 focus-visible:outline-none ${
+            className={`m-2 px-6 py-2 rounded-full text-base font-medium transition-all duration-300 focus-visible:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-sky-500 ${
               active === index
-                ? "text-white"
-                : "text-slate-500 hover:text-white"
+                ? "bg-white text-black shadow-md"
+                : "bg-transparent text-white hover:bg-white hover:text-black"
             }`}
             onClick={() => {
               setActive(index);
@@ -629,6 +632,7 @@ const Testimonials = () => {
     </div>
   );
 };
+
 
 // ============================================================================
 // 3. 主页面组件 (无修改)
