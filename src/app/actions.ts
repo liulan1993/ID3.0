@@ -1,6 +1,6 @@
 /*
  * 文件: src/app/actions.ts
- * 描述: 服务器动作文件，已集成 SendGrid 和验证逻辑。
+ * 描述: 服务器动作文件，已修正邮箱地址大小写和空格问题。
  */
 'use server';
 
@@ -73,11 +73,9 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
 
 // --- 邮件发送函数 ---
 export async function sendVerificationEmail(email: string) {
-  // 从环境变量中获取 SendGrid 配置
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
-  // 检查环境变量是否都已配置
   if (!apiKey || !fromEmail) {
     console.error('SendGrid API Key 或发件人邮箱 (SENDGRID_FROM_EMAIL) 未配置。');
     return { success: false, message: '邮件服务暂时不可用。' };
@@ -85,15 +83,16 @@ export async function sendVerificationEmail(email: string) {
   sgMail.setApiKey(apiKey);
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const verificationKey = `verification:${email.trim().toLowerCase()}`; // 修正：统一使用小写并去除空格
+  // 修正: 统一将邮箱地址处理为小写并去除首尾空格
+  const normalizedEmail = email.trim().toLowerCase();
+  const verificationKey = `verification:${normalizedEmail}`;
 
   try {
-    // 将验证码存入 KV，有效期10分钟
     await kv.set(verificationKey, code, { ex: 600 }); 
 
     const msg = {
       to: email,
-      from: fromEmail, // 使用环境变量作为发件人
+      from: fromEmail,
       subject: '您的验证码 - Apex',
       text: `您的 Apex 网站验证码是: ${code}。该验证码将在10分钟后失效。`,
       html: `<strong>您的 Apex 网站验证码是: ${code}</strong>。该验证码将在10分钟后失效。`,
@@ -101,7 +100,7 @@ export async function sendVerificationEmail(email: string) {
 
     await sgMail.send(msg);
 
-    console.log(`验证码邮件已发送至: ${email}`);
+    console.log(`验证码邮件已发送至: ${email} (使用 Key: ${verificationKey})`);
     return { success: true };
 
   } catch (error) {
@@ -119,20 +118,15 @@ export async function registerUser(userInfo: RegistrationInfo) {
       graphicalCaptchaAnswer, graphicalCaptchaInput, emailVerificationCode 
     } = userInfo;
     
-    // 验证图形验证码
+    // 修正: 统一将邮箱地址处理为小写并去除首尾空格
+    const normalizedEmail = email.trim().toLowerCase();
+    
     if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
       throw new Error('图形验证码不正确。');
     }
 
-    // 验证邮箱验证码
-    const verificationKey = `verification:${email.trim().toLowerCase()}`; // 修正：统一使用小写并去除空格
+    const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string>(verificationKey);
-    
-    // --- 新增: 详细日志以供调试 ---
-    console.log(`[调试] 尝试验证 Key: ${verificationKey}`);
-    console.log(`[调试] 用户输入的验证码: ${emailVerificationCode}`);
-    console.log(`[调试] 数据库中存储的验证码: ${storedCode}`);
-    // --- 日志结束 ---
 
     if (!storedCode) {
       throw new Error('邮箱验证码已过期，请重新发送。');
@@ -141,27 +135,25 @@ export async function registerUser(userInfo: RegistrationInfo) {
       throw new Error('邮箱验证码不正确。');
     }
 
-    // 检查用户是否已存在
-    const userKey = `user:${email.trim().toLowerCase()}`;
+    const userKey = `user:${normalizedEmail}`;
     const existingUser = await kv.get(userKey);
     if (existingUser) {
       throw new Error('该邮箱地址已被注册。');
     }
 
-    // 创建用户
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const newUser = {
       name,
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail, // 存储处理过的邮箱地址
       phone: phone || '',
       hashedPassword,
       createdAt: new Date().toISOString(),
     };
     await kv.set(userKey, JSON.stringify(newUser));
-    await kv.del(verificationKey); // 删除已用过的验证码
+    await kv.del(verificationKey);
 
-    console.log(`新用户已成功注册并验证: ${email}`);
+    console.log(`新用户已成功注册并验证: ${normalizedEmail}`);
     return { success: true };
 
   } catch (error) {
@@ -174,7 +166,9 @@ export async function registerUser(userInfo: RegistrationInfo) {
 export async function loginUser(credentials: UserCredentials) {
   try {
     const { email, password } = credentials;
-    const userKey = `user:${email.trim().toLowerCase()}`;
+    // 修正: 统一将邮箱地址处理为小写并去除首尾空格
+    const normalizedEmail = email.trim().toLowerCase();
+    const userKey = `user:${normalizedEmail}`;
     const storedUser = await kv.get(userKey) as { name: string; email: string; hashedPassword: string; } | null;
 
     if (!storedUser) {
@@ -190,7 +184,7 @@ export async function loginUser(credentials: UserCredentials) {
       email: storedUser.email,
     };
 
-    console.log(`用户登录成功: ${email}`);
+    console.log(`用户登录成功: ${normalizedEmail}`);
     return { 
         success: true, 
         data: { 
