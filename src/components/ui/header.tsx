@@ -13,6 +13,13 @@ import {
     NavigationMenuTrigger,
     navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -22,7 +29,7 @@ interface User {
   email: string;
 }
 
-// --- 修正: 定义 Props 类型，添加 user 属性 ---
+// --- Props 类型定义 ---
 interface AppNavigationBarProps {
     isAuthenticated: boolean;
     user: User | null;
@@ -118,17 +125,37 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                       Apex
                     </Link>
                 </div>
-                {/* --- 根据登录状态显示不同内容 --- */}
-                <div className="flex justify-end w-full gap-2 md:gap-4">
+                {/* --- 根据登录状态显示不同内容 (已修改) --- */}
+                <div className="flex justify-end w-full gap-2 md:gap-4 items-center">
                     {isAuthenticated && user ? (
                         <>
-                            <Button variant="ghost" className="hidden md:inline text-base md:text-lg">
-                                欢迎, {user.name}!
-                            </Button>
-                            <div className="border-r border-slate-700 hidden md:inline"></div>
-                            <Button variant="outline" onClick={onLogoutClick} className="text-base md:text-lg">
-                                退出
-                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" className="hidden md:inline text-base md:text-lg hover:bg-slate-800">
+                                        欢迎, {user.name}!
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="w-40 bg-black border-slate-700 text-white" align="end">
+                                    <DropdownMenuItem className="focus:bg-slate-800 focus:text-white cursor-pointer">
+                                        <Link href="/profile" className="w-full">我的资料</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="focus:bg-slate-800 focus:text-white cursor-pointer">
+                                        <Link href="/application-status" className="w-full">申请进度</Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="bg-slate-700" />
+                                    <DropdownMenuItem 
+                                        onClick={onLogoutClick} 
+                                        className="focus:bg-slate-800 focus:text-white cursor-pointer"
+                                    >
+                                        退出
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            
+                            {/* 将原先的“退出”按钮替换为“商业洞察” */}
+                            <Link href="/business-insights">
+                                <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
+                            </Link>
                         </>
                     ) : (
                         <>
@@ -141,7 +168,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                         </>
                     )}
                 </div>
-                {/* --- 移动端菜单 --- */}
+                {/* --- 移动端菜单 (已修改) --- */}
                 <div className="flex w-12 shrink lg:hidden items-end justify-end">
                     <Button variant="ghost" onClick={() => setOpen(!isOpen)}>
                         {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -183,11 +210,19 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                     </div>
                                 </div>
                             ))}
+                            {/* --- 移动端登录/退出/用户信息 (已修改) --- */}
                             <div className="border-t border-slate-800 pt-4">
-                                {isAuthenticated ? (
-                                    <Button variant="outline" onClick={onLogoutClick} className="w-full">
-                                        退出登录
-                                    </Button>
+                                {isAuthenticated && user ? (
+                                    <div className='flex flex-col gap-2 text-left'>
+                                        <p className="font-semibold text-center text-base md:text-lg text-neutral-300 py-2">欢迎, {user.name}!</p>
+                                        <div className="border-t border-slate-700"></div>
+                                        <Link href="/profile" className="text-neutral-300 text-base md:text-lg p-2 hover:bg-slate-800 rounded" onClick={() => setOpen(false)}>我的资料</Link>
+                                        <Link href="/application-status" className="text-neutral-300 text-base md:text-lg p-2 hover:bg-slate-800 rounded" onClick={() => setOpen(false)}>申请进度</Link>
+                                        <div className="border-t border-slate-700"></div>
+                                        <Button variant="outline" onClick={() => { onLogoutClick(); setOpen(false); }} className="w-full mt-2">
+                                            退出登录
+                                        </Button>
+                                    </div>
                                 ) : (
                                     <Button variant="outline" onClick={() => { onLoginClick(); setOpen(false); }} className="w-full">
                                         登录
