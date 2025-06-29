@@ -55,7 +55,7 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
   return (
     <div className="relative group">
       <div
-        className="relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out"
+        className="relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out pt-2" // 添加 pt-2 为标签留出空间
         onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}
       >
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white transition-colors duration-200 group-focus-within:text-white">
@@ -67,11 +67,11 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
           onChange={onChange}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-500 focus:outline-none ${children ? 'pr-32' : 'pr-12'}`}
-          placeholder="" // Placeholder is handled by the animated label
+          className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-transparent focus:outline-none ${children ? 'pr-32' : 'pr-12'}`}
+          placeholder={placeholder} // 保留 placeholder 以便辅助功能读取
         />
-        {/* 修复 #1: 通过给 Label 添加背景和调整位置来防止文字重叠 */}
-        <label className={`absolute transition-all duration-200 ease-in-out pointer-events-none ${isFocused || value ? 'left-9 top-2 text-xs font-medium bg-black px-1 text-white' : 'left-10 top-1/2 -translate-y-1/2 text-base text-gray-400'}`}>
+        {/* 修复：调整标签的动画和定位以避免重叠 */}
+        <label className={`absolute transition-all duration-200 ease-in-out pointer-events-none ${isFocused || value ? 'left-9 top-0 -translate-y-1/2 text-xs font-medium bg-black px-1 text-white' : 'left-10 top-1/2 -translate-y-1/2 text-base text-gray-400'}`}>
           {placeholder}
         </label>
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
@@ -198,7 +198,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose }) => {
   };
 
   return (
-    // 修复 #2: 修改颜色主题
     <div className="relative w-full max-w-md bg-black border border-gray-800 rounded-2xl p-8 shadow-2xl shadow-white/5 font-sans">
         <button 
             onClick={onClose} 
