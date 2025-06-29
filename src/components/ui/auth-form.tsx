@@ -16,7 +16,7 @@ interface LoginSuccessData {
 
 // --- 组件定义 ---
 const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 14.85c-.9-1.3-2.43-2.15-4.13-2.15-2.25 0-4.18 1.4-4.87 3.32" /><path d="M10.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" /><path d="M14.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" /><path d="M5.01 15.39c-.58 2.5-1.92 4.4-3.51 5.61.32-.13.62-.3.9-.51s.55-.45.8-.73c.25-.28.48-.6.68-.95.2-.35.36-.73.48-1.14.12-.4.2-.84.24-1.3" /><path d="M20.99 15.39c.58 2.5 1.92 4.4 3.51 5.61-.32-.13.62-.3-.9-.51s-.55-.45-.8-.73c.25-.28-.48-.6-.68-.95.2-.35-.36-.73-.48-1.14-.12-.4-.2-.84-.24-1.3" /><path d="M9.13 2.89c-5.18 1.85-8.63 7.07-8.63 12.51 0 1.93.39 3.77 1.1 5.43" /><path d="M14.87 2.89c5.18 1.85 8.63 7.07 8.63 12.51 0 1.93-.39 3.77-1.1 5.43" /></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 14.85c-.9-1.3-2.43-2.15-4.13-2.15-2.25 0-4.18 1.4-4.87 3.32" /><path d="M10.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" /><path d="M14.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" /><path d="M5.01 15.39c-.58 2.5-1.92 4.4-3.51 5.61.32-.13.62-.3.9-.51s.55-.45.8-.73c.25-.28.48-.6.68-.95.2-.35.36-.73.48-1.14.12-.4.2-.84.24-1.3" /><path d="M20.99 15.39c.58 2.5 1.92 4.4 3.51 5.61-.32-.13.62-.3-.9-.51s-.55-.45.8-.73c.25-.28-.48-.6-.68-.95.2-.35-.36-.73-.48-1.14-.12-.4-.2-.84-.24-1.3" /><path d="M9.13 2.89c-5.18 1.85-8.63 7.07-8.63 12.51 0 1.93.39 3.77 1.1 5.43" /><path d="M14.87 2.89c5.18 1.85 8.63 7.07 8.63 12.51 0 1.93-.39 3.77-1.1 5.43" /></svg>
 );
 interface FormFieldProps {
   type: string;
@@ -64,6 +64,9 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
   const [isSending, setIsSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isEmailLocked, setIsEmailLocked] = useState(false);
+  // --- 新增: 用于控制二维码弹窗的显示状态 ---
+  const [showQrCode, setShowQrCode] = useState(false);
+
 
   const generateCaptcha = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -146,10 +149,9 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     setIsSubmitting(false);
   };
   
-  // --- 修改: 微信登录处理函数，直接跳转到模拟回调页 ---
+  // --- 修改: 微信登录处理函数，改为弹出二维码窗口 ---
   const handleWechatLogin = () => {
-    // 直接跳转到你的回调页面来触发模拟登录
-    window.location.href = '/auth/wechat/callback';
+    setShowQrCode(true);
   };
 
   const resetRegistrationForm = () => {
@@ -254,6 +256,38 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
             <button type="button" onClick={toggleMode} className="text-white hover:underline font-medium">{isSignUp ? '去登录' : '去注册'}</button>
           </p>
         </div>
+
+        {/* --- 新增: 二维码弹窗 --- */}
+        {showQrCode && (
+            <div 
+                className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                onClick={() => setShowQrCode(false)}
+            >
+                <div 
+                    className="relative bg-gray-900 border border-gray-700 rounded-lg p-8 text-center"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <button 
+                        onClick={() => setShowQrCode(false)} 
+                        className="absolute top-2 right-2 text-gray-500 hover:text-white transition-colors"
+                        aria-label="关闭二维码窗口"
+                    >
+                        <X size={20} />
+                    </button>
+                    <h3 className="text-lg font-semibold text-white mb-4">使用微信扫码登录</h3>
+                    <div className="bg-white p-2 rounded-md inline-block">
+                        {/* 这是一个占位二维码，你可以替换成真实的二维码图片 */}
+                        <img 
+                            src="https://placehold.co/200x200/FFFFFF/000000?text=模拟微信二维码" 
+                            alt="模拟微信登录二维码" 
+                            width={200} 
+                            height={200}
+                        />
+                    </div>
+                    <p className="text-sm text-gray-400 mt-4">这是一个模拟二维码，仅用于开发测试</p>
+                </div>
+            </div>
+        )}
     </div>
   );
 };
