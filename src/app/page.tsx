@@ -24,7 +24,7 @@ import { twMerge } from "tailwind-merge";
 import { Slot } from "@radix-ui/react-slot"
 import * as LabelPrimitive from "@radix-ui/react-label"
 import { cva, type VariantProps } from "class-variance-authority"
-import { Facebook, Instagram, Linkedin, Twitter, Menu, MoveRight, X } from "lucide-react";
+import { Menu, MoveRight, X } from "lucide-react";
 import { ChevronDownIcon } from '@radix-ui/react-icons';
 import * as NavigationMenuPrimitive from '@radix-ui/react-navigation-menu';
 
@@ -196,7 +196,7 @@ const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick
                                                           <NavigationMenuLink asChild key={subItem.title}>
                                                               <Link
                                                                   href={subItem.href}
-                                                                  onClick={(e) => onProtectedLinkClick(e as any, subItem.href)}
+                                                                  onClick={(e) => onProtectedLinkClick(e, subItem.href)}
                                                                   className="flex flex-row justify-between items-center hover:bg-slate-800 py-2 px-4 rounded"
                                                               >
                                                                   <span>{subItem.title}</span>
