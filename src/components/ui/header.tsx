@@ -16,7 +16,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick: () => void; onProtectedLinkClick: (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => void; }) => {
+// --- 修正: 定义 Props 类型，添加缺失的属性 ---
+interface AppNavigationBarProps {
+    isAuthenticated: boolean;
+    onLoginClick: () => void;
+    onLogoutClick: () => void;
+    onProtectedLinkClick: (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => void;
+}
+
+const AppNavigationBar = ({ isAuthenticated, onLoginClick, onLogoutClick, onProtectedLinkClick }: AppNavigationBarProps) => {
     const navigationItems = [
         { title: "主页", href: "/", description: "" },
         {
@@ -103,19 +111,28 @@ const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick
                       Apex
                     </Link>
                 </div>
-                {/* --- 此处是修改的核心 --- */}
+                {/* --- 根据登录状态显示不同内容 --- */}
                 <div className="flex justify-end w-full gap-2 md:gap-4">
-                    <Button variant="ghost" className="hidden md:inline text-base md:text-lg">
-                        欢迎您！
-                    </Button>
-                    <div className="border-r border-slate-700 hidden md:inline"></div>
-                    {/* 确保“登录”按钮没有被 <Link> 标签包裹 */}
-                    <Button variant="outline" onClick={onLoginClick} className="text-base md:text-lg">
-                        登录
-                    </Button>
-                    <Link href="#">
-                        <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
-                    </Link>
+                    {isAuthenticated ? (
+                        <>
+                            <Button variant="ghost" className="hidden md:inline text-base md:text-lg">
+                                欢迎您！
+                            </Button>
+                            <div className="border-r border-slate-700 hidden md:inline"></div>
+                            <Button variant="outline" onClick={onLogoutClick} className="text-base md:text-lg">
+                                退出
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button variant="outline" onClick={onLoginClick} className="text-base md:text-lg">
+                                登录
+                            </Button>
+                            <Link href="#">
+                                <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
+                            </Link>
+                        </>
+                    )}
                 </div>
                 {/* --- 移动端菜单 --- */}
                 <div className="flex w-12 shrink lg:hidden items-end justify-end">
@@ -159,6 +176,18 @@ const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick
                                     </div>
                                 </div>
                             ))}
+                            {/* --- 移动端登录/退出按钮 --- */}
+                            <div className="border-t border-slate-800 pt-4">
+                                {isAuthenticated ? (
+                                    <Button variant="outline" onClick={onLogoutClick} className="w-full">
+                                        退出登录
+                                    </Button>
+                                ) : (
+                                    <Button variant="outline" onClick={() => { onLoginClick(); setOpen(false); }} className="w-full">
+                                        登录
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

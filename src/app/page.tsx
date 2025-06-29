@@ -19,9 +19,20 @@ export default function Page() {
     const [mainContentVisible, setMainContentVisible] = useState(false);
     const [isClient, setIsClient] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    // --- 新增: 登录状态管理 ---
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(null);
 
+    // 检查本地存储中是否已有登录凭证 (例如 Token)
     useEffect(() => {
         setIsClient(true);
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            // 在实际应用中，您应该验证 token 的有效性
+            setIsAuthenticated(true);
+            const userInfo = localStorage.getItem('userInfo');
+            if (userInfo) setUser(JSON.parse(userInfo));
+        }
         if (sessionStorage.getItem('hasVisitedHomePage')) {
             setMainContentVisible(true);
         }
@@ -39,9 +50,36 @@ export default function Page() {
         setIsLoginModalOpen(false);
     };
 
+    // --- 新增: 登录成功处理函数 ---
+    const handleLoginSuccess = (data: any) => {
+        setIsAuthenticated(true);
+        setUser(data.user); // 假设返回的数据中有 user 对象
+        
+        // 将凭证 (token) 和用户信息存储在本地
+        localStorage.setItem('authToken', data.token); // 假设返回的数据中有 token
+        localStorage.setItem('userInfo', JSON.stringify(data.user));
+
+        handleCloseModal(); // 关闭登录窗口
+        alert('登录成功！');
+    };
+
+    // --- 新增: 退出登录处理函数 ---
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        setUser(null);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userInfo');
+        alert('您已成功退出。');
+    };
+
     const handleProtectedLinkClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => {
         e.preventDefault();
-        console.log(`Protected link to ${href} clicked`);
+        if (!isAuthenticated) {
+            alert('请先登录以访问此页面。');
+            handleLoginClick();
+        } else {
+            window.location.href = href;
+        }
     };
 
     return (
@@ -60,8 +98,11 @@ export default function Page() {
             >
                 {isClient && (
                     <>
+                        {/* --- 修改: 传入登录状态和退出函数 --- */}
                         <AppNavigationBar 
+                            isAuthenticated={isAuthenticated}
                             onLoginClick={handleLoginClick}
+                            onLogoutClick={handleLogout}
                             onProtectedLinkClick={handleProtectedLinkClick}
                         />
 
@@ -95,7 +136,6 @@ export default function Page() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        // --- 修改点: 允许模态框滚动 ---
                         className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4 pt-8 md:pt-16"
                         onClick={handleCloseModal}
                     >
@@ -107,7 +147,8 @@ export default function Page() {
                             onClick={(e) => e.stopPropagation()}
                             className="relative"
                         >
-                            <AuthFormComponent onClose={handleCloseModal} />
+                            {/* --- 修改: 传入登录成功回调 --- */}
+                            <AuthFormComponent onClose={handleCloseModal} onLoginSuccess={handleLoginSuccess} />
                         </motion.div>
                     </motion.div>
                 )}

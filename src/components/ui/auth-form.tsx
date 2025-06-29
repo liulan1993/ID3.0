@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X } from 'lucide-react';
+import { loginUser, registerUser } from "@/app/actions";
 
 // --- 自定义微信图标 ---
 const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
@@ -25,7 +26,7 @@ const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20
   </svg>
 );
 
-// --- 动画输入框组件 (修改为标准输入框) ---
+// --- 标准输入框组件 ---
 interface FormFieldProps {
   type: string;
   placeholder: string;
@@ -52,7 +53,6 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
   };
 
   return (
-    // 修复：移除所有浮动标签逻辑，回归标准输入框
     <div className="relative group">
       <div
         className="relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out"
@@ -65,7 +65,6 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
           type={type}
           value={value}
           onChange={onChange}
-          // 使用标准 placeholder，不再有动画
           className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${children ? 'pr-32' : 'pr-12'}`}
           placeholder={placeholder}
         />
@@ -95,11 +94,13 @@ const SocialButton: React.FC<{ icon: React.ReactNode; name: string }> = ({ icon,
 };
 
 // --- 主组件: 登录/注册表单 ---
+// --- 修正: 定义 Props 类型，添加 onLoginSuccess ---
 interface AuthFormComponentProps {
     onClose: () => void;
+    onLoginSuccess: (data: any) => void; 
 }
 
-const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose }) => {
+const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginSuccess }) => {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -163,24 +164,32 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    let result;
     if (isSignUp) {
-      if (captcha.toLowerCase() !== captchaInput.toLowerCase()) {
-        alert('图形验证码不正确!');
-        generateCaptcha();
-        setCaptchaInput('');
-        return;
+      // 在此处可以添加前端验证逻辑，如密码强度
+      const userInfo = { name, email, phone, password };
+      result = await registerUser(userInfo);
+      if (result.success) {
+        alert('注册成功！现在您可以登录了。');
+        toggleMode(); 
+      } else {
+        alert(`注册失败: ${result.message}`);
       }
-      if (emailVerificationCode !== '123456') { 
-         alert('邮箱验证码不正确!');
-         return;
+    } else {
+      const credentials = {
+        email, // 假设统一使用邮箱登录
+        password,
+      };
+      result = await loginUser(credentials);
+      if (result.success) {
+        onLoginSuccess(result.data);
+      } else {
+        alert(`登录失败: ${result.message}`);
       }
     }
-    setIsSubmitting(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    const submittedData = isSignUp 
-      ? { mode: '注册', name, email, phone, password, rememberMe }
-      : { mode: '登录', loginMethod, email: loginMethod === 'email' ? email : undefined, phone: loginMethod === 'phone' ? phone : undefined, password, rememberMe };
-    console.log('表单已提交:', submittedData);
+
     setIsSubmitting(false);
   };
 
