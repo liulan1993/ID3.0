@@ -13,13 +13,6 @@ import {
     NavigationMenuTrigger,
     navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-    DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +55,9 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
     ];
 
     const [isOpen, setOpen] = useState(false);
-    
+    // --- 新增: 用于控制自定义下拉菜单的状态 ---
+    const [isDropdownOpen, setDropdownOpen] = useState(false);
+
     return (
         <header className="w-full z-50 fixed top-0 left-0 bg-black/50 backdrop-blur-sm">
             <div className="container relative mx-auto min-h-20 flex gap-4 flex-row lg:grid lg:grid-cols-3 items-center px-4 md:px-8">
@@ -125,32 +120,37 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                       Apex
                     </Link>
                 </div>
-                {/* --- 根据登录状态显示不同内容 (已修改) --- */}
+                {/* --- 根据登录状态显示不同内容 (已修改为手动实现下拉菜单) --- */}
                 <div className="flex justify-end w-full gap-2 md:gap-4 items-center">
                     {isAuthenticated && user ? (
                         <>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" className="hidden md:inline text-base md:text-lg hover:bg-slate-800">
-                                        欢迎, {user.name}!
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent className="w-40 bg-black border-slate-700 text-white" align="end">
-                                    <DropdownMenuItem className="focus:bg-slate-800 focus:text-white cursor-pointer">
-                                        <Link href="/profile" className="w-full">我的资料</Link>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="focus:bg-slate-800 focus:text-white cursor-pointer">
-                                        <Link href="/application-status" className="w-full">申请进度</Link>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="bg-slate-700" />
-                                    <DropdownMenuItem 
-                                        onClick={onLogoutClick} 
-                                        className="focus:bg-slate-800 focus:text-white cursor-pointer"
-                                    >
-                                        退出
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            {/* --- 手动实现的下拉菜单 --- */}
+                            <div 
+                                className="relative hidden md:inline-block"
+                                onMouseEnter={() => setDropdownOpen(true)}
+                                onMouseLeave={() => setDropdownOpen(false)}
+                            >
+                                <Button variant="ghost" className="text-base md:text-lg hover:bg-slate-800">
+                                    欢迎, {user.name}!
+                                </Button>
+                                {isDropdownOpen && (
+                                    <div className="absolute right-0 mt-2 w-40 bg-black border border-slate-700 rounded-md shadow-lg py-1 z-50">
+                                        <Link href="/profile" className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-slate-800">
+                                            我的资料
+                                        </Link>
+                                        <Link href="/application-status" className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-slate-800">
+                                            申请进度
+                                        </Link>
+                                        <div className="border-t border-slate-700 my-1"></div>
+                                        <button
+                                            onClick={onLogoutClick}
+                                            className="block w-full text-left px-4 py-2 text-sm text-white hover:bg-slate-800"
+                                        >
+                                            退出
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             
                             {/* 将原先的“退出”按钮替换为“商业洞察” */}
                             <Link href="/business-insights">
