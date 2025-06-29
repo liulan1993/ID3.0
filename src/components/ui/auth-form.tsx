@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X, Edit3 } from 'lucide-react';
 // 引入服务器动作
 import { loginUser, registerUser, sendVerificationEmail } from "@/app/actions";
 
@@ -14,28 +14,9 @@ interface LoginSuccessData {
   token: string;
 }
 
-// --- 组件定义 ---
+// --- 组件定义 (无变化) ---
 const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-  >
-    <path d="M17 14.85c-.9-1.3-2.43-2.15-4.13-2.15-2.25 0-4.18 1.4-4.87 3.32" />
-    <path d="M10.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" />
-    <path d="M14.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" />
-    <path d="M5.01 15.39c-.58 2.5-1.92 4.4-3.51 5.61.32-.13.62-.3.9-.51s.55-.45.8-.73c.25-.28.48-.6.68-.95.2-.35.36-.73.48-1.14.12-.4.2-.84.24-1.3" />
-    <path d="M20.99 15.39c.58 2.5 1.92 4.4 3.51 5.61-.32-.13.62-.3-.9-.51s-.55-.45-.8-.73c.25-.28-.48-.6-.68-.95.2-.35-.36-.73-.48-1.14-.12-.4-.2-.84-.24-1.3" />
-    <path d="M9.13 2.89c-5.18 1.85-8.63 7.07-8.63 12.51 0 1.93.39 3.77 1.1 5.43" />
-    <path d="M14.87 2.89c5.18 1.85 8.63 7.07 8.63 12.51 0 1.93-.39 3.77-1.1 5.43" />
-  </svg>
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 14.85c-.9-1.3-2.43-2.15-4.13-2.15-2.25 0-4.18 1.4-4.87 3.32" /><path d="M10.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" /><path d="M14.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" /><path d="M5.01 15.39c-.58 2.5-1.92 4.4-3.51 5.61.32-.13.62-.3.9-.51s.55-.45.8-.73c.25-.28.48-.6.68-.95.2-.35.36-.73.48-1.14.12-.4.2-.84.24-1.3" /><path d="M20.99 15.39c.58 2.5 1.92 4.4 3.51 5.61-.32-.13.62-.3-.9-.51s-.55-.45-.8-.73c.25-.28-.48-.6-.68-.95.2-.35-.36-.73-.48-1.14-.12-.4-.2-.84-.24-1.3" /><path d="M9.13 2.89c-5.18 1.85-8.63 7.07-8.63 12.51 0 1.93.39 3.77 1.1 5.43" /><path d="M14.87 2.89c5.18 1.85 8.63 7.07 8.63 12.51 0 1.93-.39 3.77-1.1 5.43" /></svg>
 );
 interface FormFieldProps {
   type: string;
@@ -44,15 +25,16 @@ interface FormFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   icon: React.ReactNode;
   children?: React.ReactNode;
+  disabled?: boolean; // 新增 disabled 属性
 }
-const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, children}) => {
+const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, children, disabled = false}) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setMousePosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
-  return (<div className="relative group"><div className="relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out" onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div><input type={type} value={value} onChange={onChange} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} /><div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
+  return (<div className="relative group"><div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out ${disabled ? 'opacity-60' : ''}`} onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div><input type={type} value={value} onChange={onChange} disabled={disabled} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} /><div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && !disabled && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
 };
 const SocialButton: React.FC<{ icon: React.ReactNode; name: string }> = ({ icon, name }) => {
   return (<button className="relative group p-3 w-full rounded-lg border border-gray-800 bg-black hover:bg-gray-900 transition-all duration-300 ease-in-out overflow-hidden" aria-label={`使用 ${name} 登录`}><div className="relative flex justify-center text-white">{icon}</div></button>);
@@ -80,6 +62,11 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
   const [emailVerificationCode, setEmailVerificationCode] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  
+  // =================================================================
+  // 【关键修正 1】新增状态，用于锁定已发送验证码的邮箱
+  // =================================================================
+  const [isEmailLocked, setIsEmailLocked] = useState(false);
 
   const generateCaptcha = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -94,6 +81,9 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
+    } else {
+      // 倒计时结束时，如果邮箱是锁定的，就保持锁定，不自动解锁
+      // setIsEmailLocked(false); // 移除此行
     }
   }, [countdown]);
   
@@ -118,12 +108,15 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     }
 
     setIsSending(true);
-    
     const result = await sendVerificationEmail(email, captchaInput, captcha);
 
     if (result.success) {
       alert('验证码已发送，请检查您的邮箱。');
       setCountdown(60);
+      // =================================================================
+      // 【关键修正 2】发送成功后，锁定邮箱输入框
+      // =================================================================
+      setIsEmailLocked(true);
     } else {
       alert(`发送失败: ${result.message}`);
       generateCaptcha();
@@ -139,13 +132,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     setIsSubmitting(true);
 
     if (isSignUp) {
-      const userInfo = { 
-        name, 
-        email, 
-        phone, 
-        password,
-        emailVerificationCode
-      };
+      const userInfo = { name, email, phone, password, emailVerificationCode };
       const result = await registerUser(userInfo);
       if (result.success) {
         alert('注册成功！现在您可以登录了。');
@@ -168,28 +155,27 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     setIsSubmitting(false);
   };
 
-  const toggleMode = () => {
-    setIsSignUp(!isSignUp);
+  const resetRegistrationForm = () => {
     setEmail(""); setPhone(""); setPassword(""); setName("");
     setShowPassword(false); setLoginMethod('email');
     setCaptchaInput(''); setEmailVerificationCode('');
     setCountdown(0); setIsSending(false);
+    // =================================================================
+    // 【关键修正 3】重置表单时，解锁邮箱
+    // =================================================================
+    setIsEmailLocked(false);
+  };
+
+  const toggleMode = () => {
+    setIsSignUp(!isSignUp);
+    resetRegistrationForm(); // 调用重置函数
   };
 
   return (
     <div className="relative w-full max-w-md bg-black border border-gray-800 rounded-2xl p-8 shadow-2xl shadow-white/5 font-sans">
-        <button 
-            onClick={onClose} 
-            className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-20"
-            aria-label="关闭登录窗口"
-        >
-            <X size={24} />
-        </button>
-
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-20" aria-label="关闭登录窗口"><X size={24} /></button>
         <div className="text-center mb-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-full mb-4 border border-gray-800">
-              <User className="w-8 h-8 text-white" />
-            </div>
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-full mb-4 border border-gray-800"><User className="w-8 h-8 text-white" /></div>
             <h1 className="text-3xl font-bold text-white mb-2">{isSignUp ? '创建账户' : '欢迎回来'}</h1>
             <p className="text-gray-400">{isSignUp ? '注册以开始使用' : '登录以继续'}</p>
         </div>
@@ -205,15 +191,30 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         {isSignUp ? (
             <>
               <AnimatedFormField type="text" placeholder="全名" value={name} onChange={(e) => setName(e.target.value)} icon={<User size={18} />} />
-              {/* 关键修正 1: 将发送邮件按钮放回 Email 输入框 */}
-              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />}>
-                  <button type="button" onClick={handleSendVerificationEmail} disabled={isSending || countdown > 0} className="text-xs font-semibold text-white disabled:text-gray-600 hover:text-gray-300 transition-colors whitespace-nowrap">
-                      {isSending ? "发送中..." : countdown > 0 ? `${countdown}s 后重发` : "发送验证码"}
-                  </button>
+              {/* ================================================================= */}
+              {/* 【关键修正 4】根据 isEmailLocked 状态禁用邮箱输入框，并提供解锁按钮 */}
+              {/* ================================================================= */}
+              <AnimatedFormField 
+                  type="email" 
+                  placeholder="邮箱地址" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  icon={<Mail size={18} />}
+                  disabled={isEmailLocked}
+              >
+                  {isEmailLocked ? (
+                      <button type="button" onClick={() => { setIsEmailLocked(false); setCountdown(0); }} className="flex items-center space-x-1 text-xs font-semibold text-white hover:text-gray-300 transition-colors">
+                          <Edit3 size={12} />
+                          <span>更改</span>
+                      </button>
+                  ) : (
+                      <button type="button" onClick={handleSendVerificationEmail} disabled={isSending || countdown > 0} className="text-xs font-semibold text-white disabled:text-gray-600 hover:text-gray-300 transition-colors whitespace-nowrap">
+                          {isSending ? "发送中..." : countdown > 0 ? `${countdown}s 后重发` : "发送验证码"}
+                      </button>
+                  )}
               </AnimatedFormField>
               <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />
               <AnimatedFormField type="password" placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
-              {/* 关键修正 2: 恢复图形验证码的正确布局 */}
                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
                     <div className="flex items-center space-x-2">
                         <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
@@ -238,20 +239,10 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         
         <div className="flex items-center justify-between">
             <label className="flex items-center space-x-2 cursor-pointer group">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 appearance-none bg-gray-800 border-gray-600 rounded-sm checked:bg-white focus:ring-white/50 focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition"
-              />
+              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 appearance-none bg-gray-800 border-gray-600 rounded-sm checked:bg-white focus:ring-white/50 focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition" />
               <span className="text-sm text-gray-400 group-hover:text-white transition">记住我</span>
             </label>
-            
-            {!isSignUp && (
-              <button type="button" className="text-sm text-white hover:underline">
-                忘记密码?
-              </button>
-            )}
+            {!isSignUp && (<button type="button" className="text-sm text-white hover:underline">忘记密码?</button>)}
         </div>
 
         <button type="submit" disabled={isSubmitting} className="w-full relative group bg-white text-black py-3 px-4 rounded-lg font-semibold transition-all duration-300 ease-in-out hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden">
@@ -261,19 +252,8 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         </form>
 
         <div className="mt-8">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-800" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-black text-gray-400">或使用以下方式继续</span>
-            </div>
-          </div>
-          <div className="mt-6 flex justify-center">
-            <div className="w-1/3 px-2">
-              <SocialButton icon={<WechatIcon />} name="微信" />
-            </div>
-          </div>
+          <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800" /></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-black text-gray-400">或使用以下方式继续</span></div></div>
+          <div className="mt-6 flex justify-center"><div className="w-1/3 px-2"><SocialButton icon={<WechatIcon />} name="微信" /></div></div>
         </div>
 
         <div className="mt-8 text-center">
