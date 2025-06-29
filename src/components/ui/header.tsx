@@ -16,15 +16,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// --- 修正: 定义 Props 类型，添加缺失的属性 ---
+// --- 共享类型定义 (与 page.tsx 保持一致) ---
+interface User {
+  name: string;
+  email: string;
+}
+
+// --- 修正: 定义 Props 类型，添加 user 属性 ---
 interface AppNavigationBarProps {
     isAuthenticated: boolean;
+    user: User | null;
     onLoginClick: () => void;
     onLogoutClick: () => void;
     onProtectedLinkClick: (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => void;
 }
 
-const AppNavigationBar = ({ isAuthenticated, onLoginClick, onLogoutClick, onProtectedLinkClick }: AppNavigationBarProps) => {
+const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, onProtectedLinkClick }: AppNavigationBarProps) => {
     const navigationItems = [
         { title: "主页", href: "/", description: "" },
         {
@@ -113,10 +120,10 @@ const AppNavigationBar = ({ isAuthenticated, onLoginClick, onLogoutClick, onProt
                 </div>
                 {/* --- 根据登录状态显示不同内容 --- */}
                 <div className="flex justify-end w-full gap-2 md:gap-4">
-                    {isAuthenticated ? (
+                    {isAuthenticated && user ? (
                         <>
                             <Button variant="ghost" className="hidden md:inline text-base md:text-lg">
-                                欢迎您！
+                                欢迎, {user.name}!
                             </Button>
                             <div className="border-r border-slate-700 hidden md:inline"></div>
                             <Button variant="outline" onClick={onLogoutClick} className="text-base md:text-lg">
@@ -176,7 +183,6 @@ const AppNavigationBar = ({ isAuthenticated, onLoginClick, onLogoutClick, onProt
                                     </div>
                                 </div>
                             ))}
-                            {/* --- 移动端登录/退出按钮 --- */}
                             <div className="border-t border-slate-800 pt-4">
                                 {isAuthenticated ? (
                                     <Button variant="outline" onClick={onLogoutClick} className="w-full">

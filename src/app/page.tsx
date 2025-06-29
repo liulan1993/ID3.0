@@ -15,23 +15,37 @@ import StackedCircularFooter from '@/components/ui/footer';
 import AuthFormComponent from '@/components/ui/auth-form'; 
 // ------------------------------------
 
+// --- 新增: 定义共享类型 ---
+export interface User {
+  name: string;
+  email: string;
+}
+
+export interface LoginSuccessData {
+  user: User;
+  token: string;
+}
+// ----------------------------
+
 export default function Page() {
     const [mainContentVisible, setMainContentVisible] = useState(false);
     const [isClient, setIsClient] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-    // --- 新增: 登录状态管理 ---
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [user, setUser] = useState(null);
+    // 修正: 为 user state 添加明确的类型
+    const [user, setUser] = useState<User | null>(null);
 
-    // 检查本地存储中是否已有登录凭证 (例如 Token)
     useEffect(() => {
         setIsClient(true);
         const token = localStorage.getItem('authToken');
         if (token) {
-            // 在实际应用中，您应该验证 token 的有效性
             setIsAuthenticated(true);
             const userInfo = localStorage.getItem('userInfo');
-            if (userInfo) setUser(JSON.parse(userInfo));
+            if (userInfo) {
+                // 确保解析的数据符合 User 类型
+                const parsedUser: User = JSON.parse(userInfo);
+                setUser(parsedUser);
+            }
         }
         if (sessionStorage.getItem('hasVisitedHomePage')) {
             setMainContentVisible(true);
@@ -50,20 +64,18 @@ export default function Page() {
         setIsLoginModalOpen(false);
     };
 
-    // --- 新增: 登录成功处理函数 ---
-    const handleLoginSuccess = (data: any) => {
+    // 修正: 为 data 参数添加明确的类型
+    const handleLoginSuccess = (data: LoginSuccessData) => {
         setIsAuthenticated(true);
-        setUser(data.user); // 假设返回的数据中有 user 对象
+        setUser(data.user);
         
-        // 将凭证 (token) 和用户信息存储在本地
-        localStorage.setItem('authToken', data.token); // 假设返回的数据中有 token
+        localStorage.setItem('authToken', data.token);
         localStorage.setItem('userInfo', JSON.stringify(data.user));
 
-        handleCloseModal(); // 关闭登录窗口
+        handleCloseModal();
         alert('登录成功！');
     };
 
-    // --- 新增: 退出登录处理函数 ---
     const handleLogout = () => {
         setIsAuthenticated(false);
         setUser(null);
@@ -98,9 +110,10 @@ export default function Page() {
             >
                 {isClient && (
                     <>
-                        {/* --- 修改: 传入登录状态和退出函数 --- */}
+                        {/* 修正: 传入 user 对象用于显示欢迎信息 */}
                         <AppNavigationBar 
                             isAuthenticated={isAuthenticated}
+                            user={user}
                             onLoginClick={handleLoginClick}
                             onLogoutClick={handleLogout}
                             onProtectedLinkClick={handleProtectedLinkClick}
@@ -147,7 +160,6 @@ export default function Page() {
                             onClick={(e) => e.stopPropagation()}
                             className="relative"
                         >
-                            {/* --- 修改: 传入登录成功回调 --- */}
                             <AuthFormComponent onClose={handleCloseModal} onLoginSuccess={handleLoginSuccess} />
                         </motion.div>
                     </motion.div>

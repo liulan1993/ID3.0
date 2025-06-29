@@ -2,6 +2,17 @@ import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X } from 'lucide-react';
 import { loginUser, registerUser } from "@/app/actions";
 
+// --- 共享类型定义 (与 page.tsx 保持一致) ---
+interface User {
+  name: string;
+  email: string;
+}
+
+interface LoginSuccessData {
+  user: User;
+  token: string;
+}
+
 // --- 自定义微信图标 ---
 const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
   <svg
@@ -94,10 +105,9 @@ const SocialButton: React.FC<{ icon: React.ReactNode; name: string }> = ({ icon,
 };
 
 // --- 主组件: 登录/注册表单 ---
-// --- 修正: 定义 Props 类型，添加 onLoginSuccess ---
 interface AuthFormComponentProps {
     onClose: () => void;
-    onLoginSuccess: (data: any) => void; 
+    onLoginSuccess: (data: LoginSuccessData) => void; 
 }
 
 const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginSuccess }) => {
@@ -166,11 +176,9 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     if (isSubmitting) return;
     setIsSubmitting(true);
 
-    let result;
     if (isSignUp) {
-      // 在此处可以添加前端验证逻辑，如密码强度
       const userInfo = { name, email, phone, password };
-      result = await registerUser(userInfo);
+      const result = await registerUser(userInfo);
       if (result.success) {
         alert('注册成功！现在您可以登录了。');
         toggleMode(); 
@@ -179,11 +187,12 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       }
     } else {
       const credentials = {
-        email, // 假设统一使用邮箱登录
+        email,
         password,
       };
-      result = await loginUser(credentials);
-      if (result.success) {
+      const result = await loginUser(credentials);
+      // 修正: 增加一个 result.data 的存在性检查来满足 TypeScript
+      if (result.success && result.data) {
         onLoginSuccess(result.data);
       } else {
         alert(`登录失败: ${result.message}`);
