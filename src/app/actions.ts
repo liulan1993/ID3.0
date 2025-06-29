@@ -85,7 +85,7 @@ export async function sendVerificationEmail(email: string) {
   sgMail.setApiKey(apiKey);
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const verificationKey = `verification:${email}`;
+  const verificationKey = `verification:${email.trim().toLowerCase()}`; // 修正：统一使用小写并去除空格
 
   try {
     // 将验证码存入 KV，有效期10分钟
@@ -125,8 +125,15 @@ export async function registerUser(userInfo: RegistrationInfo) {
     }
 
     // 验证邮箱验证码
-    const verificationKey = `verification:${email}`;
+    const verificationKey = `verification:${email.trim().toLowerCase()}`; // 修正：统一使用小写并去除空格
     const storedCode = await kv.get<string>(verificationKey);
+    
+    // --- 新增: 详细日志以供调试 ---
+    console.log(`[调试] 尝试验证 Key: ${verificationKey}`);
+    console.log(`[调试] 用户输入的验证码: ${emailVerificationCode}`);
+    console.log(`[调试] 数据库中存储的验证码: ${storedCode}`);
+    // --- 日志结束 ---
+
     if (!storedCode) {
       throw new Error('邮箱验证码已过期，请重新发送。');
     }
@@ -135,7 +142,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     }
 
     // 检查用户是否已存在
-    const userKey = `user:${email}`;
+    const userKey = `user:${email.trim().toLowerCase()}`;
     const existingUser = await kv.get(userKey);
     if (existingUser) {
       throw new Error('该邮箱地址已被注册。');
@@ -146,7 +153,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const hashedPassword = await bcrypt.hash(password, salt);
     const newUser = {
       name,
-      email,
+      email: email.trim().toLowerCase(),
       phone: phone || '',
       hashedPassword,
       createdAt: new Date().toISOString(),
@@ -167,7 +174,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
 export async function loginUser(credentials: UserCredentials) {
   try {
     const { email, password } = credentials;
-    const userKey = `user:${email}`;
+    const userKey = `user:${email.trim().toLowerCase()}`;
     const storedUser = await kv.get(userKey) as { name: string; email: string; hashedPassword: string; } | null;
 
     if (!storedUser) {
