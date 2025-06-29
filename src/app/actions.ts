@@ -1,6 +1,6 @@
 /*
  * 文件: src/app/actions.ts
- * 描述: 服务器动作文件，已修正邮箱地址大小写和空格问题。
+ * 描述: 服务器动作文件，已添加详细的调试日志。
  */
 'use server';
 
@@ -83,7 +83,6 @@ export async function sendVerificationEmail(email: string) {
   sgMail.setApiKey(apiKey);
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  // 修正: 统一将邮箱地址处理为小写并去除首尾空格
   const normalizedEmail = email.trim().toLowerCase();
   const verificationKey = `verification:${normalizedEmail}`;
 
@@ -100,7 +99,7 @@ export async function sendVerificationEmail(email: string) {
 
     await sgMail.send(msg);
 
-    console.log(`验证码邮件已发送至: ${email} (使用 Key: ${verificationKey})`);
+    console.log(`[调试] 验证码已存入 Key: ${verificationKey}，值为: ${code}`);
     return { success: true };
 
   } catch (error) {
@@ -118,7 +117,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
       graphicalCaptchaAnswer, graphicalCaptchaInput, emailVerificationCode 
     } = userInfo;
     
-    // 修正: 统一将邮箱地址处理为小写并去除首尾空格
     const normalizedEmail = email.trim().toLowerCase();
     
     if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
@@ -128,8 +126,13 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string>(verificationKey);
 
+    // --- 新增: 详细日志以供调试 ---
+    console.log(`[调试] 正在尝试验证 Key: "${verificationKey}"`);
+    console.log(`[调试] 用户输入的验证码是: "${emailVerificationCode}" (类型: ${typeof emailVerificationCode})`);
+    console.log(`[调试] 数据库中存储的验证码是: "${storedCode}" (类型: ${typeof storedCode})`);
+    
     if (!storedCode) {
-      throw new Error('邮箱验证码已过期，请重新发送。');
+      throw new Error('邮箱验证码已过期或不存在，请重新发送。');
     }
     if (storedCode !== emailVerificationCode) {
       throw new Error('邮箱验证码不正确。');
@@ -145,7 +148,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const hashedPassword = await bcrypt.hash(password, salt);
     const newUser = {
       name,
-      email: normalizedEmail, // 存储处理过的邮箱地址
+      email: normalizedEmail,
       phone: phone || '',
       hashedPassword,
       createdAt: new Date().toISOString(),
@@ -166,7 +169,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
 export async function loginUser(credentials: UserCredentials) {
   try {
     const { email, password } = credentials;
-    // 修正: 统一将邮箱地址处理为小写并去除首尾空格
     const normalizedEmail = email.trim().toLowerCase();
     const userKey = `user:${normalizedEmail}`;
     const storedUser = await kv.get(userKey) as { name: string; email: string; hashedPassword: string; } | null;
