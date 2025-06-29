@@ -21,18 +21,340 @@ import {
 import { Transition } from "@headlessui/react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Slot } from "@radix-ui/react-slot"
-import * as LabelPrimitive from "@radix-ui/react-label"
-import { cva, type VariantProps } from "class-variance-authority"
-import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
-
+import { Slot } from "@radix-ui/react-slot";
+import * as LabelPrimitive from "@radix-ui/react-label";
+import { cva, type VariantProps } from "class-variance-authority";
+import { Facebook, Instagram, Linkedin, Twitter, Menu, MoveRight, X } from "lucide-react";
+import { ChevronDownIcon } from '@radix-ui/react-icons';
+import * as NavigationMenuPrimitive from '@radix-ui/react-navigation-menu';
 
 // ============================================================================
-// 辅助函数 (新增)
+// 辅助函数 (cn)
 // ============================================================================
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+// ============================================================================
+// START: 从 header.tsx 拷贝并整合的代码
+// ============================================================================
+
+// ============================================================================
+// 1. 页眉的依赖组件和样式
+// ============================================================================
+
+// 自定义 Link 组件 (已重命名为 CustomLink 以避免与 next/link 冲突)
+interface CustomLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  href: string;
+  children: React.ReactNode;
+}
+
+const CustomLink = ({ href, children, ...props }: CustomLinkProps) => {
+    return <a href={href} {...props}>{children}</a>;
+};
+CustomLink.displayName = "CustomLink";
+
+// 页眉的 Button 组件 (基于 CVA)
+const buttonVariantsHeader = cva(
+  "inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-white text-black hover:bg-white/90",
+        destructive: "bg-red-500 text-slate-50 hover:bg-red-500/90",
+        outline: "border border-slate-700 bg-transparent hover:bg-slate-800",
+        secondary: "bg-slate-100 text-slate-900 hover:bg-slate-100/80",
+        ghost: "hover:bg-slate-800 hover:text-slate-50",
+        link: "text-slate-900 underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-10 px-4 py-2",
+        sm: "h-9 rounded-md px-3",
+        lg: "h-11 rounded-md px-8",
+        icon: "h-10 w-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+
+export interface ButtonPropsHeader
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariantsHeader> {
+  asChild?: boolean
+}
+
+const ButtonHeader = React.forwardRef<HTMLButtonElement, ButtonPropsHeader>(
+  ({ className, variant, size, asChild = false, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
+    return (
+      <Comp
+        className={cn(buttonVariantsHeader({ variant, size, className }))}
+        ref={ref}
+        {...props}
+      />
+    );
+  }
+);
+ButtonHeader.displayName = "ButtonHeader";
+
+// NavigationMenu 组件 (基于 Radix UI)
+const NavigationMenu = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Root>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Root>
+>(({ className, children, ...props }, ref) => (
+  <NavigationMenuPrimitive.Root
+    ref={ref}
+    className={cn(
+      "relative z-10 flex max-w-max flex-1 items-center justify-center",
+      className
+    )}
+    {...props}
+  >
+    {children}
+    <NavigationMenuViewport />
+  </NavigationMenuPrimitive.Root>
+));
+NavigationMenu.displayName = NavigationMenuPrimitive.Root.displayName;
+
+const NavigationMenuList = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.List>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.List>
+>(({ className, ...props }, ref) => (
+  <NavigationMenuPrimitive.List
+    ref={ref}
+    className={cn(
+      "group flex flex-1 list-none items-center justify-center space-x-1",
+      className
+    )}
+    {...props}
+  />
+));
+NavigationMenuList.displayName = NavigationMenuPrimitive.List.displayName;
+
+const NavigationMenuItem = NavigationMenuPrimitive.Item;
+NavigationMenuItem.displayName = "NavigationMenuItem";
+
+const navigationMenuTriggerStyle = cva(
+  "group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 transition-colors hover:bg-slate-800 hover:text-white focus:bg-slate-800 focus:text-white focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-slate-800/50 data-[state=open]:bg-slate-800/50"
+);
+
+const NavigationMenuTrigger = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <NavigationMenuPrimitive.Trigger
+    ref={ref}
+    className={cn(navigationMenuTriggerStyle(), "group", "text-base md:text-lg", className)}
+    {...props}
+  >
+    {children}{" "}
+    <ChevronDownIcon
+      className="relative top-[1px] ml-1 h-3 w-3 transition duration-300 group-data-[state=open]:rotate-180"
+      aria-hidden="true"
+    />
+  </NavigationMenuPrimitive.Trigger>
+));
+NavigationMenuTrigger.displayName = NavigationMenuPrimitive.Trigger.displayName;
+
+const NavigationMenuContent = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Content>
+>(({ className, ...props }, ref) => (
+  <NavigationMenuPrimitive.Content
+    ref={ref}
+    className={cn(
+      "left-0 top-0 w-full data-[motion^=from-]:animate-in data-[motion^=to-]:animate-out data-[motion^=from-]:fade-in data-[motion^=to-]:fade-out data-[motion=from-end]:slide-in-from-right-52 data-[motion=from-start]:slide-in-from-left-52 data-[motion=to-end]:slide-out-to-right-52 data-[motion=to-start]:slide-out-to-left-52 md:absolute md:w-auto",
+      className
+    )}
+    {...props}
+  />
+));
+NavigationMenuContent.displayName = NavigationMenuPrimitive.Content.displayName;
+
+const NavigationMenuLink = React.forwardRef<
+    React.ElementRef<'a'>,
+    React.ComponentPropsWithoutRef<'a'> & { asChild?: boolean }
+>(({ className, asChild, ...props }, ref) => {
+    const Comp = asChild ? Slot : 'a';
+    return <Comp ref={ref} className={cn("focus:shadow-md", className)} {...props} />;
+});
+NavigationMenuLink.displayName = 'NavigationMenuLink';
+
+const NavigationMenuViewport = React.forwardRef<
+  React.ElementRef<typeof NavigationMenuPrimitive.Viewport>,
+  React.ComponentPropsWithoutRef<typeof NavigationMenuPrimitive.Viewport>
+>(({ className, ...props }, ref) => (
+  <div className={cn("absolute left-0 top-full flex justify-center")}>
+    <NavigationMenuPrimitive.Viewport
+      className={cn(
+        "origin-top-center relative mt-1.5 h-[var(--radix-navigation-menu-viewport-height)] w-full overflow-hidden rounded-md border border-slate-700 bg-black text-white shadow-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-90 md:w-[var(--radix-navigation-menu-viewport-width)]",
+        className
+      )}
+      ref={ref}
+      {...props}
+    />
+  </div>
+));
+NavigationMenuViewport.displayName = NavigationMenuPrimitive.Viewport.displayName;
+
+// ============================================================================
+// 2. 主页眉组件 (AppNavigationBar)
+// ============================================================================
+const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick: () => void; onProtectedLinkClick: (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => void; }) => {
+    const navigationItems = [
+        { title: "主页", href: "/", description: "" },
+        {
+            title: "客户支持", description: "拥抱数字化转型，提升客户体验。",
+            items: [
+                { title: "问卷调查", href: "https://www.apex-elite-service.com/wenjuandiaocha" },
+                { title: "资料上传", href: "https://zl.apex-elite-service.com/" },
+                { title: "客户反馈", href: "https://www.apex-elite-service.com/kehufankui" },
+                { title: "活动报名", href: "https://www.apex-elite-service.com/huodongbaoming" },
+            ],
+        },
+        {
+            title: "AI赋能", description: "AI驱动的智能，提升业务效率。",
+            items: [
+                { title: "实时汇率", href: "https://www.apex-elite-service.com/shishihuilv" },
+                { title: "个税计算器", href: "https://www.apex-elite-service.com/geshuijisuanqi" },
+                { title: "专属AI", href: "https://www.apex-elite-service.com/zhuanshuAI" },
+                { title: "敬请期待", href: "#" },
+            ],
+        },
+    ];
+
+    const [isOpen, setOpen] = useState(false);
+    
+    return (
+        <header className="w-full z-50 fixed top-0 left-0 bg-black/50 backdrop-blur-sm">
+            <div className="container relative mx-auto min-h-20 flex gap-4 flex-row lg:grid lg:grid-cols-3 items-center px-4 md:px-8">
+                <div className="justify-start items-center gap-4 lg:flex hidden flex-row">
+                    <NavigationMenu>
+                        <NavigationMenuList>
+                            {navigationItems.map((item) => (
+                                <NavigationMenuItem key={item.title}>
+                                    {item.href ? (
+                                        <NavigationMenuLink asChild>
+                                            <CustomLink href={item.href}>
+                                                <ButtonHeader variant="ghost" className="text-base md:text-lg">{item.title}</ButtonHeader>
+                                            </CustomLink>
+                                        </NavigationMenuLink>
+                                    ) : (
+                                        <>
+                                            <NavigationMenuTrigger className="text-base md:text-lg">
+                                                {item.title}
+                                            </NavigationMenuTrigger>
+                                            <NavigationMenuContent className="!w-[450px] p-4">
+                                                <div className="flex flex-col lg:grid grid-cols-2 gap-4">
+                                                    <div className="flex flex-col h-full justify-between">
+                                                        <div className="flex flex-col">
+                                                            <p className="font-semibold text-base md:text-lg">{item.title}</p>
+                                                            <p className="text-neutral-400 text-base md:text-lg">
+                                                                {item.description}
+                                                            </p>
+                                                        </div>
+                                                        <CustomLink href="#">
+                                                            <ButtonHeader size="sm" className="mt-10 text-base md:text-lg" variant="outline">
+                                                                商业洞察
+                                                            </ButtonHeader>
+                                                        </CustomLink>
+                                                    </div>
+                                                    <div className="flex flex-col text-base md:text-lg h-full justify-end">
+                                                        {item.items?.map((subItem) => (
+                                                            <NavigationMenuLink asChild key={subItem.title}>
+                                                                <a
+                                                                    href={subItem.href}
+                                                                    onClick={(e) => onProtectedLinkClick(e, subItem.href)}
+                                                                    className="flex flex-row justify-between items-center hover:bg-slate-800 py-2 px-4 rounded"
+                                                                >
+                                                                    <span>{subItem.title}</span>
+                                                                    <MoveRight className="w-4 h-4 text-neutral-400" />
+                                                                </a>
+                                                            </NavigationMenuLink>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </NavigationMenuContent>
+                                        </>
+                                    )}
+                                </NavigationMenuItem>
+                            ))}
+                        </NavigationMenuList>
+                    </NavigationMenu>
+                </div>
+                <div className="flex lg:justify-center">
+                    <CustomLink href="/" className="text-3xl md:text-[40px] font-semibold leading-tight md:leading-[53px]">
+                      Apex
+                    </CustomLink>
+                </div>
+                <div className="flex justify-end w-full gap-2 md:gap-4">
+                    <ButtonHeader variant="ghost" className="hidden md:inline text-base md:text-lg">
+                        欢迎您！
+                    </ButtonHeader>
+                    <div className="border-r border-slate-700 hidden md:inline"></div>
+                    <ButtonHeader variant="outline" onClick={onLoginClick} className="text-base md:text-lg">提交</ButtonHeader>
+                    <CustomLink href="#">
+                        <ButtonHeader variant="default" className="text-base md:text-lg">商业洞察</ButtonHeader>
+                    </CustomLink>
+                </div>
+                <div className="flex w-12 shrink lg:hidden items-end justify-end">
+                    <ButtonHeader variant="ghost" onClick={() => setOpen(!isOpen)}>
+                        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                    </ButtonHeader>
+                    {isOpen && (
+                        <div className="absolute top-20 border-t border-slate-800 flex flex-col w-full right-0 bg-black shadow-lg py-4 container gap-8">
+                            {navigationItems.map((item) => (
+                                <div key={item.title}>
+                                    <div className="flex flex-col gap-2">
+                                        {item.href ? (
+                                            <a
+                                                href={item.href}
+                                                className="flex justify-between items-center"
+                                                onClick={() => setOpen(false)}
+                                            >
+                                                <span className="text-base md:text-lg">{item.title}</span>
+                                                <MoveRight className="w-4 h-4 stroke-1 text-neutral-400" />
+                                            </a>
+                                        ) : (
+                                            <p className="font-semibold text-base md:text-lg">{item.title}</p>
+                                        )}
+                                        {item.items &&
+                                            item.items.map((subItem) => (
+                                                <a
+                                                    key={subItem.title}
+                                                    href={subItem.href}
+                                                    onClick={(e) => {
+                                                      onProtectedLinkClick(e, subItem.href);
+                                                      setOpen(false);
+                                                    }}
+                                                    className="flex justify-between items-center pl-2"
+                                                >
+                                                    <span className="text-neutral-300 text-base md:text-lg">
+                                                        {subItem.title}
+                                                    </span>
+                                                    <MoveRight className="w-4 h-4 stroke-1" />
+                                                </a>
+                                            ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </header>
+    );
+}
+AppNavigationBar.displayName = "AppNavigationBar";
+
+// ============================================================================
+// END: 从 header.tsx 拷贝并整合的代码
+// ============================================================================
+
 
 // ============================================================================
 // 1. 开场动画组件 (无修改)
@@ -454,14 +776,14 @@ const HomePageTitle = () => {
     }, [text.length, letterDelay, springDuration]);
   
     return (
-        <div className="flex flex-col items-center justify-center relative select-none">
+        <div className="flex flex-col items-center justify-center relative select-none px-4">
             <div className="flex">
               {text.split("").map((letter, index) => (
                 <motion.span
                   key={index}
                   onMouseEnter={() => setHoveredIndex(index)}
                   onMouseLeave={() => setHoveredIndex(null)}
-                  className="font-black tracking-tight cursor-pointer relative overflow-hidden text-5xl md:text-8xl lg:text-9xl"
+                  className="font-black tracking-tight cursor-pointer relative overflow-hidden text-4xl sm:text-5xl md:text-8xl lg:text-9xl"
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{
@@ -521,7 +843,7 @@ const HomePageTitle = () => {
             </div>
 
             <motion.p 
-              className="text-lg md:text-2xl text-white mt-4 tracking-widest"
+              className="text-base sm:text-lg md:text-2xl text-white mt-4 tracking-widest text-center"
               initial={{ opacity: 0 }}
               animate={{ opacity: isAnimated ? 1 : 0 }}
               transition={{ duration: 1.0, ease: "easeInOut"}}
@@ -572,7 +894,7 @@ const Testimonials = () => {
   }, [active, autorotate]);
 
   return (
-    <div className="w-full max-w-3xl mx-auto text-center flex flex-col items-center">
+    <div className="w-full max-w-3xl mx-auto text-center flex flex-col items-center px-4">
       <div className="mb-8">
         <div className="relative w-28 h-28 flex items-center justify-center">
              <motion.div
@@ -612,7 +934,7 @@ const Testimonials = () => {
               leaveFrom="opacity-100"
               leaveTo="opacity-0"
             >
-              <div className="text-lg md:text-2xl text-slate-200 px-4">
+              <div className="text-base md:text-2xl text-slate-200 px-4">
                 {testimonial.quote}
               </div>
             </Transition>
@@ -623,7 +945,7 @@ const Testimonials = () => {
         {testimonialsData.map((testimonial, index) => (
           <button
             key={index}
-            className={`m-2 px-6 py-2 rounded-full text-base font-medium transition-all duration-300 focus-visible:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-sky-500 ${
+            className={`m-1 sm:m-2 px-4 py-2 sm:px-6 rounded-full text-sm sm:text-base font-medium transition-all duration-300 focus-visible:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-sky-500 ${
               active === index
                 ? "bg-white text-black shadow-md"
                 : "bg-transparent text-white hover:bg-white hover:text-black"
@@ -642,7 +964,7 @@ const Testimonials = () => {
 };
 
 // ============================================================================
-// 3. 第二页组件 (已修改)
+// 3. 第二页组件 (无修改)
 // ============================================================================
 
 interface Tab {
@@ -662,19 +984,18 @@ const defaultTabs: Tab[] = [
     id: "tab1",
     label: "教育留学板块",
     content: (
-      <div className="grid grid-cols-2 gap-4 w-full h-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
         <img
           src="https://images.unsplash.com/photo-1493552152660-f915ab47ae9d?q=80&w=3087&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
           alt="Tab 1"
-          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+          className="rounded-lg w-full h-40 md:h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
         />
         <div className="flex flex-col gap-y-2">
-          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            Tab 1
+          <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            个性化留学规划
           </h2>
           <p className="text-sm text-gray-200 mt-0">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
-            quos.
+            我们提供从选校、文书到签证的全方位指导，助力学生进入世界顶尖名校。
           </p>
         </div>
       </div>
@@ -682,21 +1003,20 @@ const defaultTabs: Tab[] = [
   },
   {
     id: "tab2",
-    label: "Tab 2",
+    label: "医疗服务",
     content: (
-      <div className="grid grid-cols-2 gap-4 w-full h-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
         <img
           src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
           alt="Tab 2"
-          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+          className="rounded-lg w-full h-40 md:h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
         />
         <div className="flex flex-col gap-y-2">
-          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            Tab 2
+          <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            全球医疗资源
           </h2>
           <p className="text-sm text-gray-200 mt-0">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
-            quos.
+            对接全球顶级医疗机构，提供远程会诊、海外就医等高端健康管理服务。
           </p>
         </div>
       </div>
@@ -704,65 +1024,20 @@ const defaultTabs: Tab[] = [
   },
   {
     id: "tab3",
-    label: "Tab 3",
+    label: "企业服务",
     content: (
-      <div className="grid grid-cols-2 gap-4 w-full h-full">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
         <img
-          src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-          alt="Tab 2"
-          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+          src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=3432&auto=format&fit=crop&ixlib=rb-4.0.3"
+          alt="Tab 3"
+          className="rounded-lg w-full h-40 md:h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
         />
         <div className="flex flex-col gap-y-2">
-          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            Tab 3
+          <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            企业出海解决方案
           </h2>
           <p className="text-sm text-gray-200 mt-0">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
-            quos.
-          </p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: "tab4",
-    label: "Tab 4",
-    content: (
-      <div className="grid grid-cols-2 gap-4 w-full h-full">
-        <img
-          src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-          alt="Tab 2"
-          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
-        />
-        <div className="flex flex-col gap-y-2">
-          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            Tab 4
-          </h2>
-          <p className="text-sm text-gray-200 mt-0">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
-            quos.
-          </p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: "tab5",
-    label: "Tab 5",
-    content: (
-      <div className="grid grid-cols-2 gap-4 w-full h-full">
-        <img
-          src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-          alt="Tab 5"
-          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
-        />
-        <div className="flex flex-col gap-y-2">
-          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            Tab 5
-          </h2>
-          <p className="text-sm text-gray-200 mt-0">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
-            quos.
+            为企业提供市场准入、法律合规、税务筹划等一站式海外拓展服务。
           </p>
         </div>
       </div>
@@ -780,14 +1055,14 @@ const AnimatedTabs = ({
   if (!tabs?.length) return null;
 
   return (
-    <div className={cn("w-full max-w-lg flex flex-col gap-y-1", className)}>
+    <div className={cn("w-full max-w-lg flex flex-col gap-y-2", className)}>
       <div className="flex gap-2 flex-wrap bg-[#11111198] bg-opacity-50 backdrop-blur-sm p-1 rounded-xl">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "relative px-3 py-1.5 text-sm font-medium rounded-lg text-white outline-none transition-colors"
+              "relative px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-white outline-none transition-colors"
             )}
           >
             {activeTab === tab.id && (
@@ -801,30 +1076,38 @@ const AnimatedTabs = ({
           </button>
         ))}
       </div>
-      <div className="p-4 bg-[#11111198] shadow-[0_0_20px_rgba(0,0,0,0.2)] text-white bg-opacity-50 backdrop-blur-sm rounded-xl border min-h-60 h-full">
-        {tabs.map(
-          (tab) =>
-            activeTab === tab.id && (
-              <motion.div
-                key={tab.id}
-                initial={{
-                  opacity: 0,
-                  scale: 0.95,
-                  x: -10,
-                  filter: "blur(10px)",
-                }}
-                animate={{ opacity: 1, scale: 1, x: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, scale: 0.95, x: -10, filter: "blur(10px)" }}
-                transition={{
-                  duration: 0.5,
-                  ease: "circInOut",
-                  type: "spring",
-                }}
-              >
-                {tab.content}
-              </motion.div>
-            )
-        )}
+      <div className="p-4 bg-[#11111198] shadow-[0_0_20px_rgba(0,0,0,0.2)] text-white bg-opacity-50 backdrop-blur-sm rounded-xl border min-h-[15rem] h-full">
+        <AnimatePresence mode="wait">
+            {tabs.map(
+              (tab) =>
+                activeTab === tab.id && (
+                  <motion.div
+                    key={tab.id}
+                    initial={{
+                      opacity: 0,
+                      scale: 0.95,
+                      x: 10,
+                    }}
+                    animate={{ 
+                        opacity: 1, 
+                        scale: 1, 
+                        x: 0,
+                    }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.95,
+                      x: -10,
+                    }}
+                    transition={{
+                      duration: 0.3,
+                      ease: "easeInOut",
+                    }}
+                  >
+                    {tab.content}
+                  </motion.div>
+                )
+            )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -833,8 +1116,8 @@ const AnimatedTabs = ({
 const Header = () => null;
 
 const Title = () => (
-    <div className="px-4"> 
-      <h1 className="text-left text-3xl font-bold sm:text-5xl md:text-7xl">
+    <div className="px-4 text-center md:text-left"> 
+      <h1 className="text-4xl font-bold sm:text-5xl md:text-7xl">
         <span className="text-muted-foreground">
           Life is short. <br />
           Don&apos;t waste it. <br />
@@ -870,13 +1153,12 @@ const VelocityScroll = () => {
   return (
     <section 
       ref={containerRef} 
-      className={cn("relative h-[800vh] text-white")}
+      className={cn("relative h-[400vh] md:h-[600vh] lg:h-[800vh] text-white")}
     >
       <div className="sticky top-0 left-0 right-0 h-screen overflow-hidden">
-        {/* 指令修改: 移除这里的 MainScene */}
         <Header />
         
-        <div className="absolute inset-0 flex w-full items-center justify-between px-8 md:px-16 lg:px-24">
+        <div className="absolute inset-0 flex flex-col md:flex-row w-full items-center justify-center md:justify-between gap-8 md:gap-0 px-4 sm:px-8 md:px-16 lg:px-24">
             <Title />
             <AnimatedTabs />
         </div>
@@ -888,7 +1170,7 @@ const VelocityScroll = () => {
           }}
           className={cn(
             "absolute bottom-0 left-0",
-            "origin-bottom-left whitespace-nowrap text-7xl font-black uppercase leading-[0.85] md:text-9xl md:leading-[0.85]",
+            "origin-bottom-left whitespace-nowrap text-5xl sm:text-7xl font-black uppercase leading-[0.85] md:text-9xl md:leading-[0.85]",
             "text-white"
           )}
         >
@@ -900,10 +1182,10 @@ const VelocityScroll = () => {
 };
 
 // ============================================================================
-// 4. 页脚组件 (新增)
+// 4. 页脚组件 (已修改)
 // ============================================================================
 
-const buttonVariants = cva(
+const footerButtonVariants = cva( // Renamed from buttonVariants to avoid conflict
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
@@ -932,25 +1214,25 @@ const buttonVariants = cva(
   },
 )
 
-export interface ButtonProps
+export interface FooterButtonProps // Renamed from ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
+    VariantProps<typeof footerButtonVariants> {
   asChild?: boolean
 }
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+const FooterButton = React.forwardRef<HTMLButtonElement, FooterButtonProps>( // Renamed from Button
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     return (
       <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(footerButtonVariants({ variant, size, className }))}
         ref={ref}
         {...props}
       />
     )
   },
 )
-Button.displayName = "Button"
+FooterButton.displayName = "FooterButton"
 
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement>
@@ -997,20 +1279,20 @@ function StackedCircularFooter() {
       <div className="container mx-auto px-4 md:px-6">
         <div className="flex flex-col items-center">
           
-          <div className="mb-8 flex h-[400px] w-[400px] flex-col items-center justify-center rounded-lg p-6">
-            <h2 className="mb-4 text-2xl font-bold text-white">官方公众号</h2>
+          <div className="mb-8 flex w-full max-w-[300px] sm:max-w-[400px] flex-col items-center justify-center rounded-lg p-6">
+            <h2 className="mb-4 text-xl sm:text-2xl font-bold text-white">官方公众号</h2>
             <div className="flex-grow flex items-center justify-center">
                 <Image 
                   src="https://zh.apex-elite-service.com/wenjian/weixingongzhonghao.png" 
                   alt="官方公众号二维码" 
                   width={300} 
                   height={300}
-                  className="rounded-md"
+                  className="rounded-md w-full h-auto max-w-[250px] sm:max-w-[300px]"
                 />
             </div>
           </div>
 
-          <nav className="mb-8 flex flex-wrap justify-center gap-x-6 gap-y-2">
+          <nav className="mb-8 flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-2 text-sm sm:text-base">
             <Link href="/" className="text-gray-400 hover:text-white">Apex</Link>
             <Link href="/about" className="text-gray-400 hover:text-white">留学</Link>
             <Link href="/projects" className="text-gray-400 hover:text-white">医疗</Link>
@@ -1018,27 +1300,8 @@ function StackedCircularFooter() {
             <Link href="/contact" className="text-gray-400 hover:text-white">敬请期待</Link>
           </nav>
           
-          <div className="mb-8 flex space-x-4">
-            <Button variant="outline" size="icon" className="rounded-full bg-transparent text-gray-400 hover:bg-white/10 hover:text-white border-gray-600">
-              <Facebook className="h-4 w-4" />
-              <span className="sr-only">Facebook</span>
-            </Button>
-            <Button variant="outline" size="icon" className="rounded-full bg-transparent text-gray-400 hover:bg-white/10 hover:text-white border-gray-600">
-              <Twitter className="h-4 w-4" />
-              <span className="sr-only">Twitter</span>
-            </Button>
-            <Button variant="outline" size="icon" className="rounded-full bg-transparent text-gray-400 hover:bg-white/10 hover:text-white border-gray-600">
-              <Instagram className="h-4 w-4" />
-              <span className="sr-only">Instagram</span>
-            </Button>
-            <Button variant="outline" size="icon" className="rounded-full bg-transparent text-gray-400 hover:bg-white/10 hover:text-white border-gray-600">
-              <Linkedin className="h-4 w-4" />
-              <span className="sr-only">LinkedIn</span>
-            </Button>
-          </div>
-          
-          <div className="mb-8 w-full max-w-md">
-            <form className="flex space-x-2">
+          <div className="mb-8 w-full max-w-md px-4">
+            <form className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
               <div className="flex-grow">
                 <Label htmlFor="email" className="sr-only">Email</Label>
                 <Input 
@@ -1048,12 +1311,12 @@ function StackedCircularFooter() {
                   className="rounded-full bg-black/50 border-gray-600 text-white placeholder-gray-400 focus:ring-white" 
                 />
               </div>
-              <Button type="submit" className="rounded-full bg-white text-black hover:bg-gray-200">提交</Button>
+              <FooterButton type="submit" className="rounded-full bg-white text-black hover:bg-gray-200 w-full sm:w-auto">提交</FooterButton>
             </form>
           </div>
           
           <div className="text-center">
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500">
               © 2024 Your Company. All rights reserved.
             </p>
           </div>
@@ -1082,8 +1345,23 @@ export default function Page() {
         setMainContentVisible(true);
     };
 
+    // 为页眉组件提供事件处理函数
+    const handleLoginClick = () => {
+      // 在真实应用中，这里会触发登录逻辑
+      console.log("Login button clicked!");
+    };
+
+    const handleProtectedLinkClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => {
+      // 在真实应用中，这里会检查用户认证状态
+      e.preventDefault();
+      console.log(`Protected link clicked! Prevented navigation to: ${href}`);
+    };
+
     return (
         <div className="relative w-full bg-black text-white">
+            {/* 已安装的页眉组件 */}
+            <AppNavigationBar onLoginClick={handleLoginClick} onProtectedLinkClick={handleProtectedLinkClick} />
+            
             <AnimatePresence>
                 {isClient && !mainContentVisible &&
                     <OpeningAnimation onAnimationFinish={handleAnimationFinish} />
