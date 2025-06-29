@@ -6,14 +6,26 @@ import React, {
     useState,
     useMemo
 } from 'react';
-// import Image from "next/image"; // 已移除未使用的导入
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   motion,
   AnimatePresence,
+  useScroll, 
+  useTransform, 
+  useVelocity, 
+  useSpring
 } from "framer-motion";
-import { Transition } from "@headlessui/react"; // 为 testimonials 组件添加
+import { Transition } from "@headlessui/react";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+// ============================================================================
+// 辅助函数 (新增)
+// ============================================================================
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // ============================================================================
 // 1. 开场动画组件 (无修改)
@@ -226,10 +238,9 @@ TextShineEffect.displayName = "TextShineEffect";
 const OpeningAnimation = ({ onAnimationFinish }: { onAnimationFinish: () => void; }) => {
   const [animationState, setAnimationState] = useState('initial');
   const [isAnimationVisible, setIsAnimationVisible] = useState(true);
-  const [isReady, setIsReady] = useState(false); // 修复卡顿：添加就绪状态
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    // 修复卡顿：延迟显示以等待资源加载
     const readyTimer = setTimeout(() => setIsReady(true), 100);
     const hasVisited = sessionStorage.getItem('hasVisitedHomePage');
     if (hasVisited) {
@@ -261,7 +272,7 @@ const OpeningAnimation = ({ onAnimationFinish }: { onAnimationFinish: () => void
         key="animation-wrapper"
         className="fixed inset-0 z-[100] bg-black"
         initial={{ opacity: 0 }}
-        animate={{ opacity: isReady ? 1 : 0 }} // 修复卡顿：准备好后淡入
+        animate={{ opacity: isReady ? 1 : 0 }}
         transition={{ duration: 0.5 }}
         exit={{ opacity: 0, transition: { duration: 1.5, ease: "easeInOut" } }}
     >
@@ -396,7 +407,6 @@ const MainScene = () => {
     );
 };
 
-// 首页标题组件 (无修改)
 const HomePageTitle = () => {
     const text = "为您而来，不止于此";
     const subtitle = "次世代实时渲染引擎";
@@ -407,17 +417,17 @@ const HomePageTitle = () => {
     const overlayDuration = 0.4;
     const springDuration = 600;
     const letterImages = [
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // A
-      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // P
-      "https://images.unsplash.com/photo-1518837695005-2083093ee35b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // E
-      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // X
-      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // ，
-      "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // E
-      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // N
-      "https://images.unsplash.com/photo-1519904981063-b0cf448d479e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // G
-      "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // I
-      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // N
-      "https://images.unsplash.com/photo-1433086966358-54859d0ed716?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"  // E
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1518837695005-2083093ee35b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1519904981063-b0cf448d479e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1433086966358-54859d0ed716?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
     ];
   
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -515,11 +525,7 @@ const HomePageTitle = () => {
     );
 };
 
-// ============================================================================
-// 用户评价组件 (已按要求修改)
-// ============================================================================
 interface Testimonial {
-  // img 字段不再需要，但保留接口以减少代码改动
   img: string;
   quote: string;
   role: string;
@@ -560,33 +566,30 @@ const Testimonials = () => {
 
   return (
     <div className="w-full max-w-3xl mx-auto text-center flex flex-col items-center">
-      {/* 指令: 修改光球特效 */}
       <div className="mb-8">
-        <div className="relative w-24 h-24 flex items-center justify-center">
-            {/* 1. 静态哑光金光环 */}
+        <div className="relative w-28 h-28 flex items-center justify-center">
+             <motion.div
+                className="absolute w-full h-full rounded-full border-2 border-amber-500"
+                initial={{ scale: 1, opacity: 0.5 }}
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2.5, ease: "easeInOut", repeat: Infinity }}
+            />
             <div className="absolute w-24 h-24 rounded-full border-2 border-amber-600/50"></div>
-
-            {/* 2. 动态金色扫光动画 */}
             <motion.div
                 className="absolute w-full h-full"
                 animate={{ rotate: 360 }}
                 transition={{ duration: 4, ease: "linear", repeat: Infinity }}
             >
-                <div className="absolute w-full h-full rounded-full"
+                <div className="absolute w-24 h-24 rounded-full"
                      style={{
                         background: 'conic-gradient(from 0deg, transparent 0% 70%, #FDE68A 95%, transparent 100%)'
                      }}
                 ></div>
             </motion.div>
-
-            {/* 3. 白色基底 */}
             <div className="absolute w-20 h-20 rounded-full bg-white shadow-[0_0_30px_10px_rgba(255,255,255,0.5)]"></div>
-            
-            {/* 4. 内部渐变色彩层，添加闪烁动画 */}
             <div className="absolute w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 via-blue-400 to-cyan-300 animate-pulse"></div>
         </div>
       </div>
-      
       <div className="mb-5 w-full">
         <div className="relative grid min-h-[6rem] items-center">
           {testimonialsData.map((testimonial, index) => (
@@ -603,14 +606,12 @@ const Testimonials = () => {
               leaveTo="opacity-0"
             >
               <div className="text-lg md:text-2xl text-slate-200 px-4">
-                &ldquo;{testimonial.quote}&rdquo;
+                {testimonial.quote}
               </div>
             </Transition>
           ))}
         </div>
       </div>
-      
-      {/* 指令: 修改按钮样式 */}
       <div className="flex flex-wrap justify-center">
         {testimonialsData.map((testimonial, index) => (
           <button
@@ -633,9 +634,266 @@ const Testimonials = () => {
   );
 };
 
+// ============================================================================
+// 3. 第二页组件 (新增)
+// ============================================================================
+
+interface Tab {
+  id: string;
+  label: string;
+  content: React.ReactNode;
+}
+
+interface AnimatedTabsProps {
+  tabs?: Tab[];
+  defaultTab?: string;
+  className?: string;
+}
+
+const defaultTabs: Tab[] = [
+  {
+    id: "tab1",
+    label: "教育留学板块",
+    content: (
+      <div className="grid grid-cols-2 gap-4 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1493552152660-f915ab47ae9d?q=80&w=3087&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          alt="Tab 1"
+          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+        />
+        <div className="flex flex-col gap-y-2">
+          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            Tab 1
+          </h2>
+          <p className="text-sm text-gray-200 mt-0">
+            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
+            quos.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "tab2",
+    label: "Tab 2",
+    content: (
+      <div className="grid grid-cols-2 gap-4 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          alt="Tab 2"
+          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+        />
+        <div className="flex flex-col gap-y-2">
+          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            Tab 2
+          </h2>
+          <p className="text-sm text-gray-200 mt-0">
+            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
+            quos.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "tab3",
+    label: "Tab 3",
+    content: (
+      <div className="grid grid-cols-2 gap-4 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          alt="Tab 2"
+          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+        />
+        <div className="flex flex-col gap-y-2">
+          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            Tab 3
+          </h2>
+          <p className="text-sm text-gray-200 mt-0">
+            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
+            quos.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "tab4",
+    label: "Tab 4",
+    content: (
+      <div className="grid grid-cols-2 gap-4 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          alt="Tab 2"
+          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+        />
+        <div className="flex flex-col gap-y-2">
+          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            Tab 4
+          </h2>
+          <p className="text-sm text-gray-200 mt-0">
+            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
+            quos.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "tab5",
+    label: "Tab 5",
+    content: (
+      <div className="grid grid-cols-2 gap-4 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          alt="Tab 5"
+          className="rounded-lg w-full h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+        />
+        <div className="flex flex-col gap-y-2">
+          <h2 className="text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            Tab 5
+          </h2>
+          <p className="text-sm text-gray-200 mt-0">
+            Lorem ipsum dolor sit amet consectetur adipisicing elit. Quisquam,
+            quos.
+          </p>
+        </div>
+      </div>
+    ),
+  },
+];
+
+const AnimatedTabs = ({
+  tabs = defaultTabs,
+  defaultTab,
+  className,
+}: AnimatedTabsProps) => {
+  const [activeTab, setActiveTab] = useState<string>(defaultTab || tabs[0]?.id);
+
+  if (!tabs?.length) return null;
+
+  return (
+    <div className={cn("w-full max-w-lg flex flex-col gap-y-1", className)}>
+      <div className="flex gap-2 flex-wrap bg-[#11111198] bg-opacity-50 backdrop-blur-sm p-1 rounded-xl">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "relative px-3 py-1.5 text-sm font-medium rounded-lg text-white outline-none transition-colors"
+            )}
+          >
+            {activeTab === tab.id && (
+              <motion.div
+                layoutId="active-tab"
+                className="absolute inset-0 bg-[#111111d1] bg-opacity-50 shadow-[0_0_20px_rgba(0,0,0,0.2)] backdrop-blur-sm !rounded-lg"
+                transition={{ type: "spring", duration: 0.6 }}
+              />
+            )}
+            <span className="relative z-10">{tab.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="p-4 bg-[#11111198] shadow-[0_0_20px_rgba(0,0,0,0.2)] text-white bg-opacity-50 backdrop-blur-sm rounded-xl border min-h-60 h-full">
+        {tabs.map(
+          (tab) =>
+            activeTab === tab.id && (
+              <motion.div
+                key={tab.id}
+                initial={{
+                  opacity: 0,
+                  scale: 0.95,
+                  x: -10,
+                  filter: "blur(10px)",
+                }}
+                animate={{ opacity: 1, scale: 1, x: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, scale: 0.95, x: -10, filter: "blur(10px)" }}
+                transition={{
+                  duration: 0.5,
+                  ease: "circInOut",
+                  type: "spring",
+                }}
+              >
+                {tab.content}
+              </motion.div>
+            )
+        )}
+      </div>
+    </div>
+  );
+};
+
+const Header = () => null;
+
+const Title = () => (
+    <div className="px-4"> 
+      <h1 className="text-left text-3xl font-bold sm:text-5xl md:text-7xl">
+        <span className="text-muted-foreground">
+          Life is short. <br />
+          Don&apos;t waste it. <br />
+          It&apos;s time to{" "}
+        </span>
+        <span className={cn("inline-block -skew-x-[18deg] font-black", "text-foreground")}>
+          SHIFT.
+        </span>
+      </h1>
+    </div>
+  );
+  
+const VelocityScroll = () => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end end"] 
+  });
+
+  const scrollVelocity = useVelocity(scrollYProgress);
+  const smoothVelocity = useSpring(scrollVelocity, {
+    damping: 50,
+    stiffness: 300
+  });
+  const skewVelocity = useTransform(smoothVelocity, [-1, 1], ["30deg", "-30deg"]);
+
+  const translateX = useTransform(scrollYProgress, [0.1, 0.9], [0, -4500]); 
+  
+  const text = "Apex是一家总部位于新加坡的综合性专业服务机构。我们深刻理解全球高净值人士与出海企业所面临的机遇。";
+  const textContent = ` ${text} `.repeat(5);
+
+  return (
+    <section 
+      ref={containerRef} 
+      className={cn("relative h-[600vh] text-white bg-black")}
+    >
+      <div className="sticky top-0 left-0 right-0 h-screen overflow-hidden">
+        <Header />
+        
+        <div className="absolute inset-0 flex w-full items-center justify-between px-8 md:px-16 lg:px-24">
+            <Title />
+            <AnimatedTabs />
+        </div>
+
+        <motion.p
+          style={{
+            x: translateX,
+            skewX: skewVelocity,
+          }}
+          className={cn(
+            "absolute bottom-0 left-0",
+            "origin-bottom-left whitespace-nowrap text-7xl font-black uppercase leading-[0.85] md:text-9xl md:leading-[0.85]",
+            "text-white"
+          )}
+        >
+          {textContent}
+        </motion.p>
+      </div>
+    </section>
+  );
+};
+
 
 // ============================================================================
-// 3. 主页面组件 (无修改)
+// 4. 主页面组件
 // ============================================================================
 
 export default function Page() {
@@ -654,34 +912,35 @@ export default function Page() {
     };
 
     return (
-        <div className="relative min-h-screen w-full bg-black text-white flex flex-col items-center justify-center overflow-hidden">
-            
+        <div className="relative w-full bg-black text-white">
             <AnimatePresence>
                 {isClient && !mainContentVisible &&
                     <OpeningAnimation onAnimationFinish={handleAnimationFinish} />
                 }
             </AnimatePresence>
             
-            <motion.main 
-                className="absolute inset-0 z-0 w-full h-screen"
+            <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: mainContentVisible ? 1 : 0 }}
                 transition={{ duration: 1.5, ease: "easeInOut" }}
             >
                 {isClient && (
-                    <div className='relative w-full h-full'>
-                        <MainScene />
-                        <div className="absolute inset-0 z-10 grid grid-rows-[50vh_50vh] pointer-events-auto">
-                            <div className="flex items-end justify-center pb-8">
-                                <HomePageTitle />
-                            </div>
-                            <div className="flex items-start justify-center pt-8">
-                                <Testimonials />
+                    <>
+                        <div className='relative w-full h-screen overflow-hidden'>
+                            <MainScene />
+                            <div className="absolute inset-0 z-10 grid grid-rows-[50vh_50vh] pointer-events-auto">
+                                <div className="flex items-end justify-center pb-8">
+                                    <HomePageTitle />
+                                </div>
+                                <div className="flex items-start justify-center pt-8">
+                                    <Testimonials />
+                                </div>
                             </div>
                         </div>
-                    </div>
+                        <VelocityScroll />
+                    </>
                 )}
-            </motion.main>
+            </motion.div>
         </div>
     );
 }
