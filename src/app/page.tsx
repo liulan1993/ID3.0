@@ -3,8 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from "framer-motion";
+import { X } from 'lucide-react'; // 引入 X 图标用于关闭按钮
 
-// --- 路径已根据您正确的目录结构修正 ---
+// --- 组件路径 ---
 import AppNavigationBar from '@/components/ui/header';
 import OpeningAnimation from '@/components/ui/opening-animation';
 import MainScene from '@/components/ui/main-scene';
@@ -12,11 +13,15 @@ import HomePageTitle from '@/components/ui/home-page-title';
 import Testimonials from '@/components/ui/testimonials';
 import VelocityScroll from '@/components/ui/velocity-scroll';
 import StackedCircularFooter from '@/components/ui/footer';
+// --- 新增: 引入登录/注册表单组件 ---
+import AuthFormComponent from '@/components/ui/auth-form'; 
 // ------------------------------------
 
 export default function Page() {
     const [mainContentVisible, setMainContentVisible] = useState(false);
     const [isClient, setIsClient] = useState(false);
+    // --- 新增: 控制登录模态框显示的状态 ---
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
     useEffect(() => {
         setIsClient(true);
@@ -29,18 +34,22 @@ export default function Page() {
         setMainContentVisible(true);
     };
 
+    // --- 修改: handleLoginClick 现在会打开模态框 ---
     const handleLoginClick = () => {
-        // 在此处处理登录逻辑
-        console.log("Login button clicked");
+        setIsLoginModalOpen(true);
+    };
+    
+    // --- 新增: 关闭模态框的处理函数 ---
+    const handleCloseModal = () => {
+        setIsLoginModalOpen(false);
     };
 
     const handleProtectedLinkClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => {
-        // 在此处处理受保护链接的点击逻辑
         e.preventDefault();
         console.log(`Protected link to ${href} clicked`);
-        // 示例: 检查认证状态，如果未登录则跳转登录页
+        // 如果未登录，则打开登录模态框
         // if (!isAuthenticated) {
-        //   router.push('/login');
+        //   handleLoginClick();
         // } else {
         //   window.location.href = href;
         // }
@@ -62,7 +71,7 @@ export default function Page() {
             >
                 {isClient && (
                     <>
-                        {/* Layer 0: Header */}
+                        {/* Layer 0: Header - onLoginClick会触发模态框 */}
                         <AppNavigationBar 
                             onLoginClick={handleLoginClick}
                             onProtectedLinkClick={handleProtectedLinkClick}
@@ -96,6 +105,31 @@ export default function Page() {
                     </>
                 )}
             </motion.div>
+
+            {/* --- 新增: 登录/注册模态框 --- */}
+            <AnimatePresence>
+                {isLoginModalOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                        // 点击背景关闭模态框
+                        onClick={handleCloseModal}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                            animate={{ scale: 1, y: 0, opacity: 1 }}
+                            exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            // 阻止点击模态框内容时关闭
+                            onClick={(e) => e.stopPropagation()} 
+                        >
+                            <AuthFormComponent onClose={handleCloseModal} />
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

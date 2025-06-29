@@ -1,4 +1,4 @@
-// src/components/header.tsx
+// src/components/ui/header.tsx
 "use client";
 
 import React, { useState } from 'react';
@@ -103,16 +103,21 @@ const AppNavigationBar = ({ onLoginClick, onProtectedLinkClick }: { onLoginClick
                       Apex
                     </Link>
                 </div>
+                {/* --- 此处是修改的核心 --- */}
                 <div className="flex justify-end w-full gap-2 md:gap-4">
                     <Button variant="ghost" className="hidden md:inline text-base md:text-lg">
                         欢迎您！
                     </Button>
                     <div className="border-r border-slate-700 hidden md:inline"></div>
-                    <Button variant="outline" onClick={onLoginClick} className="text-base md:text-lg">提交</Button>
+                    {/* 确保“登录”按钮没有被 <Link> 标签包裹 */}
+                    <Button variant="outline" onClick={onLoginClick} className="text-base md:text-lg">
+                        登录
+                    </Button>
                     <Link href="#">
                         <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
                     </Link>
                 </div>
+                {/* --- 移动端菜单 --- */}
                 <div className="flex w-12 shrink lg:hidden items-end justify-end">
                     <Button variant="ghost" onClick={() => setOpen(!isOpen)}>
                         {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
