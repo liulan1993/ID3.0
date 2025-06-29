@@ -53,9 +53,19 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
   };
 
   return (
-    <div className="relative group">
+    // 修复：重构结构以解决标签裁切问题
+    // 在主容器上添加上边距，为浮动标签提供空间
+    <div className="relative group pt-2">
+      {/* 将标签移出 overflow-hidden 的容器，并调整其定位 */}
+      <label className={`absolute transition-all duration-200 ease-in-out pointer-events-none ${
+          isFocused || value 
+          ? 'left-9 top-2 -translate-y-1/2 text-xs font-medium bg-black px-1 text-white' // 激活状态：移动到边框上
+          : 'left-10 top-1/2 text-base text-gray-400' // 非激活状态：在输入框内
+      }`}>
+          {placeholder}
+      </label>
       <div
-        className="relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out pt-2" // 添加 pt-2 为标签留出空间
+        className="relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out"
         onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}
       >
         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white transition-colors duration-200 group-focus-within:text-white">
@@ -68,12 +78,8 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-transparent focus:outline-none ${children ? 'pr-32' : 'pr-12'}`}
-          placeholder={placeholder} // 保留 placeholder 以便辅助功能读取
+          placeholder={placeholder}
         />
-        {/* 修复：调整标签的动画和定位以避免重叠 */}
-        <label className={`absolute transition-all duration-200 ease-in-out pointer-events-none ${isFocused || value ? 'left-9 top-0 -translate-y-1/2 text-xs font-medium bg-black px-1 text-white' : 'left-10 top-1/2 -translate-y-1/2 text-base text-gray-400'}`}>
-          {placeholder}
-        </label>
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
           {children}
         </div>
