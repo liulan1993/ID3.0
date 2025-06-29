@@ -6,15 +6,17 @@ import React, {
     useState,
     useMemo
 } from 'react';
+import Image from "next/image"; // 为 testimonials 组件添加
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   motion,
   AnimatePresence,
 } from "framer-motion";
+import { Transition } from "@headlessui/react"; // 为 testimonials 组件添加
 
 // ============================================================================
-// 1. 核心动画组件 (有修改)
+// 1. 开场动画组件 (已按要求修改)
 // ============================================================================
 
 const createGlowTexture = () => {
@@ -175,7 +177,7 @@ const TextShineEffect = ({
         textAnchor="middle"
         dominantBaseline="middle"
         fill="white"
-        className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold"
+        className="font-black text-6xl sm:text-7xl md:text-8xl"
       >
         {text}
       </text>
@@ -186,7 +188,7 @@ const TextShineEffect = ({
         dominantBaseline="middle"
         fill="url(#textGradient)"
         mask="url(#textMask)"
-        className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold"
+        className="font-black text-6xl sm:text-7xl md:text-8xl"
       >
         {text}
       </text>
@@ -199,7 +201,7 @@ const TextShineEffect = ({
             textAnchor="middle"
             dominantBaseline="middle"
             fill="white"
-            className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold"
+            className="font-black text-xl sm:text-2xl md:text-3xl"
           >
             {subtitle}
           </text>
@@ -210,7 +212,7 @@ const TextShineEffect = ({
             dominantBaseline="middle"
             fill="url(#textGradient)"
             mask="url(#textMask)"
-            className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold"
+            className="font-black text-xl sm:text-2xl md:text-3xl"
           >
             {subtitle}
           </text>
@@ -224,14 +226,18 @@ TextShineEffect.displayName = "TextShineEffect";
 const OpeningAnimation = ({ onAnimationFinish }: { onAnimationFinish: () => void; }) => {
   const [animationState, setAnimationState] = useState('initial');
   const [isAnimationVisible, setIsAnimationVisible] = useState(true);
+  const [isReady, setIsReady] = useState(false); // 修复卡顿：添加就绪状态
 
   useEffect(() => {
+    // 修复卡顿：延迟显示以等待资源加载
+    const readyTimer = setTimeout(() => setIsReady(true), 100);
     const hasVisited = sessionStorage.getItem('hasVisitedHomePage');
     if (hasVisited) {
       setAnimationState('finished');
       setIsAnimationVisible(false);
       onAnimationFinish();
     }
+    return () => clearTimeout(readyTimer);
   }, [onAnimationFinish]);
 
   const handleEnter = () => {
@@ -254,37 +260,41 @@ const OpeningAnimation = ({ onAnimationFinish }: { onAnimationFinish: () => void
     <motion.div
         key="animation-wrapper"
         className="fixed inset-0 z-[100] bg-black"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isReady ? 1 : 0 }} // 修复卡顿：准备好后淡入
+        transition={{ duration: 0.5 }}
         exit={{ opacity: 0, transition: { duration: 1.5, ease: "easeInOut" } }}
     >
-        {/* 指令2: 修复 pointerEvents 类型 Bug */}
-        <motion.div
-            className={`absolute inset-0 flex items-center justify-center z-20 ${animationState === 'initial' ? 'pointer-events-auto' : 'pointer-events-none'}`}
-            animate={{
-                opacity: animationState === 'initial' ? 1 : 0,
-                scale: animationState === 'warping' ? 0.8 : 1,
-            }}
-            transition={{ duration: 1.5, ease: "easeInOut" }}
-        >
-            <div className="w-full max-w-2xl px-4">
-                <TextShineEffect 
-                    text="Apex" 
-                    subtitle="轻触，开启非凡"
-                    scanDuration={4} 
-                    onClick={handleEnter} 
-                />
+       {isReady && <>
+            <motion.div
+                className={`absolute inset-0 flex items-center justify-center z-20 ${animationState === 'initial' ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                animate={{
+                    opacity: animationState === 'initial' ? 1 : 0,
+                    scale: animationState === 'warping' ? 0.8 : 1,
+                }}
+                transition={{ duration: 1.5, ease: "easeInOut" }}
+            >
+                <div className="w-full max-w-2xl px-4">
+                    <TextShineEffect 
+                        text="Apex" 
+                        subtitle="轻触，开启非凡"
+                        scanDuration={4} 
+                        onClick={handleEnter} 
+                    />
+                </div>
+            </motion.div>
+            
+            <div
+                className="absolute inset-0 z-10 pointer-events-none"
+            >
+                <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
+                    <Starfield 
+                        warpSpeedActive={animationState === 'warping'} 
+                        accelerationDuration={1.5} 
+                    />
+                </Canvas>
             </div>
-        </motion.div>
-        
-        <div
-            className="absolute inset-0 z-10 pointer-events-none"
-        >
-            <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-                <Starfield 
-                    warpSpeedActive={animationState === 'warping'} 
-                    accelerationDuration={1.5} 
-                />
-            </Canvas>
-        </div>
+       </>}
     </motion.div>
   );
 }
@@ -292,7 +302,7 @@ OpeningAnimation.displayName = "OpeningAnimation";
 
 
 // ============================================================================
-// 2. 主场景内容 (无修改)
+// 2. 主场景组件 (无修改)
 // ============================================================================
 
 const Box = ({ position, rotation }: { position: [number, number, number], rotation: [number, number, number] }) => {
@@ -386,9 +396,242 @@ const MainScene = () => {
     );
 };
 
+// 首页标题组件 (无修改)
+const HomePageTitle = () => {
+    const text = "为您而来，不止于此";
+    const subtitle = "次世代实时渲染引擎";
+    const overlayColor = "text-amber-400";
+    const textColor = "text-black";
+    const letterDelay = 0.08;
+    const overlayDelay = 0.05;
+    const overlayDuration = 0.4;
+    const springDuration = 600;
+    const letterImages = [
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // A
+      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // P
+      "https://images.unsplash.com/photo-1518837695005-2083093ee35b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // E
+      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // X
+      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // ，
+      "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // E
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // N
+      "https://images.unsplash.com/photo-1519904981063-b0cf448d479e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // G
+      "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // I
+      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80", // N
+      "https://images.unsplash.com/photo-1433086966358-54859d0ed716?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"  // E
+    ];
+  
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    const [showOverlay, setShowOverlay] = useState(false);
+    const [isAnimated, setIsAnimated] = useState(false);
+  
+    useEffect(() => {
+      const lastLetterDelay = (text.length - 1) * letterDelay;
+      const totalDelay = (lastLetterDelay * 1000) + springDuration;
+      
+      const timer = setTimeout(() => {
+        setShowOverlay(true);
+        setIsAnimated(true);
+      }, totalDelay);
+      
+      return () => clearTimeout(timer);
+    }, [text.length, letterDelay, springDuration]);
+  
+    return (
+        <div className="flex flex-col items-center justify-center relative select-none">
+            <div className="flex">
+              {text.split("").map((letter, index) => (
+                <motion.span
+                  key={index}
+                  onMouseEnter={() => setHoveredIndex(index)}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                  className="font-black tracking-tight cursor-pointer relative overflow-hidden text-5xl md:text-8xl lg:text-9xl"
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{
+                    delay: index * letterDelay,
+                    type: "spring",
+                    damping: 8,
+                    stiffness: 200,
+                    mass: 0.8,
+                  }}
+                >
+                  <motion.span 
+                    className={`absolute inset-0 text-white`}
+                    animate={{ opacity: hoveredIndex === index ? 0 : 1 }}
+                    transition={{ duration: 0.1 }}
+                  >
+                    {letter === " " ? "\u00A0" : letter}
+                  </motion.span>
+                  
+                  <motion.span
+                    className="text-transparent bg-clip-text bg-cover bg-no-repeat"
+                    animate={{ 
+                      opacity: hoveredIndex === index ? 1 : 0,
+                      backgroundPosition: hoveredIndex === index ? "10% center" : "0% center"
+                    }}
+                    transition={{ 
+                      opacity: { duration: 0.1 },
+                      backgroundPosition: { duration: 3, ease: "easeInOut" }
+                    }}
+                    style={{
+                      backgroundImage: `url('${letterImages[index % letterImages.length]}')`,
+                      WebkitBackgroundClip: "text",
+                      color: "transparent", 
+                    }}
+                  >
+                    {letter === " " ? "\u00A0" : letter}
+                  </motion.span>
+                  
+                  {showOverlay && (
+                    <motion.span
+                      className={`absolute inset-0 ${textColor} pointer-events-none`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: [0, 1, 1, 0] }}
+                      transition={{
+                        delay: index * overlayDelay,
+                        duration: overlayDuration,
+                        times: [0, 0.1, 0.7, 1],
+                        ease: "easeInOut",
+                        repeat: Infinity,
+                        repeatDelay: 5
+                      }}
+                    >
+                      <span className={`${overlayColor}`}>{letter === " " ? "\u00A0" : letter}</span>
+                    </motion.span>
+                  )}
+                </motion.span>
+              ))}
+            </div>
+
+            <motion.p 
+              className="text-lg md:text-2xl text-white mt-4 tracking-widest"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: isAnimated ? 1 : 0 }}
+              transition={{ duration: 1.0, ease: "easeInOut"}}
+            >
+              {subtitle}
+            </motion.p>
+        </div>
+    );
+};
+
+// 用户评价组件 (已按要求修改)
+interface Testimonial {
+  img: string;
+  quote: string;
+  role: string;
+}
+
+const testimonialsData: Testimonial[] = [
+    {
+      img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+      quote: "这个引擎的",
+      role: '首席美术师',
+    },
+    {
+      img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+      quote: "无与伦比的性",
+      role: '技术总监',
+    },
+    {
+      img: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+      quote: "工具链非常",
+      role: '独立开发者',
+    },
+];
+
+const Testimonials = () => {
+  const [active, setActive] = useState<number>(0);
+  const [autorotate, setAutorotate] = useState<boolean>(true);
+  const autorotateTiming: number = 7000;
+
+  useEffect(() => {
+    if (!autorotate) return;
+    const interval = setInterval(() => {
+      setActive(
+        active + 1 === testimonialsData.length ? 0 : (active) => active + 1,
+      );
+    }, autorotateTiming);
+    return () => clearInterval(interval);
+  }, [active, autorotate]);
+
+  return (
+    <div className="w-full max-w-3xl mx-auto text-center">
+      <div className="relative h-28">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[480px] h-[480px] pointer-events-none">
+          <div className="h-40 [mask-image:_linear-gradient(0deg,transparent,theme(colors.white)_20%,theme(colors.white))]">
+            {testimonialsData.map((testimonial, index) => (
+              <Transition
+                as="div"
+                key={index}
+                show={active === index}
+                className="absolute inset-0 -z-10 h-full"
+                enter="transition ease-[cubic-bezier(0.68,-0.3,0.32,1)] duration-700 order-first"
+                enterFrom="opacity-0 -rotate-[60deg]"
+                enterTo="opacity-100 rotate-0"
+                leave="transition ease-[cubic-bezier(0.68,-0.3,0.32,1)] duration-700"
+                leaveFrom="opacity-100 rotate-0"
+                leaveTo="opacity-0 rotate-[60deg]"
+              >
+                <Image
+                  className="relative left-1/2 top-8 -translate-x-1/2 rounded-full"
+                  src={testimonial.img}
+                  width={80}
+                  height={80}
+                  alt={testimonial.role}
+                />
+              </Transition>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mb-5">
+        <div className="relative grid min-h-[6rem] items-center">
+          {testimonialsData.map((testimonial, index) => (
+            <Transition
+              as="div"
+              key={index}
+              show={active === index}
+              className="[grid-area:1/1]"
+              enter="transition ease-in-out duration-500 delay-200"
+              enterFrom="opacity-0"
+              enterTo="opacity-100"
+              leave="transition ease-out duration-300"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <div className="text-xl text-slate-200">
+                {testimonial.quote}
+              </div>
+            </Transition>
+          ))}
+        </div>
+      </div>
+      {/* 指令1: 修改字体大小和格式 */}
+      <div className="flex flex-wrap justify-center">
+        {testimonialsData.map((testimonial, index) => (
+          <button
+            key={index}
+            className={`m-4 cursor-pointer text-xl transition-colors duration-150 focus-visible:outline-none ${
+              active === index
+                ? "text-white"
+                : "text-slate-500 hover:text-white"
+            }`}
+            onClick={() => {
+              setActive(index);
+              setAutorotate(false);
+            }}
+          >
+            <span>{testimonial.role}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 // ============================================================================
-// 3. 主页面组件 (逻辑修改)
+// 3. 主页面组件 (无修改)
 // ============================================================================
 
 export default function Page() {
@@ -407,7 +650,6 @@ export default function Page() {
     };
 
     return (
-        // 指令1: 主页背景主题色换成黑色
         <div className="relative min-h-screen w-full bg-black text-white flex flex-col items-center justify-center overflow-hidden">
             
             <AnimatePresence>
@@ -422,7 +664,19 @@ export default function Page() {
                 animate={{ opacity: mainContentVisible ? 1 : 0 }}
                 transition={{ duration: 1.5, ease: "easeInOut" }}
             >
-                {isClient && <MainScene />}
+                {isClient && (
+                    <div className='relative w-full h-full'>
+                        <MainScene />
+                        <div className="absolute inset-0 z-10 grid grid-rows-[50vh_50vh] pointer-events-auto">
+                            <div className="flex items-end justify-center pb-8">
+                                <HomePageTitle />
+                            </div>
+                            <div className="flex items-start justify-center pt-8">
+                                <Testimonials />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </motion.main>
         </div>
     );
