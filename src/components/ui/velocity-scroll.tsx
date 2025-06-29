@@ -16,14 +16,14 @@ const Title = () => (
     <div className="px-4 text-center md:text-left"> 
       <h1 className="text-4xl font-bold sm:text-5xl md:text-7xl">
         <span className="text-muted-foreground">
-          Life is short. <br />
-          {/* --- 错误已修正 --- */}
-          Don't waste it. <br />
-          It's time to{" "}
-          {/* -------------------- */}
+          {/* --- 错误已通过字符串字面量修正 --- */}
+          {"Life is short."} <br />
+          {"Don't waste it."} <br />
+          {"It's time to "}
+          {/* ------------------------------------ */}
         </span>
         <span className={cn("inline-block -skew-x-[18deg] font-black", "text-foreground")}>
-          SHIFT.
+          {"SHIFT."}
         </span>
       </h1>
     </div>
