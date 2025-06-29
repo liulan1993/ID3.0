@@ -15,9 +15,6 @@ interface LoginSuccessData {
 }
 
 // --- 组件定义 ---
-// ... (WechatIcon, AnimatedFormField, SocialButton 组件的代码与之前相同，此处省略以保持简洁)
-// 您无需修改这些子组件
-
 const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -115,7 +112,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       alert("请输入有效的邮箱地址");
       return;
     }
-    // 关键修正 1: 检查图形验证码是否已输入
     if (!captchaInput) {
       alert("发送邮件前，请先输入图形验证码。");
       return;
@@ -123,7 +119,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
 
     setIsSending(true);
     
-    // 关键修正 2: 调用 sendVerificationEmail 时传递图形验证码信息
     const result = await sendVerificationEmail(email, captchaInput, captcha);
 
     if (result.success) {
@@ -131,7 +126,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       setCountdown(60);
     } else {
       alert(`发送失败: ${result.message}`);
-      // 发送失败时刷新图形验证码
       generateCaptcha();
       setCaptchaInput("");
     }
@@ -145,7 +139,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     setIsSubmitting(true);
 
     if (isSignUp) {
-      // 关键修正 3: 提交给 registerUser 的信息不再包含图形验证码
       const userInfo = { 
         name, 
         email, 
@@ -212,13 +205,20 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         {isSignUp ? (
             <>
               <AnimatedFormField type="text" placeholder="全名" value={name} onChange={(e) => setName(e.target.value)} icon={<User size={18} />} />
-              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} />
+              {/* 关键修正 1: 将发送邮件按钮放回 Email 输入框 */}
+              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />}>
+                  <button type="button" onClick={handleSendVerificationEmail} disabled={isSending || countdown > 0} className="text-xs font-semibold text-white disabled:text-gray-600 hover:text-gray-300 transition-colors whitespace-nowrap">
+                      {isSending ? "发送中..." : countdown > 0 ? `${countdown}s 后重发` : "发送验证码"}
+                  </button>
+              </AnimatedFormField>
               <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />
               <AnimatedFormField type="password" placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
+              {/* 关键修正 2: 恢复图形验证码的正确布局 */}
                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
-                    <button type="button" onClick={handleSendVerificationEmail} disabled={isSending || countdown > 0} className="text-xs font-semibold text-white disabled:text-gray-600 hover:text-gray-300 transition-colors whitespace-nowrap">
-                        {isSending ? "发送中..." : countdown > 0 ? `${countdown}s 后重发` : "发送验证码"}
-                    </button>
+                    <div className="flex items-center space-x-2">
+                        <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
+                        <button type="button" onClick={generateCaptcha} className="text-white hover:text-gray-300 transition-colors"><RefreshCw size={18}/></button>
+                    </div>
                </AnimatedFormField>
                <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} />
             </>
