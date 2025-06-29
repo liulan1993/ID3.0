@@ -95,7 +95,8 @@ export default function Page() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                        // --- 修改点: 允许模态框滚动 ---
+                        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4 pt-8 md:pt-16"
                         onClick={handleCloseModal}
                     >
                         <motion.div
@@ -103,7 +104,8 @@ export default function Page() {
                             animate={{ scale: 1, y: 0, opacity: 1 }}
                             exit={{ scale: 0.9, y: 20, opacity: 0 }}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            onClick={(e) => e.stopPropagation()} 
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative"
                         >
                             <AuthFormComponent onClose={handleCloseModal} />
                         </motion.div>
