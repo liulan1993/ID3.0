@@ -1,6 +1,6 @@
 /*
  * 文件: src/app/actions.ts
- * 描述: 服务器动作文件，已添加详细的调试日志。
+ * 描述: 服务器动作文件，集成了用户认证和邮件服务。
  */
 'use server';
 
@@ -9,7 +9,6 @@ import bcrypt from 'bcryptjs';
 import sgMail from '@sendgrid/mail';
 
 // --- 类型定义 ---
-
 interface ContactFormData {
   name: string;
   serviceArea: string;
@@ -35,7 +34,7 @@ interface RegistrationInfo {
 
 interface UserCredentials {
   email: string;
-  password: string;
+  password:string;
 }
 
 // --- 原有函数 ---
@@ -46,7 +45,6 @@ export async function saveContactToRedis(formData: ContactFormData) {
       throw new Error("姓名不能为空，无法作为主键保存。");
     }
     await kv.set(key, JSON.stringify(formData));
-    console.log(`联系资料已成功写入 Redis，Key 为: ${key}`);
     return { success: true };
   } catch (error) {
     console.error("写入联系资料到 Redis 时出错:", error);
@@ -62,7 +60,6 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
         }
         const key = `subscription:${email}`;
         await kv.set(key, JSON.stringify({ email: email, subscribedAt: new Date().toISOString() }));
-        console.log(`订阅邮箱已成功写入 Redis，Key 为: ${key}`);
         return { success: true };
     } catch (error) {
         console.error("写入订阅邮箱到 Redis 时出错:", error);
@@ -87,7 +84,7 @@ export async function sendVerificationEmail(email: string) {
   const verificationKey = `verification:${normalizedEmail}`;
 
   try {
-    await kv.set(verificationKey, code, { ex: 600 }); 
+    await kv.set(verificationKey, code, { ex: 600 }); // 10分钟有效期
 
     const msg = {
       to: email,
@@ -98,8 +95,6 @@ export async function sendVerificationEmail(email: string) {
     };
 
     await sgMail.send(msg);
-
-    console.log(`[调试] 验证码已存入 Key: ${verificationKey}，值为: ${code}`);
     return { success: true };
 
   } catch (error) {
@@ -125,11 +120,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
 
     const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string>(verificationKey);
-
-    // --- 新增: 详细日志以供调试 ---
-    console.log(`[调试] 正在尝试验证 Key: "${verificationKey}"`);
-    console.log(`[调试] 用户输入的验证码是: "${emailVerificationCode}" (类型: ${typeof emailVerificationCode})`);
-    console.log(`[调试] 数据库中存储的验证码是: "${storedCode}" (类型: ${typeof storedCode})`);
     
     if (!storedCode) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
@@ -156,7 +146,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
     await kv.set(userKey, JSON.stringify(newUser));
     await kv.del(verificationKey);
 
-    console.log(`新用户已成功注册并验证: ${normalizedEmail}`);
     return { success: true };
 
   } catch (error) {
@@ -186,7 +175,6 @@ export async function loginUser(credentials: UserCredentials) {
       email: storedUser.email,
     };
 
-    console.log(`用户登录成功: ${normalizedEmail}`);
     return { 
         success: true, 
         data: { 
