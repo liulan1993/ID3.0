@@ -1,9 +1,6 @@
 /*
  * 文件: src/app/actions.ts
  * 描述: 生产版本的服务器动作。
- * 根本修正: Vercel KV 可能会将纯数字字符串作为 Number 类型返回。
- *          在比较验证码前，使用 .toString() 方法将从 KV 获取的值强制转换为字符串，
- *          以解决因数据类型不匹配导致的验证失败问题。
  */
 'use server';
 
@@ -69,10 +66,8 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
 }
 
 
-// --- 邮件发送函数 ---
 export async function sendVerificationEmail(email: string, graphicalCaptchaInput: string, graphicalCaptchaAnswer: string) {
   if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
-    console.log(`[调试] 发送邮件前图形验证码失败。正确答案: "${graphicalCaptchaAnswer}", 用户输入: "${graphicalCaptchaInput}"`);
     return { success: false, message: '图形验证码不正确。' };
   }
 
@@ -101,7 +96,6 @@ export async function sendVerificationEmail(email: string, graphicalCaptchaInput
     };
 
     await sgMail.send(msg);
-    console.log(`[调试] 验证码已存入 Key: ${verificationKey}，值为: ${code}`);
     return { success: true };
 
   } catch (error) {
@@ -111,7 +105,6 @@ export async function sendVerificationEmail(email: string, graphicalCaptchaInput
 }
 
 
-// --- 注册函数 (最终正确版本) ---
 export async function registerUser(userInfo: RegistrationInfo) {
   try {
     const { email, password, name, phone, emailVerificationCode } = userInfo;
@@ -119,22 +112,13 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const normalizedEmail = email.trim().toLowerCase();
     const verificationKey = `verification:${normalizedEmail}`;
     
-    // 从 KV 获取值，类型可能是 string | number | null
     const storedCode = await kv.get<string | number | null>(verificationKey);
     
-    // 首先，检查验证码是否存在
     if (storedCode === null || storedCode === undefined) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
     }
-
-    // =================================================================
-    // 【最终和根本的修正】
-    // 无论从 KV 中取出的值是数字 769298 还是字符串 "769298"，
-    // 我们都使用 .toString() 将其强制转换为字符串。
-    // 同时，对用户输入进行 trim() 清理，确保比较的是纯净的字符串。
-    // =================================================================
+    
     if (storedCode.toString() !== emailVerificationCode.trim()) {
-      console.error(`[最终调试] 验证码不匹配。KV存储值 (类型 ${typeof storedCode}): "${storedCode}", 用户输入值: "${emailVerificationCode}"`);
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
 
@@ -155,10 +139,8 @@ export async function registerUser(userInfo: RegistrationInfo) {
     };
     await kv.set(userKey, JSON.stringify(newUser));
     
-    // 验证成功后，删除验证码
     await kv.del(verificationKey);
 
-    console.log(`[成功] 新用户已注册: ${normalizedEmail}`);
     return { success: true };
 
   } catch (error) {
@@ -168,7 +150,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
   }
 }
 
-// --- 登录函数 ---
 export async function loginUser(credentials: UserCredentials) {
   try {
     const { email, password } = credentials;
@@ -199,6 +180,76 @@ export async function loginUser(credentials: UserCredentials) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
     console.error(`用户登录时出错: ${errorMessage}`);
+    return { success: false, message: errorMessage };
+  }
+}
+
+// --- 新增: 微信登录逻辑 ---
+export async function loginWithWechat(code: string) {
+  try {
+    // !! 重要: 请替换为您的真实 AppID 和 AppSecret
+    const appId = process.env.WECHAT_APPID;
+    const appSecret = process.env.WECHAT_APPSECRET;
+
+    if (!appId || !appSecret) {
+      throw new Error("微信登录服务配置不完整。");
+    }
+
+    // 步骤 1: 使用 code 换取 access_token 和 openid
+    // 注意: fetch 需要在 Node.js 18+ 环境下才可用。
+    const tokenUrl = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${appId}&secret=${appSecret}&code=${code}&grant_type=authorization_code`;
+    const tokenRes = await fetch(tokenUrl);
+    const tokenData = await tokenRes.json();
+    
+    if (tokenData.errcode) {
+      throw new Error(`获取 access_token 失败: ${tokenData.errmsg}`);
+    }
+
+    const { access_token, openid, unionid } = tokenData;
+    // 优先使用 unionid作为唯一标识。如果应用未获取 unionid 权限，则使用 openid。
+    const wechatUniqueId = unionid || openid;
+
+    // 步骤 2: 使用 wechatUniqueId 在您的数据库中查找用户
+    const userKey = `wechat_user:${wechatUniqueId}`;
+    let storedUser = await kv.get(userKey) as { name: string; email: string; avatar: string; } | null;
+    
+    // 步骤 3: 如果用户不存在，则获取用户信息并创建新用户
+    if (!storedUser) {
+      const userInfoUrl = `https://api.weixin.qq.com/sns/userinfo?access_token=${access_token}&openid=${openid}`;
+      const userInfoRes = await fetch(userInfoUrl);
+      const wechatUserInfo = await userInfoRes.json();
+
+      if (wechatUserInfo.errcode) {
+        throw new Error(`获取用户信息失败: ${wechatUserInfo.errmsg}`);
+      }
+
+      const newUser = {
+        name: wechatUserInfo.nickname,
+        email: `${wechatUniqueId}@wechat.user`, // 构造一个虚拟邮箱
+        avatar: wechatUserInfo.headimgurl,
+        createdAt: new Date().toISOString(),
+      };
+      await kv.set(userKey, JSON.stringify(newUser));
+      storedUser = newUser;
+    }
+
+    const userToReturn = {
+      name: storedUser.name,
+      email: storedUser.email,
+    };
+    
+    // 步骤 4: 返回成功信息和用户信息
+    return {
+      success: true,
+      data: {
+        user: userToReturn,
+        token: 'mock-jwt-token-for-wechat-login'
+      }
+    };
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
+    console.error(`微信登录时出错: ${errorMessage}`);
     return { success: false, message: errorMessage };
   }
 }

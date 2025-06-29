@@ -14,7 +14,7 @@ interface LoginSuccessData {
   token: string;
 }
 
-// --- 组件定义 (无变化) ---
+// --- 组件定义 ---
 const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 14.85c-.9-1.3-2.43-2.15-4.13-2.15-2.25 0-4.18 1.4-4.87 3.32" /><path d="M10.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" /><path d="M14.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" /><path d="M5.01 15.39c-.58 2.5-1.92 4.4-3.51 5.61.32-.13.62-.3.9-.51s.55-.45.8-.73c.25-.28.48-.6.68-.95.2-.35.36-.73.48-1.14.12-.4.2-.84.24-1.3" /><path d="M20.99 15.39c.58 2.5 1.92 4.4 3.51 5.61-.32-.13.62-.3-.9-.51s-.55-.45-.8-.73c.25-.28-.48-.6-.68-.95.2-.35-.36-.73-.48-1.14-.12-.4-.2-.84-.24-1.3" /><path d="M9.13 2.89c-5.18 1.85-8.63 7.07-8.63 12.51 0 1.93.39 3.77 1.1 5.43" /><path d="M14.87 2.89c5.18 1.85 8.63 7.07 8.63 12.51 0 1.93-.39 3.77-1.1 5.43" /></svg>
 );
@@ -25,7 +25,7 @@ interface FormFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   icon: React.ReactNode;
   children?: React.ReactNode;
-  disabled?: boolean; // 新增 disabled 属性
+  disabled?: boolean;
 }
 const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, children, disabled = false}) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -36,8 +36,9 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, 
   };
   return (<div className="relative group"><div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out ${disabled ? 'opacity-60' : ''}`} onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div><input type={type} value={value} onChange={onChange} disabled={disabled} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} /><div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && !disabled && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
 };
-const SocialButton: React.FC<{ icon: React.ReactNode; name: string }> = ({ icon, name }) => {
-  return (<button className="relative group p-3 w-full rounded-lg border border-gray-800 bg-black hover:bg-gray-900 transition-all duration-300 ease-in-out overflow-hidden" aria-label={`使用 ${name} 登录`}><div className="relative flex justify-center text-white">{icon}</div></button>);
+
+const SocialButton: React.FC<{ icon: React.ReactNode; name: string; onClick: () => void; }> = ({ icon, name, onClick }) => {
+  return (<button onClick={onClick} className="relative group p-3 w-full rounded-lg border border-gray-800 bg-black hover:bg-gray-900 transition-all duration-300 ease-in-out overflow-hidden" aria-label={`使用 ${name} 登录`}><div className="relative flex justify-center text-white">{icon}</div></button>);
 };
 
 
@@ -62,10 +63,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
   const [emailVerificationCode, setEmailVerificationCode] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  
-  // =================================================================
-  // 【关键修正 1】新增状态，用于锁定已发送验证码的邮箱
-  // =================================================================
   const [isEmailLocked, setIsEmailLocked] = useState(false);
 
   const generateCaptcha = () => {
@@ -81,9 +78,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
-    } else {
-      // 倒计时结束时，如果邮箱是锁定的，就保持锁定，不自动解锁
-      // setIsEmailLocked(false); // 移除此行
     }
   }, [countdown]);
   
@@ -113,9 +107,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     if (result.success) {
       alert('验证码已发送，请检查您的邮箱。');
       setCountdown(60);
-      // =================================================================
-      // 【关键修正 2】发送成功后，锁定邮箱输入框
-      // =================================================================
       setIsEmailLocked(true);
     } else {
       alert(`发送失败: ${result.message}`);
@@ -154,21 +145,24 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
 
     setIsSubmitting(false);
   };
+  
+  // --- 修改: 微信登录处理函数，直接跳转到模拟回调页 ---
+  const handleWechatLogin = () => {
+    // 直接跳转到你的回调页面来触发模拟登录
+    window.location.href = '/auth/wechat/callback';
+  };
 
   const resetRegistrationForm = () => {
     setEmail(""); setPhone(""); setPassword(""); setName("");
     setShowPassword(false); setLoginMethod('email');
     setCaptchaInput(''); setEmailVerificationCode('');
     setCountdown(0); setIsSending(false);
-    // =================================================================
-    // 【关键修正 3】重置表单时，解锁邮箱
-    // =================================================================
     setIsEmailLocked(false);
   };
 
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
-    resetRegistrationForm(); // 调用重置函数
+    resetRegistrationForm();
   };
 
   return (
@@ -191,9 +185,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         {isSignUp ? (
             <>
               <AnimatedFormField type="text" placeholder="全名" value={name} onChange={(e) => setName(e.target.value)} icon={<User size={18} />} />
-              {/* ================================================================= */}
-              {/* 【关键修正 4】根据 isEmailLocked 状态禁用邮箱输入框，并提供解锁按钮 */}
-              {/* ================================================================= */}
               <AnimatedFormField 
                   type="email" 
                   placeholder="邮箱地址" 
@@ -253,7 +244,8 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
 
         <div className="mt-8">
           <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-800" /></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-black text-gray-400">或使用以下方式继续</span></div></div>
-          <div className="mt-6 flex justify-center"><div className="w-1/3 px-2"><SocialButton icon={<WechatIcon />} name="微信" /></div></div>
+          {/* --- 修改: 绑定微信登录事件 --- */}
+          <div className="mt-6 flex justify-center"><div className="w-1/3 px-2"><SocialButton icon={<WechatIcon />} name="微信" onClick={handleWechatLogin} /></div></div>
         </div>
 
         <div className="mt-8 text-center">
