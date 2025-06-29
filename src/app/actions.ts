@@ -1,6 +1,6 @@
 /*
  * 文件: src/app/actions.ts
- * 描述: 服务器动作文件，已修正验证逻辑并增加详细日志。
+ * 描述: 服务器动作文件，已将图形验证码校验提前至邮件发送环节。
  */
 'use server';
 
@@ -22,13 +22,12 @@ interface FooterEmailData {
     email: string;
 }
 
+// 修正: 注册信息不再需要图形验证码，因为它在发送邮件时已验证
 interface RegistrationInfo {
   name: string;
   email: string;
   phone?: string;
   password: string;
-  graphicalCaptchaAnswer: string;
-  graphicalCaptchaInput: string;
   emailVerificationCode: string;
 }
 
@@ -68,8 +67,14 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
 }
 
 
-// --- 邮件发送函数 ---
-export async function sendVerificationEmail(email: string) {
+// --- 邮件发送函数 (已修改) ---
+export async function sendVerificationEmail(email: string, graphicalCaptchaInput: string, graphicalCaptchaAnswer: string) {
+  // 关键修正 1: 发送邮件前，必须先验证图形验证码
+  if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
+    console.log(`[调试] 发送邮件前图形验证码失败。正确答案: "${graphicalCaptchaAnswer}", 用户输入: "${graphicalCaptchaInput}"`);
+    return { success: false, message: '图形验证码不正确。' };
+  }
+
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
@@ -84,7 +89,6 @@ export async function sendVerificationEmail(email: string) {
   const verificationKey = `verification:${normalizedEmail}`;
 
   try {
-    // 关键：设置一个稍长的有效期（例如15分钟），以应对可能的延迟
     await kv.set(verificationKey, code, { ex: 900 }); 
 
     const msg = {
@@ -106,30 +110,19 @@ export async function sendVerificationEmail(email: string) {
 }
 
 
-// --- 注册函数 ---
+// --- 注册函数 (已修改) ---
 export async function registerUser(userInfo: RegistrationInfo) {
   try {
-    const { 
-      email, password, name, phone, 
-      graphicalCaptchaAnswer, graphicalCaptchaInput, emailVerificationCode 
-    } = userInfo;
+    const { email, password, name, phone, emailVerificationCode } = userInfo;
     
     const normalizedEmail = email.trim().toLowerCase();
     
-    // 修正第一点: 首先验证图形验证码
-    if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
-      console.log(`[调试] 图形验证码失败。正确答案: "${graphicalCaptchaAnswer}", 用户输入: "${graphicalCaptchaInput}"`);
-      throw new Error('图形验证码不正确。');
-    }
+    // 关键修正 2: 图形验证码的校验逻辑已移至 sendVerificationEmail 函数
+    // 此处不再需要重复验证
 
-    // 修正第二点: 在验证邮箱码之前添加更详细的日志
     const verificationKey = `verification:${normalizedEmail}`;
-    console.log(`[调试] 正在验证 Key: "${verificationKey}"`);
     const storedCode = await kv.get<string>(verificationKey);
     
-    console.log(`[调试] 用户输入的邮箱验证码: "${emailVerificationCode}"`);
-    console.log(`[调试] KV 数据库中存储的验证码: "${storedCode}"`);
-
     if (!storedCode) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
     }
@@ -159,7 +152,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
     return { success: true };
 
   } catch (error) {
-    // 修正第三点: 在错误日志中包含更具体的信息
     const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
     console.error(`注册用户时出错: ${errorMessage}`);
     return { success: false, message: errorMessage };

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X } from 'lucide-react';
-// 引入新的服务器动作
+// 引入服务器动作
 import { loginUser, registerUser, sendVerificationEmail } from "@/app/actions";
 
-// 共享类型定义
+// --- 类型定义 ---
 interface User {
   name: string;
   email: string;
@@ -14,7 +14,10 @@ interface LoginSuccessData {
   token: string;
 }
 
-// 自定义微信图标
+// --- 组件定义 ---
+// ... (WechatIcon, AnimatedFormField, SocialButton 组件的代码与之前相同，此处省略以保持简洁)
+// 您无需修改这些子组件
+
 const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20, className = "" }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -37,9 +40,6 @@ const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20
     <path d="M14.87 2.89c5.18 1.85 8.63 7.07 8.63 12.51 0 1.93-.39 3.77-1.1 5.43" />
   </svg>
 );
-
-
-// 标准输入框组件
 interface FormFieldProps {
   type: string;
   placeholder: string;
@@ -48,65 +48,21 @@ interface FormFieldProps {
   icon: React.ReactNode;
   children?: React.ReactNode;
 }
-
-const AnimatedFormField: React.FC<FormFieldProps> = ({
-  type,
-  placeholder,
-  value,
-  onChange,
-  icon,
-  children
-}) => {
+const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, children}) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
-
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setMousePosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
-
-  return (
-    <div className="relative group">
-      <div
-        className="relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out"
-        onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}
-      >
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">
-          {icon}
-        </div>
-        <input
-          type={type}
-          value={value}
-          onChange={onChange}
-          className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${children ? 'pr-32' : 'pr-12'}`}
-          placeholder={placeholder}
-        />
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-          {children}
-        </div>
-        {isHovering && (
-          <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />
-        )}
-      </div>
-    </div>
-  );
+  return (<div className="relative group"><div className="relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out" onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div><input type={type} value={value} onChange={onChange} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} /><div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
 };
-
-// 社交媒体登录按钮
 const SocialButton: React.FC<{ icon: React.ReactNode; name: string }> = ({ icon, name }) => {
-  return (
-    <button
-      className="relative group p-3 w-full rounded-lg border border-gray-800 bg-black hover:bg-gray-900 transition-all duration-300 ease-in-out overflow-hidden"
-      aria-label={`使用 ${name} 登录`}
-    >
-      <div className="relative flex justify-center text-white">
-        {icon}
-      </div>
-    </button>
-  );
+  return (<button className="relative group p-3 w-full rounded-lg border border-gray-800 bg-black hover:bg-gray-900 transition-all duration-300 ease-in-out overflow-hidden" aria-label={`使用 ${name} 登录`}><div className="relative flex justify-center text-white">{icon}</div></button>);
 };
 
-// 主组件: 登录/注册表单
+
+// --- 主组件 ---
 interface AuthFormComponentProps {
     onClose: () => void;
     onLoginSuccess: (data: LoginSuccessData) => void; 
@@ -150,7 +106,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     }
   }, [isSignUp]);
 
-  // 修改: 调用后端发送邮件的动作
   const handleSendVerificationEmail = async () => {
     if (!email) {
       alert("请输入邮箱地址");
@@ -160,34 +115,42 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       alert("请输入有效的邮箱地址");
       return;
     }
+    // 关键修正 1: 检查图形验证码是否已输入
+    if (!captchaInput) {
+      alert("发送邮件前，请先输入图形验证码。");
+      return;
+    }
+
     setIsSending(true);
     
-    const result = await sendVerificationEmail(email);
+    // 关键修正 2: 调用 sendVerificationEmail 时传递图形验证码信息
+    const result = await sendVerificationEmail(email, captchaInput, captcha);
 
     if (result.success) {
       alert('验证码已发送，请检查您的邮箱。');
       setCountdown(60);
     } else {
       alert(`发送失败: ${result.message}`);
+      // 发送失败时刷新图形验证码
+      generateCaptcha();
+      setCaptchaInput("");
     }
 
     setIsSending(false);
   };
 
-  // 修改: 提交时传递所有需要验证的数据
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     if (isSignUp) {
+      // 关键修正 3: 提交给 registerUser 的信息不再包含图形验证码
       const userInfo = { 
         name, 
         email, 
         phone, 
         password,
-        graphicalCaptchaAnswer: captcha,
-        graphicalCaptchaInput: captchaInput,
         emailVerificationCode
       };
       const result = await registerUser(userInfo);
@@ -200,10 +163,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         setCaptchaInput('');
       }
     } else {
-      const credentials = {
-        email,
-        password,
-      };
+      const credentials = { email, password };
       const result = await loginUser(credentials);
       if (result.success && result.data) {
         onLoginSuccess(result.data);
@@ -252,20 +212,15 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         {isSignUp ? (
             <>
               <AnimatedFormField type="text" placeholder="全名" value={name} onChange={(e) => setName(e.target.value)} icon={<User size={18} />} />
-              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />}>
-                  <button type="button" onClick={handleSendVerificationEmail} disabled={isSending || countdown > 0} className="text-xs font-semibold text-white disabled:text-gray-600 hover:text-gray-300 transition-colors whitespace-nowrap">
-                      {isSending ? "发送中..." : countdown > 0 ? `${countdown}s 后重发` : "发送验证码"}
-                  </button>
-              </AnimatedFormField>
+              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} />
               <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />
               <AnimatedFormField type="password" placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
-                    <div className="flex items-center space-x-2">
-                        <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
-                        <button type="button" onClick={generateCaptcha} className="text-white hover:text-gray-300 transition-colors"><RefreshCw size={18}/></button>
-                    </div>
-                </AnimatedFormField>
-                <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} />
+                    <button type="button" onClick={handleSendVerificationEmail} disabled={isSending || countdown > 0} className="text-xs font-semibold text-white disabled:text-gray-600 hover:text-gray-300 transition-colors whitespace-nowrap">
+                        {isSending ? "发送中..." : countdown > 0 ? `${countdown}s 后重发` : "发送验证码"}
+                    </button>
+               </AnimatedFormField>
+               <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} />
             </>
         ) : (
             <>
