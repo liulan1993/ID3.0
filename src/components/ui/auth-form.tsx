@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
-// @ts-ignore
+import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X } from 'lucide-react';
 
 // --- 依赖说明 ---
@@ -25,7 +24,7 @@ const WechatIcon: React.FC<{ size?: number; className?: string }> = ({ size = 20
     <path d="M10.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" />
     <path d="M14.15 11.2a.5.5 0 1 0-.3-1 .5.5 0 0 0 .3 1Z" />
     <path d="M5.01 15.39c-.58 2.5-1.92 4.4-3.51 5.61.32-.13.62-.3.9-.51s.55-.45.8-.73c.25-.28.48-.6.68-.95.2-.35.36-.73.48-1.14.12-.4.2-.84.24-1.3" />
-    <path d="M20.99 15.39c.58 2.5 1.92 4.4 3.51 5.61-.32-.13.62-.3-.9-.51s-.55-.45-.8-.73c-.25-.28-.48-.6-.68-.95.2-.35-.36-.73-.48-1.14-.12-.4-.2-.84-.24-1.3" />
+    <path d="M20.99 15.39c.58 2.5 1.92 4.4 3.51 5.61-.32-.13.62-.3-.9-.51s-.55-.45-.8-.73c.25-.28-.48-.6-.68-.95.2-.35-.36-.73-.48-1.14-.12-.4-.2-.84-.24-1.3" />
     <path d="M9.13 2.89c-5.18 1.85-8.63 7.07-8.63 12.51 0 1.93.39 3.77 1.1 5.43" />
     <path d="M14.87 2.89c5.18 1.85 8.63 7.07 8.63 12.51 0 1.93-.39 3.77-1.1 5.43" />
   </svg>
@@ -112,7 +111,6 @@ const SocialButton: React.FC<{ icon: React.ReactNode; name: string }> = ({ icon,
 };
 
 // --- 主组件: 登录/注册表单 ---
-// 添加 onClose prop 以便父组件可以关闭此模态框
 interface AuthFormComponentProps {
     onClose: () => void;
 }
@@ -133,7 +131,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose }) => {
   const [isSending, setIsSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
-  // 生成随机图形验证码
   const generateCaptcha = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
@@ -143,7 +140,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose }) => {
     setCaptcha(result);
   };
   
-  // 倒计时
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -151,7 +147,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose }) => {
     }
   }, [countdown]);
   
-  // 切换注册模式时生成验证码
   useEffect(() => {
     if (isSignUp) {
       generateCaptcha();
@@ -172,7 +167,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose }) => {
     setCountdown(60);
 
     try {
-      // 在这里调用您的后端API来发送邮件
       await new Promise(resolve => setTimeout(resolve, 1000)); 
       console.log(`(模拟) 已向 ${email} 发送验证码`);
     } catch (error) {
@@ -221,9 +215,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose }) => {
   };
 
   return (
-    // 修改了根 div 以适应模态框样式
     <div className="relative w-full max-w-md bg-gray-900/80 backdrop-blur-xl border border-gray-700 rounded-2xl p-8 shadow-2xl shadow-blue-500/10 font-sans">
-        {/* 添加关闭按钮 */}
         <button 
             onClick={onClose} 
             className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-20"
