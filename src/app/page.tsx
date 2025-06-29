@@ -6,7 +6,7 @@ import React, {
     useState,
     useMemo
 } from 'react';
-import Image from "next/image"; // 为 testimonials 组件添加
+// import Image from "next/image"; // 已移除未使用的导入
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
@@ -603,7 +603,7 @@ const Testimonials = () => {
               leaveTo="opacity-0"
             >
               <div className="text-lg md:text-2xl text-slate-200 px-4">
-                "{testimonial.quote}"
+                &ldquo;{testimonial.quote}&rdquo;
               </div>
             </Transition>
           ))}
