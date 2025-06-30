@@ -7,9 +7,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 // 新增 UserCheck 图标
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-// 修复：同时导入 jspdf 和 html2canvas
+// 修复：移除未使用的 html2canvas
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 
 // 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
