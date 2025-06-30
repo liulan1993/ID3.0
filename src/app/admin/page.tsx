@@ -4,11 +4,12 @@
 
 import React, { useState, useEffect, FC, PropsWithChildren, ComponentProps, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck, Users, Eye, EyeOff, ClipboardList } from 'lucide-react';
+import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck, Users, Eye, EyeOff, ClipboardList, Briefcase } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
 import { jwtDecode } from 'jwt-decode';
+import { PutBlobResult } from '@vercel/blob';
 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,6 +36,17 @@ export interface QuestionnaireSubmission {
   submittedAt: string;
   answers: QuestionnaireAnswer[];
 }
+
+// 新增：用户资料提交类型
+export interface UserSubmission {
+    key: string;
+    userName: string;
+    userEmail: string;
+    services: string[];
+    formData: Record<string, { question: string, answer: any }>;
+    submittedAt: string;
+}
+
 
 // --- 登录表单组件 ---
 const LoginForm: FC<{ onLoginSuccess: (data: { username: string, permission: UserPermission }) => void }> = ({ onLoginSuccess }) => {
@@ -680,6 +692,243 @@ const QuestionnaireViewer: FC<{
     );
 };
 
+// --- 新增：用户资料查看器组件 ---
+const UserSubmissionsViewer: FC<{
+    submissions: UserSubmission[];
+    isLoading: boolean;
+    error: string | null;
+    onDelete: (keys: string[]) => void;
+    onRefresh: () => void;
+    permission: UserPermission;
+}> = ({ submissions, isLoading, error, onDelete, onRefresh, permission }) => {
+    const [filteredSubmissions, setFilteredSubmissions] = useState<UserSubmission[]>([]);
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [detailModalOpen, setDetailModalOpen] = useState(false);
+    const [selectedSubmission, setSelectedSubmission] = useState<UserSubmission | null>(null);
+    const isReadonly = permission === 'readonly';
+
+    useEffect(() => {
+        let tempSubmissions = [...submissions];
+        if (startDate) {
+            tempSubmissions = tempSubmissions.filter(s => new Date(s.submittedAt) >= new Date(startDate));
+        }
+        if (endDate) {
+            const endOfDay = new Date(endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            tempSubmissions = tempSubmissions.filter(s => new Date(s.submittedAt) <= endOfDay);
+        }
+        setFilteredSubmissions(tempSubmissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()));
+    }, [submissions, startDate, endDate]);
+
+    const handleSelect = (key: string) => {
+        const newSelection = new Set(selectedKeys);
+        if (newSelection.has(key)) {
+            newSelection.delete(key);
+        } else {
+            newSelection.add(key);
+        }
+        setSelectedKeys(newSelection);
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedKeys(new Set(filteredSubmissions.map(s => s.key)));
+        } else {
+            setSelectedKeys(new Set());
+        }
+    };
+
+    const handleDelete = () => {
+        if (isReadonly) {
+            alert("您没有权限执行此操作。");
+            return;
+        }
+        if (selectedKeys.size === 0) {
+            alert('请先选择要删除的资料。');
+            return;
+        }
+        if (window.confirm(`确定要删除选中的 ${selectedKeys.size} 条资料吗？此操作将一并删除关联的文件。`)) {
+            onDelete(Array.from(selectedKeys));
+            setSelectedKeys(new Set());
+        }
+    };
+
+    const flattenObject = (obj: any, parentKey = '', res: Record<string, any> = {}) => {
+        for (const key in obj) {
+            const propName = parentKey ? `${parentKey} - ${obj[key].question || key}` : `${obj[key].question || key}`;
+            const value = obj[key].answer;
+            if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                flattenObject(value, propName, res);
+            } else if (Array.isArray(value)) {
+                const fileBlobs = value.filter(item => typeof item === 'object' && item.url);
+                if (fileBlobs.length > 0) {
+                    // 不导出文件内容
+                } else {
+                    res[propName] = value.join(', ');
+                }
+            } else {
+                res[propName] = value;
+            }
+        }
+        return res;
+    };
+
+    const handleExport = () => {
+        if (typeof XLSX === 'undefined') {
+            alert('导出库正在加载中，请稍后再试。');
+            return;
+        }
+        if (selectedKeys.size === 0) {
+            alert('请选择至少一个资料进行导出。');
+            return;
+        }
+
+        const selectedSubmissionsData = submissions.filter(s => selectedKeys.has(s.key));
+        
+        const dataToExport = selectedSubmissionsData.map(submission => {
+            const baseInfo = {
+                '用户邮箱': submission.userEmail,
+                '用户姓名': submission.userName,
+                '提交时间': new Date(submission.submittedAt).toLocaleString(),
+                '申请服务': submission.services.join(', '),
+            };
+            const flattenedFormData = flattenObject(submission.formData);
+            return { ...baseInfo, ...flattenedFormData };
+        });
+
+        if (dataToExport.length === 0) {
+            alert('选中的资料没有可导出的内容。');
+            return;
+        }
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "用户资料");
+        XLSX.writeFile(workbook, "用户资料.xlsx");
+    };
+    
+    const viewDetails = (submission: UserSubmission) => {
+        setSelectedSubmission(submission);
+        setDetailModalOpen(true);
+    };
+
+    const renderAnswer = (answer: any) => {
+        if (Array.isArray(answer)) {
+            const fileBlobs: PutBlobResult[] = answer.filter(item => typeof item === 'object' && item.url);
+            const otherItems = answer.filter(item => typeof item !== 'object' || !item.url);
+
+            return (
+                <div>
+                    {otherItems.length > 0 && <p>{otherItems.join(', ')}</p>}
+                    {fileBlobs.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between mt-2 p-2 bg-gray-700/50 rounded">
+                            <span className="truncate text-sm text-gray-300">{file.pathname.split('/').pop()}</span>
+                            <a href={file.url} download target="_blank" rel="noopener noreferrer" className="ml-4 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                                下载
+                            </a>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+        if (typeof answer === 'object' && answer !== null) {
+            return <div className="pl-4 border-l-2 border-neutral-700 mt-2">{renderFormData(answer)}</div>;
+        }
+        return <p>{String(answer)}</p>;
+    };
+
+    const renderFormData = (formData: Record<string, { question: string, answer: any }>) => {
+        return Object.entries(formData).map(([key, value]) => (
+            <div key={key} className="mt-2">
+                <p className="font-semibold text-gray-300">{value.question || key}</p>
+                <div className="text-gray-400 pl-4 mt-1">
+                    {renderAnswer(value.answer)}
+                </div>
+            </div>
+        ));
+    };
+
+    return (
+        <div className="p-4 md:p-8 w-full h-full flex flex-col">
+            <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">用户资料</h1>
+            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-gray-500"/>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700 text-gray-800 dark:text-white"/>
+                    <span>-</span>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700 text-gray-800 dark:text-white"/>
+                </div>
+                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400" disabled={selectedKeys.size === 0}>
+                    <Download className="h-5 w-5"/>导出 Excel
+                </button>
+                {!isReadonly && (
+                    <button onClick={handleDelete} disabled={selectedKeys.size === 0} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400">
+                        <Trash2 className="h-5 w-5"/>删除选中
+                    </button>
+                )}
+                <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ml-auto">
+                    刷新
+                </button>
+            </div>
+            <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
+                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" className="p-4">
+                                <input type="checkbox" onChange={handleSelectAll} disabled={isReadonly} checked={filteredSubmissions.length > 0 && selectedKeys.size === filteredSubmissions.length}/>
+                            </th>
+                            <th scope="col" className="px-6 py-3">用户</th>
+                            <th scope="col" className="px-6 py-3">申请服务</th>
+                            <th scope="col" className="px-6 py-3">提交时间</th>
+                            <th scope="col" className="px-6 py-3 text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) 
+                        : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) 
+                        : filteredSubmissions.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的资料</td></tr>) 
+                        : (filteredSubmissions.map((submission) => (
+                            <tr key={submission.key} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600">
+                                <td className="p-4">
+                                    <input type="checkbox" checked={selectedKeys.has(submission.key)} onChange={() => handleSelect(submission.key)} disabled={isReadonly}/>
+                                </td>
+                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{submission.userEmail}</td>
+                                <td className="px-6 py-4">{submission.services.join(', ')}</td>
+                                <td className="px-6 py-4">{new Date(submission.submittedAt).toLocaleString()}</td>
+                                <td className="px-6 py-4 text-center">
+                                    <button onClick={() => viewDetails(submission)} className="font-medium text-blue-500 hover:underline">查看详情</button>
+                                </td>
+                            </tr>
+                        )))}
+                    </tbody>
+                </table>
+            </div>
+            {detailModalOpen && selectedSubmission && (
+                <AnimatePresence>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-neutral-900 border border-neutral-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                            <div className="p-6 overflow-y-auto">
+                                <h2 className="text-xl font-bold text-cyan-400 mb-2">用户资料详情</h2>
+                                <p className="text-sm text-gray-400"><b>用户:</b> {selectedSubmission.userEmail} ({selectedSubmission.userName})</p>
+                                <p className="text-sm text-gray-400"><b>申请服务:</b> {selectedSubmission.services.join(', ')}</p>
+                                <p className="text-xs text-gray-500 mb-4"><b>提交于:</b> {new Date(selectedSubmission.submittedAt).toLocaleString()}</p>
+                                <div className="space-y-4 mt-4 border-t border-neutral-700 pt-4">
+                                    {renderFormData(selectedSubmission.formData)}
+                                </div>
+                            </div>
+                            <div className="flex justify-end items-center gap-4 p-4 border-t border-neutral-700 mt-auto">
+                                <button onClick={() => setDetailModalOpen(false)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700">关闭</button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                </AnimatePresence>
+            )}
+        </div>
+    );
+};
+
 
 // --- 系统设置组件 ---
 const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
@@ -835,7 +1084,7 @@ const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
 // --- 主页面组件 ---
 const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; username: string }> = ({ onLogout, permission, username }) => {
     const [open, setOpen] = useState(true);
-    const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback' | 'questionnaire' | 'settings'>('list');
+    const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback' | 'questionnaire' | 'userSubmissions' | 'settings'>('list');
     
     // Articles state
     const [articles, setArticles] = useState<Article[]>([]);
@@ -857,6 +1106,11 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const [questionnaireSubmissions, setQuestionnaireSubmissions] = useState<QuestionnaireSubmission[]>([]);
     const [isQuestionnairesLoading, setIsQuestionnairesLoading] = useState(true);
     const [questionnairesError, setQuestionnairesError] = useState<string | null>(null);
+
+    // User submissions state
+    const [userSubmissions, setUserSubmissions] = useState<UserSubmission[]>([]);
+    const [isUserSubmissionsLoading, setIsUserSubmissionsLoading] = useState(true);
+    const [userSubmissionsError, setUserSubmissionsError] = useState<string | null>(null);
 
     useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
@@ -902,11 +1156,22 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
         } catch (err: unknown) { setQuestionnairesError(err instanceof Error ? err.message : '未知错误'); } finally { setIsQuestionnairesLoading(false); }
     };
 
+    const fetchUserSubmissions = async () => {
+        setIsUserSubmissionsLoading(true); setUserSubmissionsError(null);
+        try {
+            const response = await fetch('/api/user-submissions');
+            if (!response.ok) throw new Error('获取用户资料失败');
+            const data = await response.json();
+            setUserSubmissions(data);
+        } catch (err: unknown) { setUserSubmissionsError(err instanceof Error ? err.message : '未知错误'); } finally { setIsUserSubmissionsLoading(false); }
+    };
+
     useEffect(() => {
         if (view === 'list') fetchArticles();
         if (view === 'questions') fetchChatLogs();
         if (view === 'customerFeedback') fetchCustomerSubmissions();
         if (view === 'questionnaire') fetchQuestionnaires();
+        if (view === 'userSubmissions') fetchUserSubmissions();
     }, [view]);
 
     const handleEditArticle = (article: Article) => { setEditingArticle(article); setView('editor'); };
@@ -914,7 +1179,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const handleDeleteArticle = async (articleId: string) => { if (permission === 'readonly') { alert("您没有权限删除文章。"); return; } if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
     const handlePublishSuccess = () => { alert('操作成功！'); setView('list'); fetchArticles(); };
     
-    const handleDeleteSubmissions = async (keys: string[]) => {
+    const handleDeleteCustomerFeedback = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除反馈。"); return; }
         try {
             const response = await fetch('/api/customer-feedback', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
@@ -931,6 +1196,16 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
             fetchQuestionnaires();
+        } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
+    };
+
+    const handleDeleteUserSubmissions = async (keys: string[]) => {
+        if (permission === 'readonly') { alert("您没有权限删除资料。"); return; }
+        try {
+            const response = await fetch('/api/user-submissions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
+            if (!response.ok) throw new Error('删除失败');
+            alert('删除成功！');
+            fetchUserSubmissions();
         } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
     };
     
@@ -950,6 +1225,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
         { label: "问题一览", href: "#", icon: <MessageSquare className="h-5 w-5" />, action: () => setView('questions') },
         { label: "客户反馈", href: "#", icon: <UserCheck className="h-5 w-5" />, action: () => setView('customerFeedback') },
         { label: "问卷调查", href: "#", icon: <ClipboardList className="h-5 w-5" />, action: () => setView('questionnaire') },
+        { label: "用户资料", href: "#", icon: <Briefcase className="h-5 w-5" />, action: () => setView('userSubmissions') },
         { label: "系统设置", href: "#", icon: <Settings className="h-5 w-5" />, action: () => setView('settings') },
     ];
 
@@ -961,8 +1237,9 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
             case 'list': return <ArticleList articles={articles} isLoading={isArticlesLoading} error={articlesError} onEdit={handleEditArticle} onDelete={handleDeleteArticle} permission={permission} />;
             case 'editor': return <ArticleEditor onArticlePublished={handlePublishSuccess} articleToEdit={editingArticle} permission={permission} />;
             case 'questions': return <ChatLogViewer logs={chatLogs} isLoading={isChatLogsLoading} error={chatLogsError} onRefresh={fetchChatLogs} permission={permission} />;
-            case 'customerFeedback': return <CustomerFeedbackViewer submissions={customerSubmissions} isLoading={isSubmissionsLoading} error={submissionsError} onDelete={handleDeleteSubmissions} onRefresh={fetchCustomerSubmissions} permission={permission} />;
+            case 'customerFeedback': return <CustomerFeedbackViewer submissions={customerSubmissions} isLoading={isSubmissionsLoading} error={submissionsError} onDelete={handleDeleteCustomerFeedback} onRefresh={fetchCustomerSubmissions} permission={permission} />;
             case 'questionnaire': return <QuestionnaireViewer submissions={questionnaireSubmissions} isLoading={isQuestionnairesLoading} error={questionnairesError} onDelete={handleDeleteQuestionnaires} onRefresh={fetchQuestionnaires} permission={permission} />;
+            case 'userSubmissions': return <UserSubmissionsViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onDelete={handleDeleteUserSubmissions} onRefresh={fetchUserSubmissions} permission={permission} />;
             case 'settings': return <SettingsView permission={permission} />;
             default: return <div>请选择一个视图</div>;
         }
