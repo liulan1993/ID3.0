@@ -1,3 +1,5 @@
+// 文件路径: src/app/business/page.tsx
+
 import { kv } from '@vercel/kv';
 import BusinessClient from '@/components/ui/business-client';
 import { Article } from '@/components/ui/business-client'; // 引入类型
@@ -16,11 +18,26 @@ export default async function Page() {
             // 2. 批量获取所有键对应的值
             const articlesData = await kv.mget(...articleKeys);
             
-            // 3. 解析并过滤掉可能为空的数据
-            const articles = articlesData
+            // 3. (关键修正) 解析从KV中取出的JSON字符串
+            const articles: Article[] = articlesData
                 .filter(item => item !== null) // 确保数据不为 null
-                .map(item => item as Article); // 类型断言
+                .map(item => {
+                    // 因为数据在存储时被字符串化了，所以在这里需要解析回来
+                    if (typeof item === 'string') {
+                        try {
+                            return JSON.parse(item);
+                        } catch (e) {
+                            console.error("Failed to parse article JSON:", item, e);
+                            return null;
+                        }
+                    }
+                    return item as Article;
+                })
+                .filter((item): item is Article => item !== null); // 过滤掉解析失败的项目
             
+            // 按创建时间降序排序，最新的文章在最前面
+            articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
             return articles;
         } catch (error) {
             console.error("Failed to fetch articles from Vercel KV:", error);
