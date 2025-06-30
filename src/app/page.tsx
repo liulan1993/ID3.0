@@ -52,6 +52,19 @@ export default function Page() {
         }
     }, []);
 
+    // 新增: 根据弹窗状态控制 body 滚动
+    useEffect(() => {
+        if (isLoginModalOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        // 组件卸载时恢复滚动
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isLoginModalOpen]);
+
     const handleAnimationFinish = () => {
         setMainContentVisible(true);
     };
