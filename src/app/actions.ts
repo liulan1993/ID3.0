@@ -82,7 +82,7 @@ export async function sendVerificationEmail(
     email: string,
     graphicalCaptchaInput: string,
     graphicalCaptchaAnswer: string,
-    phone?: string // `phone`参数的存在(即使是空字符串)表示这是一个注册请求
+    phone?: string // 对于注册流程，此参数为字符串；对于忘记密码，此参数为 undefined
 ) {
   // 步骤 1: 验证图形验证码
   if (graphicalCaptchaInput.toLowerCase() !== graphicalCaptchaAnswer.toLowerCase()) {
@@ -91,28 +91,34 @@ export async function sendVerificationEmail(
 
   const normalizedEmail = email.trim().toLowerCase();
   
-  // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行严格的联合唯一性检查
+  // 步骤 2: 根据流程类型执行不同的唯一性检查
   if (phone !== undefined) {
-    // [BUG修复] 必须同时检查手机号和邮箱。只要任意一个存在，就立即返回错误。
+    // --- 注册流程 ---
+    // [BUG修复] 在发送邮件前，必须严格检查手机号和邮箱的唯一性。
+    
+    // 检查 1: 手机号唯一性
     const trimmedPhone = phone.trim();
-    if (trimmedPhone) {
+    if (trimmedPhone) { // 仅在用户输入了手机号时执行检查
         const phoneKey = `phone:${trimmedPhone}`;
-        const existingUserByPhone = await kv.get(phoneKey);
-        if (existingUserByPhone) {
+        const phoneExists = await kv.get(phoneKey);
+        if (phoneExists) {
             return { success: false, message: '此手机号码已被注册。' };
         }
     }
     
+    // 检查 2: 邮箱唯一性
     const emailKey = `user:${normalizedEmail}`;
-    const existingUserByEmail = await kv.get(emailKey);
-    if (existingUserByEmail) {
+    const emailExists = await kv.get(emailKey);
+    if (emailExists) {
         return { success: false, message: '此邮箱地址已被注册。' };
     }
+
   } else {
-    // 如果是忘记密码请求, 只检查用户是否存在
+    // --- 忘记密码流程 ---
+    // 仅需检查邮箱是否存在
     const emailKey = `user:${normalizedEmail}`;
-    const existingUserByEmail = await kv.get(emailKey);
-    if (!existingUserByEmail) {
+    const emailExists = await kv.get(emailKey);
+    if (!emailExists) {
       return { success: false, message: '该邮箱地址未注册。' };
     }
   }
@@ -157,7 +163,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     
     const normalizedEmail = email.trim().toLowerCase();
     
-    // 在注册写入数据库之前，执行最终的、决定性的唯一性检查，作为最后一道防线。
+    // [加固措施] 在写入数据库前的最后一步，执行最终的唯一性检查，作为最后防线。
     const emailKey = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.get(emailKey);
     if (existingUserByEmail) {
@@ -172,7 +178,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
         }
     }
 
-    // 步骤 1: 验证邮箱验证码
+    // 步骤 1: 验证邮箱验证码 (确保处理 Vercel KV 可能返回 number 类型的问题)
     const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string | number | null>(verificationKey);
     if (storedCode === null || storedCode === undefined) {
