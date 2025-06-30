@@ -7,6 +7,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 // 新增 UserCheck 图标
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+// 重新引入 html-to-image
+import { toPng } from 'html-to-image';
+
 
 // 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -430,37 +433,26 @@ const CustomerFeedbackViewer: FC<{
         }
     };
 
-    const handleExportAsPdf = async () => {
-        if (!selectedSubmission) {
-            alert('无法导出，请先选择一个反馈。');
+    const handleExportAsPng = () => {
+        if (!modalContentRef.current) {
+            alert('无法截图，未找到内容。');
             return;
         }
-        try {
-            const response = await fetch('/api/export-pdf', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(selectedSubmission),
+        toPng(modalContentRef.current, { 
+            cacheBust: true, 
+            skipFonts: true, 
+            backgroundColor: '#1a1a1a' // 使用深色背景
+        })
+            .then((dataUrl) => {
+                const link = document.createElement('a');
+                link.download = `feedback-${selectedSubmission?.key.slice(-12)}.png`;
+                link.href = dataUrl;
+                link.click();
+            })
+            .catch((err) => {
+                console.error('截图失败:', err);
+                alert('截图失败，请查看控制台获取更多信息。');
             });
-
-            if (!response.ok) {
-                const errorResult = await response.text();
-                throw new Error(errorResult || 'PDF 生成失败');
-            }
-
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `feedback-${selectedSubmission.key.slice(-12)}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
-
-        } catch (err) {
-            console.error('导出PDF失败:', err);
-            alert(`导出PDF失败: ${err instanceof Error ? err.message : '未知错误'}`);
-        }
     };
 
     return (
@@ -543,7 +535,7 @@ const CustomerFeedbackViewer: FC<{
                                 )}
                             </div>
                             <div className="flex justify-end items-center gap-4 p-4 border-t border-neutral-700 mt-auto">
-                                <button onClick={handleExportAsPdf} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">导出为 PDF</button>
+                                <button onClick={handleExportAsPng} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">下载截图</button>
                                 <button onClick={() => setSelectedSubmission(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700">关闭</button>
                             </div>
                         </motion.div>
