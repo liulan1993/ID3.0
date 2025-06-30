@@ -21,7 +21,7 @@ export default async function Page() {
             // 2. 批量获取所有文章的数据（此时是JSON字符串数组）
             const articlesData = await kv.mget(...articleKeys);
             
-            // 3. (关键修正) 解析从数据库取出的JSON字符串
+            // 3. 解析从数据库取出的JSON字符串
             const articles: Article[] = articlesData
                 .filter(item => item !== null) 
                 .map(item => {
@@ -42,8 +42,8 @@ export default async function Page() {
             // 4. 按创建时间降序排序，确保最新的文章在最前面
             articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-            // 5. 截取最新的2篇文章
-            return articles.slice(0, 2);
+            // 5. (关键修正) 移除slice(0, 2)限制，返回所有文章
+            return articles;
 
         } catch (error) {
             console.error("Failed to fetch articles from Vercel KV:", error);
