@@ -102,7 +102,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                                                 {item.description}
                                                             </p>
                                                         </div>
-                                                        <Link href="#">
+                                                        <Link href="/business">
                                                             <Button size="sm" className="mt-10 text-base md:text-lg" variant="outline">
                                                                 商业洞察
                                                             </Button>
