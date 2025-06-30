@@ -135,27 +135,44 @@ export async function registerUser(userInfo: RegistrationInfo) {
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
 
-    const userKey = `user:${normalizedEmail}`;
-    const existingUser = await kv.get(userKey);
-    if (existingUser) {
+    // 检查邮箱是否已注册
+    const userKeyByEmail = `user:${normalizedEmail}`;
+    const existingUserByEmail = await kv.get(userKeyByEmail);
+    if (existingUserByEmail) {
       throw new Error('该邮箱地址已被注册。');
+    }
+
+    // 如果提供了手机号，检查手机号是否已注册
+    if (phone && phone.trim()) {
+        const trimmedPhone = phone.trim();
+        const phoneIndexKey = `phone:${trimmedPhone}`;
+        const existingEmailForPhone = await kv.get(phoneIndexKey);
+        if (existingEmailForPhone) {
+            throw new Error('该手机号码已被注册。');
+        }
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 修正: 生成北京时区的 ISO 字符串
+    // 生成北京时区的 ISO 字符串
     const beijingTime = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
     const beijingISOString = beijingTime.toISOString().replace('Z', '+08:00');
 
     const newUser = {
       name,
       email: normalizedEmail,
-      phone: phone || '',
+      phone: phone ? phone.trim() : '',
       hashedPassword,
       createdAt: beijingISOString,
     };
-    await kv.set(userKey, JSON.stringify(newUser));
+    
+    // 存储新用户数据和手机号索引
+    await kv.set(userKeyByEmail, JSON.stringify(newUser));
+    if (phone && phone.trim()) {
+        const phoneIndexKey = `phone:${phone.trim()}`;
+        await kv.set(phoneIndexKey, normalizedEmail);
+    }
     
     await kv.del(verificationKey);
 
