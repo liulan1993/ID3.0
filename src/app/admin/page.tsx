@@ -360,4 +360,3 @@ export default function AdminPage() {
         </div>
     );
 }
-1
