@@ -91,9 +91,10 @@ export async function sendVerificationEmail(
 
   const normalizedEmail = email.trim().toLowerCase();
   
-  // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行唯一性检查
+  // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行联合唯一性检查
+  // [BUG修复] 检查手机号和邮箱是否任意一个已被注册。如果任意一个存在，则直接返回错误，不发送邮件。
   if (phone !== undefined) {
-    // 优先检查手机号是否已存在 (仅当手机号不为空时)
+    // 检查手机号是否已存在
     const trimmedPhone = phone.trim();
     if (trimmedPhone) {
         const phoneKey = `phone:${trimmedPhone}`;
@@ -102,14 +103,13 @@ export async function sendVerificationEmail(
             return { success: false, message: '此手机号码已被注册。' };
         }
     }
-
-    // 接着检查邮箱是否已存在
+    
+    // 检查邮箱是否已存在
     const emailKey = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.get(emailKey);
     if (existingUserByEmail) {
         return { success: false, message: '此邮箱地址已被注册。' };
     }
-    
   } else {
     // 如果是忘记密码请求, 检查用户是否存在
     const emailKey = `user:${normalizedEmail}`;
@@ -161,10 +161,12 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const verificationKey = `verification:${normalizedEmail}`;
     
     // 步骤 1: 验证邮箱验证码
+    // [BUG修复] 从Vercel KV获取的值可能是数字(Number)类型，必须转换为字符串再进行比较。
     const storedCode = await kv.get<string | number | null>(verificationKey);
     if (storedCode === null || storedCode === undefined) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
     }
+    // 使用 .toString() 确保与前端传来的字符串类型进行严格比较。
     if (storedCode.toString() !== emailVerificationCode.trim()) {
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
@@ -253,11 +255,13 @@ export async function resetPassword(info: ResetPasswordInfo) {
         const storedUser = storedUserJSON as { name: string; email: string; hashedPassword: string; };
 
         const verificationKey = `verification:${normalizedEmail}`;
+        // [BUG修复] 从Vercel KV获取的值可能是数字(Number)类型，必须转换为字符串再进行比较。
         const storedCode = await kv.get<string | number | null>(verificationKey);
         
         if (storedCode === null || storedCode === undefined) {
             throw new Error('邮箱验证码已过期或不存在，请重新发送。');
         }
+        // 使用 .toString() 确保与前端传来的字符串类型进行严格比较。
         if (storedCode.toString() !== emailVerificationCode.trim()) {
             throw new Error('您输入的邮箱验证码与系统记录不符。');
         }
