@@ -221,20 +221,41 @@ function ChatWindow({ user }: { user: User }) { // (新增) 接收 user 属性
             
             setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
+            // 这是新的、正确的代码块
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            
+            let buffer = '';
+
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
+                if (done) { break; }
                 
-                const chunk = decoder.decode(value, { stream: true });
-                setMessages(prev => {
-                    const newMessages = [...prev];
-                    const lastMessageIndex = newMessages.length - 1;
-                    newMessages[lastMessageIndex].content += chunk;
-                    return newMessages;
-                });
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // 保留不完整的行到下一次循环处理
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const jsonStr = line.substring(6);
+                        if (jsonStr === '[DONE]') {
+                            break;
+                        }
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            const content = parsed.choices?.[0]?.delta?.content;
+                            if (content) {
+                                setMessages(prev => {
+                                    const newMessages = [...prev];
+                                    const lastMessageIndex = newMessages.length - 1;
+                                    newMessages[lastMessageIndex].content += content;
+                                    return newMessages;
+                                });
+                            }
+                        } catch (e) {
+                            console.error('Failed to parse stream chunk:', e);
+                        }
+                    }
+                }
             }
 
         } catch (error) {
