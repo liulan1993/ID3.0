@@ -36,11 +36,14 @@ export async function POST(req: NextRequest) {
         }
 
         const { title, imageUrl } = parseMarkdown(markdownContent);
-        const articleId = `article_${Date.now()}`;
+        
+        // (关键修正) 使用 crypto.randomUUID() 生成唯一ID
+        const uniqueId = crypto.randomUUID();
+        const articleId = `article_${uniqueId}`;
         const createdAt = new Date().toISOString();
 
         const newArticle = {
-            id: articleId,
+            id: uniqueId, // 直接使用UUID作为文章的唯一标识
             title,
             markdownContent,
             coverImageUrl: imageUrl,
@@ -48,7 +51,8 @@ export async function POST(req: NextRequest) {
             createdAt
         };
 
-        await kv.set(`article:${articleId}`, JSON.stringify(newArticle));
+        // 使用生成的唯一文章ID作为key
+        await kv.set(articleId, JSON.stringify(newArticle));
         return NextResponse.json(newArticle, { status: 201 });
 
     } catch (error) {
@@ -57,14 +61,15 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// (新增) PUT: 更新一篇文章
+// PUT: 更新一篇文章
 export async function PUT(req: NextRequest) {
     try {
         const { id, markdownContent, authorEmail } = await req.json();
         if (!id || !markdownContent || !authorEmail) {
             return NextResponse.json({ message: "缺少必要参数" }, { status: 400 });
         }
-
+        
+        // (关键修正) 直接使用文章ID构造key
         const articleKey = `article:${id}`;
         const existingArticleRaw = await kv.get(articleKey);
         if (!existingArticleRaw) {
@@ -72,7 +77,6 @@ export async function PUT(req: NextRequest) {
         }
         
         const existingArticle = typeof existingArticleRaw === 'string' ? JSON.parse(existingArticleRaw) : existingArticleRaw;
-
         const { title, imageUrl } = parseMarkdown(markdownContent);
 
         const updatedArticle = {
@@ -81,7 +85,7 @@ export async function PUT(req: NextRequest) {
             markdownContent,
             coverImageUrl: imageUrl,
             authorEmail,
-            updatedAt: new Date().toISOString() // 添加更新时间
+            updatedAt: new Date().toISOString()
         };
 
         await kv.set(articleKey, JSON.stringify(updatedArticle));
@@ -93,8 +97,7 @@ export async function PUT(req: NextRequest) {
     }
 }
 
-
-// (新增) DELETE: 删除一篇文章
+// DELETE: 删除一篇文章
 export async function DELETE(req: NextRequest) {
     try {
         const { id } = await req.json();
@@ -102,6 +105,7 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ message: "缺少文章ID" }, { status: 400 });
         }
 
+        // (关键修正) 直接使用文章ID构造key
         const articleKey = `article:${id}`;
         const result = await kv.del(articleKey);
 
