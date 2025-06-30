@@ -43,7 +43,7 @@ export interface UserSubmission {
     userName: string;
     userEmail: string;
     services: string[];
-    formData: Record<string, { question: string, answer: any }>;
+    formData: Record<string, { question: string, answer: unknown }>;
     submittedAt: string;
 }
 
@@ -393,7 +393,7 @@ const ArticleList: FC<{ articles: Article[]; isLoading: boolean; error: string |
             <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th scope="col" className="px-6 py-3">封面图</th><th scope="col" className="px-6 py-3">标题</th><th scope="col" className="px-6 py-3">作者</th><th scope="col" className="px-6 py-3">发布日期</th><th scope="col" className="px-6 py-3 text-center">操作</th></tr></thead>
-                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "https://placehold.co/100x100/EEE/333?text=N/A"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button>{!isReadonly && <button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button>}</td></tr>)))}</tbody>
+                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "[https://placehold.co/100x100/EEE/333?text=N/A](https://placehold.co/100x100/EEE/333?text=N/A)"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button>{!isReadonly && <button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button>}</td></tr>)))}</tbody>
                 </table>
             </div>
         </div>
@@ -755,21 +755,21 @@ const UserSubmissionsViewer: FC<{
         }
     };
 
-    const flattenObject = (obj: any, parentKey = '', res: Record<string, any> = {}) => {
+    const flattenObject = (obj: Record<string, { question: string; answer: unknown }>, parentKey = '', res: Record<string, string | number> = {}) => {
         for (const key in obj) {
             const propName = parentKey ? `${parentKey} - ${obj[key].question || key}` : `${obj[key].question || key}`;
             const value = obj[key].answer;
             if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                flattenObject(value, propName, res);
+                flattenObject(value as Record<string, { question: string; answer: unknown }>, propName, res);
             } else if (Array.isArray(value)) {
-                const fileBlobs = value.filter(item => typeof item === 'object' && item.url);
+                const fileBlobs = value.filter(item => typeof item === 'object' && item !== null && 'url' in item);
                 if (fileBlobs.length > 0) {
                     // 不导出文件内容
                 } else {
                     res[propName] = value.join(', ');
                 }
-            } else {
-                res[propName] = value;
+            } else if (value !== null && value !== undefined) {
+                res[propName] = String(value);
             }
         }
         return res;
@@ -814,10 +814,10 @@ const UserSubmissionsViewer: FC<{
         setDetailModalOpen(true);
     };
 
-    const renderAnswer = (answer: any) => {
+    const renderAnswer = (answer: unknown) => {
         if (Array.isArray(answer)) {
-            const fileBlobs: PutBlobResult[] = answer.filter(item => typeof item === 'object' && item.url);
-            const otherItems = answer.filter(item => typeof item !== 'object' || !item.url);
+            const fileBlobs: PutBlobResult[] = answer.filter((item): item is PutBlobResult => typeof item === 'object' && item !== null && 'url' in item);
+            const otherItems = answer.filter(item => typeof item !== 'object' || item === null || !('url' in item));
 
             return (
                 <div>
@@ -834,12 +834,12 @@ const UserSubmissionsViewer: FC<{
             );
         }
         if (typeof answer === 'object' && answer !== null) {
-            return <div className="pl-4 border-l-2 border-neutral-700 mt-2">{renderFormData(answer)}</div>;
+            return <div className="pl-4 border-l-2 border-neutral-700 mt-2">{renderFormData(answer as Record<string, { question: string; answer: unknown }>)}</div>;
         }
         return <p>{String(answer)}</p>;
     };
 
-    const renderFormData = (formData: Record<string, { question: string, answer: any }>) => {
+    const renderFormData = (formData: Record<string, { question: string, answer: unknown }>) => {
         return Object.entries(formData).map(([key, value]) => (
             <div key={key} className="mt-2">
                 <p className="font-semibold text-gray-300">{value.question || key}</p>
@@ -1112,7 +1112,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const [isUserSubmissionsLoading, setIsUserSubmissionsLoading] = useState(true);
     const [userSubmissionsError, setUserSubmissionsError] = useState<string | null>(null);
 
-    useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
+    useEffect(() => { const script = document.createElement('script'); script.src = "[https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js](https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js)"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
     const fetchArticles = async () => { 
         setIsArticlesLoading(true); setArticlesError(null); 
