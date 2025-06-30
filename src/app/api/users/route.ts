@@ -23,7 +23,8 @@ export async function GET() {
     const usersRaw = await kv.mget(...userKeys);
     const users = usersRaw.map(user => {
       if (user && typeof user === 'object') {
-        const { passwordHash, ...userWithoutPassword } = user as User;
+        // 修复：在变量名前加下划线，表示有意不使用它
+        const { passwordHash: _passwordHash, ...userWithoutPassword } = user as User;
         return userWithoutPassword;
       }
       return null;
@@ -58,7 +59,8 @@ export async function POST(req: NextRequest) {
 
     await kv.set(userKey, newUser);
 
-    const { passwordHash: _, ...userToReturn } = newUser;
+    // 修复：在变量名前加下划线，表示有意不使用它
+    const { passwordHash: _passwordHash, ...userToReturn } = newUser;
     return NextResponse.json(userToReturn, { status: 201 });
   } catch (error) {
     console.error('Error creating user:', error);
