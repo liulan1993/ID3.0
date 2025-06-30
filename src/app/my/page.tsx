@@ -252,12 +252,14 @@ export default function MyProfilePage() {
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
-        if (token) {
+        const userInfo = localStorage.getItem('userInfo'); // **FIX**: Also check for userInfo
+        
+        if (token && userInfo) { // **FIX**: Check for both token and userInfo
             try {
-                const decoded = jwtDecode<User>(token);
-                setUser(decoded);
+                const parsedUser = JSON.parse(userInfo); // **FIX**: Parse userInfo from localStorage
+                setUser(parsedUser);
             } catch (e) {
-                console.error("无效的Token:", e);
+                console.error("解析用户信息失败:", e);
                 router.push('/');
             }
         } else {
@@ -309,7 +311,7 @@ export default function MyProfilePage() {
         }
     };
 
-    const tabs: { id: Tab; label: string; icon: FC<{ size?: number }> }[] = [
+    const tabs: { id: Tab; label: string; icon: FC<{ size?: number | string }> }[] = [
         { id: 'submissions', label: '表单资料', icon: FileText },
         { id: 'questionnaires', label: '问卷调查', icon: ClipboardList },
         { id: 'feedback', label: '客户反馈', icon: MessageSquare },
