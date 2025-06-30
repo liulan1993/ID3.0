@@ -93,37 +93,43 @@ export async function sendVerificationEmail(
   
   // 步骤 2: 根据流程类型执行不同的唯一性检查
   if (phone !== undefined) {
-    // --- 注册流程 ---
-    // [BUG修复] 在发送邮件前，必须严格检查手机号和邮箱的唯一性。
-    
-    // 检查 1: 手机号唯一性
+    // --- 这是注册流程 ---
+    // [最终修复] 在发送邮件之前，必须对手机号和邮箱进行严格的、独立的唯一性检查。
+    // 只要其中任意一个已被注册，就必须立即终止流程。
+
+    // 检查 1: 手机号唯一性。
+    // 我们查询 `phone:<号码>` 索引。如果这个键存在，说明手机号已被占用。
     const trimmedPhone = phone.trim();
-    if (trimmedPhone) { // 仅在用户输入了手机号时执行检查
+    if (trimmedPhone) { 
         const phoneKey = `phone:${trimmedPhone}`;
-        const phoneExists = await kv.get(phoneKey);
-        if (phoneExists) {
+        const phoneIndexExists = await kv.get(phoneKey);
+        if (phoneIndexExists) {
+            // 如果索引存在，立即返回错误，不再继续执行。
             return { success: false, message: '此手机号码已被注册。' };
         }
     }
     
-    // 检查 2: 邮箱唯一性
+    // 检查 2: 邮箱唯一性。
+    // 仅在手机号检查通过后，我们才检查邮箱。
+    // 我们查询 `user:<邮箱>`。如果这个键存在，说明邮箱已被占用。
     const emailKey = `user:${normalizedEmail}`;
-    const emailExists = await kv.get(emailKey);
-    if (emailExists) {
+    const emailUserExists = await kv.get(emailKey);
+    if (emailUserExists) {
+        // 如果用户存在，立即返回错误。
         return { success: false, message: '此邮箱地址已被注册。' };
     }
 
   } else {
-    // --- 忘记密码流程 ---
-    // 仅需检查邮箱是否存在
+    // --- 这是忘记密码流程 ---
+    // 在此流程中，我们只关心用户是否存在，以便重置密码。
     const emailKey = `user:${normalizedEmail}`;
-    const emailExists = await kv.get(emailKey);
-    if (!emailExists) {
+    const emailUserExists = await kv.get(emailKey);
+    if (!emailUserExists) {
       return { success: false, message: '该邮箱地址未注册。' };
     }
   }
 
-  // 步骤 3: 所有检查通过，发送验证邮件
+  // 步骤 3: 所有检查均已通过。现在可以安全地发送验证邮件。
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
