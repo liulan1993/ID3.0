@@ -4,10 +4,10 @@ import { kv } from '@vercel/kv';
 import BusinessClient from '@/components/ui/business-client';
 import { Article } from '@/components/ui/business-client'; // 引入类型
 
-// (关键修正 1) 禁用数据缓存
-// 这行代码会告诉Next.js，每次访问这个页面时都必须重新从数据库获取最新数据，
-// 而不是使用旧的、被缓存的数据。
-export const revalidate = 0;
+// (关键修正 1) 强制页面动态渲染
+// 这会确保每次访问都从服务器获取最新数据，是解决顽固缓存问题的最强力方法。
+export const dynamic = 'force-dynamic';
+// export const revalidate = 0; // 'force-dynamic' 是 revalidate: 0 的一个更强力的等价物
 
 // Page 组件是一个服务器组件，负责获取数据
 export default async function Page() {
@@ -42,7 +42,7 @@ export default async function Page() {
             // 4. 按创建时间降序排序，确保最新的文章在最前面
             articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-            // (关键修正 2) 截取最新的2篇文章
+            // 截取最新的2篇文章
             return articles.slice(0, 2);
 
         } catch (error) {
