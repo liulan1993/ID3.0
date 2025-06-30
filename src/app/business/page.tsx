@@ -4,12 +4,10 @@ import { kv } from '@vercel/kv';
 import BusinessClient from '@/components/ui/business-client';
 import { Article } from '@/components/ui/business-client'; // 引入类型
 
-// (关键修正 1) 强制页面动态渲染
-// 这会确保每次访问都从服务器获取最新数据，是解决顽固缓存问题的最强力方法。
+// 强制页面动态渲染，确保每次都获取最新数据
 export const dynamic = 'force-dynamic';
-// export const revalidate = 0; // 'force-dynamic' 是 revalidate: 0 的一个更强力的等价物
 
-// Page 组件是一个服务器组件，负责获取数据
+// Page 组件现在是一个服务器组件，负责获取并正确解析数据
 export default async function Page() {
     
     // 服务器端数据获取逻辑
@@ -20,13 +18,14 @@ export default async function Page() {
             if (articleKeys.length === 0) {
                 return []; 
             }
-            // 2. 批量获取所有文章的数据
+            // 2. 批量获取所有文章的数据（此时是JSON字符串数组）
             const articlesData = await kv.mget(...articleKeys);
             
-            // 3. 解析从数据库取出的JSON字符串
+            // 3. (关键修正) 解析从数据库取出的JSON字符串
             const articles: Article[] = articlesData
                 .filter(item => item !== null) 
                 .map(item => {
+                    // 因为数据在存储时被字符串化了，所以在这里需要解析回来
                     if (typeof item === 'string') {
                         try {
                             return JSON.parse(item);
@@ -35,6 +34,7 @@ export default async function Page() {
                             return null;
                         }
                     }
+                    // 如果已经是对象（虽然不太可能），直接返回
                     return item as Article;
                 })
                 .filter((item): item is Article => item !== null); // 过滤掉解析失败的项目
@@ -42,7 +42,7 @@ export default async function Page() {
             // 4. 按创建时间降序排序，确保最新的文章在最前面
             articles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-            // 截取最新的2篇文章
+            // 5. 截取最新的2篇文章
             return articles.slice(0, 2);
 
         } catch (error) {

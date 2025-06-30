@@ -1,23 +1,25 @@
+// 文件路径: src/components/ui/business-client.tsx
+
 "use client";
 
 import React, { useRef, useState, useEffect } from 'react';
-import Link from 'next/link'; // (修正) 引入 Link 组件
+import Link from 'next/link';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+// import remarkGfm from 'remark-gfm'; // 如果您安装了该插件，可以取消注释
 
-// --- (新增) 导出类型定义，以便服务器组件可以复用 ---
+// --- 导出Article类型，供服务器组件复用 ---
 export interface Article {
     id: string;
     title: string;
     markdownContent: string;
-    coverImageUrl?: string;
+    coverImageUrl: string | null; // API返回的可能是 null
     createdAt: string;
     authorEmail: string;
 }
 
-// --- 3D背景组件 (无改动) ---
+// --- 3D背景组件 ---
 const Box = ({ position, rotation }: { position: [number, number, number], rotation: [number, number, number] }) => {
     const shape = new THREE.Shape();
     const angleStep = Math.PI * 0.5;
@@ -82,13 +84,12 @@ const ArticleModal = ({ article, onClose }: { article: Article, onClose: () => v
             <div className="bg-[#1C2529] rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto p-8 border border-gray-700/80 relative animate-fade-in" onClick={(e) => e.stopPropagation()}>
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors text-2xl z-10" aria-label="关闭文章">&times;</button>
                 <article className="prose prose-invert prose-lg max-w-none prose-img:rounded-lg prose-headings:text-white">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                    <ReactMarkdown /*remarkPlugins={[remarkGfm]}*/ components={{
                         img: (props) => {
                             if (typeof props.src === 'string' && (props.src.endsWith('.mp4') || props.src.endsWith('.webm') || props.src.endsWith('.ogg'))) {
                                 return (<div className="w-full aspect-video my-6"><video src={props.src} controls preload="metadata" className="w-full h-full rounded-lg">您的浏览器不支持播放该视频。</video></div>);
                             }
-                            // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-                            return <img {...props} />;
+                            return <img {...props} alt={props.alt || ''} />;
                         },
                     }}>{article.markdownContent}</ReactMarkdown>
                 </article>
@@ -114,7 +115,6 @@ export default function BusinessClient({ articles }: { articles: Article[] }) {
                     <h1 className="text-4xl md:text-5xl font-bold text-white">商业洞察</h1>
                     <p className="text-gray-400 mt-2">点击卡片阅读全文</p>
                     <div className="mt-4">
-                        {/* (修正) 使用 Link 组件代替 a 标签 */}
                         <Link href="/" className="inline-block bg-sky-500/80 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-600/80 transition-colors duration-300">返回主页</Link>
                     </div>
                 </header>
