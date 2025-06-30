@@ -15,20 +15,27 @@ export async function GET() {
         // 解析数据，并为每一条记录添加一个唯一的 key 字段
         const chatLogs = chatLogsRaw.map((log, index) => {
             const key = chatLogKeys[index];
+            // 使用 Record<string, unknown> 代替 any 来确保类型安全
+            let logObject: Record<string, unknown> | null = null;
+
             if (typeof log === 'string') {
                 try {
-                    const parsedLog = JSON.parse(log);
-                    parsedLog.key = key; 
-                    return parsedLog;
+                    // 将解析后的对象断言为通用记录类型
+                    logObject = JSON.parse(log) as Record<string, unknown>;
                 } catch (e) {
                     console.error("Failed to parse chat log:", log, e);
                     return null;
                 }
+            } else if (log && typeof log === 'object') {
+                // 将已有的对象断言为通用记录类型
+                logObject = log as Record<string, unknown>;
             }
-            if (log && typeof log === 'object') {
-                (log as any).key = key;
-                return log;
+
+            if (logObject) {
+                logObject.key = key; // 附加 key
+                return logObject;
             }
+            
             return null;
         }).filter(Boolean);
 
@@ -47,8 +54,6 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ message: "缺少要删除的记录 key" }, { status: 400 });
         }
 
-        // BUG 2 修复：直接执行删除操作，并返回删除的数量。
-        // 如果 kv.del 抛出异常，将被外层 try...catch 捕获。
         const deletedCount = await kv.del(...keys);
 
         return NextResponse.json({ message: `成功删除了 ${deletedCount} 条记录` }, { status: 200 });

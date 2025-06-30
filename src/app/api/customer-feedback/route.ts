@@ -14,6 +14,16 @@ const kv = createClient({
   token: process.env.KV_REST_API_TOKEN,
 });
 
+// 定义客户反馈的数据结构以替代 any
+interface CustomerSubmission {
+    key: string;
+    userName: string;
+    userEmail: string;
+    content: string;
+    fileUrls: string[];
+    submittedAt: string;
+}
+
 // 获取所有客户反馈
 export async function GET() {
     try {
@@ -28,8 +38,9 @@ export async function GET() {
 
         const submissionsData = await kv.mget(...keys);
         
-        // BUG 3 修复：过滤掉 key 重复的数据，解决“勾选一个选中多个”的问题。
-        const uniqueSubmissions = new Map<string, any>();
+        // 使用具体的 CustomerSubmission 类型来初始化 Map，替代 any
+        const uniqueSubmissions = new Map<string, CustomerSubmission>();
+        
         submissionsData.forEach((data, index) => {
             const key = keys[index];
             if (uniqueSubmissions.has(key)) {
@@ -37,21 +48,22 @@ export async function GET() {
                 return;
             }
 
-            let submission;
+            let submissionData: Omit<CustomerSubmission, 'key'>;
             if (typeof data === 'string') {
                 try {
-                    submission = JSON.parse(data);
+                    submissionData = JSON.parse(data);
                 } catch (e) {
                     console.error(`解析失败，key: ${key}`, e);
                     return;
                 }
             } else if (data && typeof data === 'object') {
-                submission = data;
+                submissionData = data as Omit<CustomerSubmission, 'key'>;
             } else {
                 return;
             }
             
-            uniqueSubmissions.set(key, { key, ...submission });
+            const fullSubmission: CustomerSubmission = { key, ...submissionData };
+            uniqueSubmissions.set(key, fullSubmission);
         });
 
         const submissions = Array.from(uniqueSubmissions.values());
@@ -73,7 +85,6 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: '缺少要删除的键' }, { status: 400 });
         }
 
-        // BUG 3 修复：使用 del 批量删除并获取删除的数量，提供更明确的反馈。
         const deletedCount = await kv.del(...keys);
 
         if (deletedCount > 0) {
