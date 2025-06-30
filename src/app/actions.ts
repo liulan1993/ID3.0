@@ -65,7 +65,12 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
             throw new Error("邮箱地址不能为空。");
         }
         const key = `subscription:${email}`;
-        await kv.set(key, JSON.stringify({ email: email, subscribedAt: new Date().toISOString() }));
+        
+        // 修正: 生成北京时区的 ISO 字符串
+        const beijingTime = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
+        const beijingISOString = beijingTime.toISOString().replace('Z', '+08:00');
+        
+        await kv.set(key, JSON.stringify({ email: email, subscribedAt: beijingISOString }));
         return { success: true };
     } catch (error) {
         console.error("写入订阅邮箱到 Redis 时出错:", error);
@@ -138,12 +143,17 @@ export async function registerUser(userInfo: RegistrationInfo) {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+
+    // 修正: 生成北京时区的 ISO 字符串
+    const beijingTime = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
+    const beijingISOString = beijingTime.toISOString().replace('Z', '+08:00');
+
     const newUser = {
       name,
       email: normalizedEmail,
       phone: phone || '',
       hashedPassword,
-      createdAt: new Date().toISOString(),
+      createdAt: beijingISOString,
     };
     await kv.set(userKey, JSON.stringify(newUser));
     
