@@ -162,7 +162,7 @@ export default function Page() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4 pt-8 md:pt-16"
-                        onClick={handleCloseModal}
+                        // 移除此处的 onClick 事件
                     >
                         <motion.div
                             initial={{ scale: 0.9, y: 20, opacity: 0 }}
