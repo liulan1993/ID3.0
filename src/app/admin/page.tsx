@@ -7,7 +7,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-// 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
+// (关键修正) 告诉 TypeScript XLSX 是一个全局变量，并禁用 linter 对 'any' 类型的警告
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const XLSX: any;
 
 // --- 工具函数 ---
@@ -71,14 +72,11 @@ const MobileSidebar: FC<ComponentProps<"div">> = ({ className, children }) => {
 const SidebarLink: FC<{ link: LinkItem; className?: string; }> = ({ link, className }) => {
   const { open, animate } = useSidebar();
   const Component = link.action ? 'button' : 'a';
-
   const commonProps = {
     className: cn("flex items-center justify-start gap-4 group/sidebar py-2 w-full text-left", className),
     onClick: link.action,
   };
-
   const linkProps = Component === 'a' ? { href: link.href } : {};
-
   return (
     <Component {...commonProps} {...linkProps}>
       {link.icon}
