@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-// (关键修正) 告诉 TypeScript XLSX 是一个全局变量，并禁用 linter 对 'any' 类型的警告
+// 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const XLSX: any;
 
@@ -54,23 +54,35 @@ const useSidebar = () => {
   return context;
 };
 const SidebarProvider: FC<PropsWithChildren<{ open?: boolean; setOpen?: React.Dispatch<React.SetStateAction<boolean>>; animate?: boolean; }>> = ({ children, open: openProp, setOpen: setOpenProp, animate = true }) => {
-  const [openState, setOpenState] = useState(false);
+  const [openState, setOpenState] = useState(true); // 默认展开
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
   return (<SidebarContext.Provider value={{ open, setOpen, animate }}>{children}</SidebarContext.Provider>);
 };
 const Sidebar: FC<PropsWithChildren<{ open?: boolean; setOpen?: React.Dispatch<React.SetStateAction<boolean>>; animate?: boolean; }>> = ({ children, open, setOpen, animate }) => (<SidebarProvider open={open} setOpen={setOpen} animate={animate}>{children}</SidebarProvider>);
-const SidebarBody: FC<ComponentProps<typeof motion.div>> = (props) => (<><DesktopSidebar {...props} /><MobileSidebar {...(props as ComponentProps<"div">)} /></>);
-const DesktopSidebar: FC<ComponentProps<typeof motion.div>> = ({ className, children, ...props }) => {
-  const { open, setOpen, animate } = useSidebar();
-  return (<motion.div className={cn("h-full px-4 py-4 hidden md:flex md:flex-col bg-neutral-100 dark:bg-neutral-800 w-[300px] flex-shrink-0", className)} animate={{ width: animate ? (open ? "300px" : "72px") : "300px" }} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)} {...props}>{children}</motion.div>);
+
+const SidebarBody: FC<PropsWithChildren<ComponentProps<typeof motion.div>>> = (props) => {
+    return (
+        <>
+            <DesktopSidebar {...props} />
+            <MobileSidebar {...(props as ComponentProps<"div">)} />
+        </>
+    );
 };
-const MobileSidebar: FC<ComponentProps<"div">> = ({ className, children }) => {
+
+const DesktopSidebar: FC<PropsWithChildren<ComponentProps<typeof motion.div>>> = ({ className, children, ...props }) => {
+  return (
+    <motion.div className={cn("h-full px-4 py-4 hidden md:flex md:flex-col bg-neutral-100 dark:bg-neutral-800 w-[300px] flex-shrink-0", className)} {...props}>
+      {children}
+    </motion.div>
+  );
+};
+
+const MobileSidebar: FC<PropsWithChildren<ComponentProps<"div">>> = ({ className, children }) => {
   const { open, setOpen } = useSidebar();
   return (<><div className={cn("h-10 px-4 py-4 flex flex-row md:hidden items-center justify-end bg-neutral-100 dark:bg-neutral-800 w-full")}><Menu className="text-neutral-800 dark:text-neutral-200 cursor-pointer" onClick={() => setOpen(!open)} /><AnimatePresence>{open && (<motion.div initial={{ x: "-100%", opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: "-100%", opacity: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className={cn("fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between", className)}><div className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200 cursor-pointer" onClick={() => setOpen(!open)}><X /></div>{children}</motion.div>)}</AnimatePresence></div></>);
 };
 const SidebarLink: FC<{ link: LinkItem; className?: string; }> = ({ link, className }) => {
-  const { open, animate } = useSidebar();
   const Component = link.action ? 'button' : 'a';
   const commonProps = {
     className: cn("flex items-center justify-start gap-4 group/sidebar py-2 w-full text-left", className),
@@ -80,23 +92,17 @@ const SidebarLink: FC<{ link: LinkItem; className?: string; }> = ({ link, classN
   return (
     <Component {...commonProps} {...linkProps}>
       {link.icon}
-      <motion.span
-        animate={{
-          display: animate ? "inline-block" : "none",
-          opacity: animate ? (open ? 1 : 0) : 1,
-        }}
-        className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0"
-      >
+      <span className="text-neutral-700 dark:text-neutral-200 text-sm group-hover/sidebar:translate-x-1 transition duration-150 whitespace-pre inline-block !p-0 !m-0">
         {link.label}
-      </motion.span>
+      </span>
     </Component>
   );
 };
-const Logo: FC = () => (<div className="font-normal flex space-x-2 items-center text-sm text-black dark:text-white py-1 relative z-20"><div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" /><motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-medium text-black dark:text-white whitespace-pre">后台管理</motion.span></div>);
+const Logo: FC = () => (<div className="font-normal flex space-x-2 items-center text-sm text-black dark:text-white py-1 relative z-20"><div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" /><span className="font-medium text-black dark:text-white whitespace-pre">后台管理</span></div>);
 const LogoIcon: FC = () => (<div className="font-normal flex space-x-2 items-center text-sm text-black dark:text-white py-1 relative z-20"><div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" /></div>);
 
 
-// --- 文章编辑器组件 (已恢复图片上传功能) ---
+// --- 文章编辑器组件 ---
 const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article | null }> = ({ onArticlePublished, articleToEdit }) => {
     const [markdownContent, setMarkdownContent] = useState('');
     const [authorEmail, setAuthorEmail] = useState('admin@example.com');
@@ -213,59 +219,30 @@ const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article
 };
 
 
-// --- 文章管理列表组件 (已恢复筛选和导出功能) ---
+// --- 文章管理列表组件 ---
 const ArticleList: FC<{ articles: Article[]; isLoading: boolean; error: string | null; onEdit: (article: Article) => void; onDelete: (articleId: string) => void; }> = ({ articles, isLoading, error, onEdit, onDelete }) => {
     const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
     const [keyword, setKeyword] = useState('');
     const [author, setAuthor] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-
-    useEffect(() => {
-        let tempArticles = [...articles];
-        if (keyword) tempArticles = tempArticles.filter(a => a.title.toLowerCase().includes(keyword.toLowerCase()));
-        if (author) tempArticles = tempArticles.filter(a => a.authorEmail.toLowerCase().includes(author.toLowerCase()));
-        if (startDate) tempArticles = tempArticles.filter(a => new Date(a.createdAt) >= new Date(startDate));
-        if (endDate) { const endOfDay = new Date(endDate); endOfDay.setHours(23, 59, 59, 999); tempArticles = tempArticles.filter(a => new Date(a.createdAt) <= endOfDay); }
-        setFilteredArticles(tempArticles);
-    }, [articles, keyword, author, startDate, endDate]);
-    
-    const handleExport = () => {
-        if (typeof XLSX === 'undefined') { alert('导出库正在加载中，请稍后再试。'); return; }
-        const dataToExport = filteredArticles.map(a => ({'标题': a.title, '作者': a.authorEmail, '发布日期': new Date(a.createdAt).toLocaleDateString(), '封面图URL': a.coverImageUrl, }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "文章列表");
-        XLSX.writeFile(workbook, "文章列表.xlsx");
-    };
-
+    useEffect(() => { let tempArticles = [...articles]; if (keyword) tempArticles = tempArticles.filter(a => a.title.toLowerCase().includes(keyword.toLowerCase())); if (author) tempArticles = tempArticles.filter(a => a.authorEmail.toLowerCase().includes(author.toLowerCase())); if (startDate) tempArticles = tempArticles.filter(a => new Date(a.createdAt) >= new Date(startDate)); if (endDate) { const endOfDay = new Date(endDate); endOfDay.setHours(23, 59, 59, 999); tempArticles = tempArticles.filter(a => new Date(a.createdAt) <= endOfDay); } setFilteredArticles(tempArticles); }, [articles, keyword, author, startDate, endDate]);
+    const handleExport = () => { if (typeof XLSX === 'undefined') { alert('导出库正在加载中，请稍后再试。'); return; } const dataToExport = filteredArticles.map(a => ({'标题': a.title, '作者': a.authorEmail, '发布日期': new Date(a.createdAt).toLocaleDateString(), '封面图URL': a.coverImageUrl, })); const worksheet = XLSX.utils.json_to_sheet(dataToExport); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "文章列表"); XLSX.writeFile(workbook, "文章列表.xlsx"); };
     return (
         <div className="p-4 md:p-8 w-full h-full flex flex-col">
             <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">文章管理</h1>
-            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"/><input type="text" placeholder="按标题筛选..." value={keyword} onChange={e => setKeyword(e.target.value)} className="p-2 pl-10 rounded border bg-white dark:bg-gray-700"/></div>
-                <input type="text" placeholder="按作者筛选..." value={author} onChange={e => setAuthor(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/>
-                <div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-gray-500"/><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/><span>-</span><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/></div>
-                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"><Download className="h-5 w-5"/>导出 Excel</button>
-            </div>
+            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"/><input type="text" placeholder="按标题筛选..." value={keyword} onChange={e => setKeyword(e.target.value)} className="p-2 pl-10 rounded border bg-white dark:bg-gray-700"/></div><input type="text" placeholder="按作者筛选..." value={author} onChange={e => setAuthor(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/><div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-gray-500"/><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/><span>-</span><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/></div><button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"><Download className="h-5 w-5"/>导出 Excel</button></div>
             <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                        <tr><th scope="col" className="px-6 py-3">封面图</th><th scope="col" className="px-6 py-3">标题</th><th scope="col" className="px-6 py-3">作者</th><th scope="col" className="px-6 py-3">发布日期</th><th scope="col" className="px-6 py-3 text-center">操作</th></tr>
-                    </thead>
-                    <tbody>
-                        {isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : 
-                         error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : 
-                         filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : 
-                         (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "https://placehold.co/100x100/EEE/333?text=N/A"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button><button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button></td></tr>)))}
-                    </tbody>
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th scope="col" className="px-6 py-3">封面图</th><th scope="col" className="px-6 py-3">标题</th><th scope="col" className="px-6 py-3">作者</th><th scope="col" className="px-6 py-3">发布日期</th><th scope="col" className="px-6 py-3 text-center">操作</th></tr></thead>
+                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "https://placehold.co/100x100/EEE/333?text=N/A"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button><button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button></td></tr>)))}</tbody>
                 </table>
             </div>
         </div>
     );
 };
 
-// --- 客户问题一览组件 (已恢复) ---
+// --- 客户问题一览组件 ---
 const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | null; onRefresh: () => void; }> = ({ logs, isLoading, error, onRefresh }) => {
     const [filteredLogs, setFilteredLogs] = useState<ChatLog[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -279,11 +256,7 @@ const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | n
     return (
         <div className="p-4 md:p-8 w-full h-full flex flex-col">
             <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">客户问题一览</h1>
-            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-gray-500"/><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/><span>-</span><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/></div>
-                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"><Download className="h-5 w-5"/>导出 Excel</button>
-                <button onClick={() => handleDelete(Array.from(selectedKeys))} disabled={selectedKeys.size === 0} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"><Trash2 className="h-5 w-5"/>删除选中</button>
-            </div>
+            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"><div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-gray-500"/><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/><span>-</span><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/></div><button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"><Download className="h-5 w-5"/>导出 Excel</button><button onClick={() => handleDelete(Array.from(selectedKeys))} disabled={selectedKeys.size === 0} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"><Trash2 className="h-5 w-5"/>删除选中</button></div>
             <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th scope="col" className="p-4"><input type="checkbox" onChange={handleSelectAll} checked={filteredLogs.length > 0 && selectedKeys.size === filteredLogs.length}/></th><th scope="col" className="px-6 py-3">用户</th><th scope="col" className="px-6 py-3">问题内容</th><th scope="col" className="px-6 py-3">时间</th><th scope="col" className="px-6 py-3">操作</th></tr></thead>
@@ -297,7 +270,7 @@ const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | n
 
 // --- 主页面组件 ---
 export default function AdminPage() {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(true);
     const [view, setView] = useState<'list' | 'editor' | 'questions'>('list');
     const [articles, setArticles] = useState<Article[]>([]);
     const [isArticlesLoading, setIsArticlesLoading] = useState(true);
@@ -373,7 +346,7 @@ export default function AdminPage() {
     return (
         <div className="flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-900 w-full h-screen">
             <Sidebar open={open} setOpen={setOpen}>
-                <SidebarBody className="justify-between gap-10">
+                <SidebarBody>
                     <div className="flex flex-col flex-1 overflow-y-auto">
                         <div className='px-2 py-1'>{open ? <Logo /> : <LogoIcon />}</div>
                         <div className="mt-8 flex flex-col gap-2">{adminLinks.map((link, idx) => (<SidebarLink key={idx} link={link} />))}</div>
