@@ -1,51 +1,36 @@
 // 文件路径: src/app/api/auth/login/route.ts
 
-import { NextResponse } from 'next/server';
+import { kv } from '@vercel/kv';
+import { NextRequest, NextResponse } from 'next/server';
 import { SignJWT } from 'jose';
+import bcrypt from 'bcrypt';
 
-// 从环境变量中获取密钥，确保安全
-// 您需要在 .env.local 和 Vercel 中设置 JWT_SECRET
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'a-very-strong-secret-key-that-is-at-least-32-bytes-long'
 );
 
-// 从环境变量中安全地获取凭证列表
-// 您需要在 Vercel 项目设置中添加 ADMIN_ACCOUNTS 环境变量
-const adminAccountsJson = process.env.ADMIN_ACCOUNTS;
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // 检查环境变量是否设置
-    if (!adminAccountsJson) {
-        console.error('管理员账户列表未在环境变量中设置 (ADMIN_ACCOUNTS)。');
-        return NextResponse.json({ message: '服务器配置错误' }, { status: 500 });
-    }
-
-    let adminAccounts = [];
-    try {
-        adminAccounts = JSON.parse(adminAccountsJson);
-        if (!Array.isArray(adminAccounts)) {
-            throw new Error("ADMIN_ACCOUNTS 不是一个有效的JSON数组。");
-        }
-    } catch (e) {
-        console.error('解析 ADMIN_ACCOUNTS 环境变量失败:', e);
-        return NextResponse.json({ message: '服务器配置错误' }, { status: 500 });
-    }
-
     const { username, password } = await request.json();
+    if (!username || !password) {
+      return NextResponse.json({ message: '账号和密码不能为空' }, { status: 400 });
+    }
 
-    // 在账户列表中查找匹配的用户
-    const validUser = adminAccounts.find(
-      (acc: { username?: string; password?: string }) => 
-        acc.username === username && acc.password === password
-    );
+    const userKey = `user:${username}`;
+    const user = await kv.get(userKey);
 
+    if (!user || typeof user !== 'object') {
+      return NextResponse.json({ message: '账号或密码错误' }, { status: 401 });
+    }
 
-    // 验证账号和密码
-    if (validUser) {
-      // 凭证正确，创建 JWT
+    const userData = user as { passwordHash: string; permission: 'full' | 'readonly' };
+    
+    const passwordMatch = await bcrypt.compare(password, userData.passwordHash);
+
+    if (passwordMatch) {
+      // 凭证正确，创建包含权限信息的 JWT
       const expirationTime = '24h';
-      const payload = { username };
+      const payload = { username, permission: userData.permission };
 
       const token = await new SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256' })
@@ -53,10 +38,8 @@ export async function POST(request: Request) {
         .setExpirationTime(expirationTime)
         .sign(secret);
 
-      // 创建一个成功的响应
-      const response = NextResponse.json({ success: true }, { status: 200 });
+      const response = NextResponse.json({ success: true, permission: userData.permission }, { status: 200 });
 
-      // 在响应上设置 httpOnly cookie
       response.cookies.set('auth_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',

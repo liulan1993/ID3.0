@@ -2,14 +2,19 @@
 
 import { NextResponse } from 'next/server';
 
-export async function GET(request: Request) {
+export async function POST() {
   try {
-    // 重定向到登录页面
-    const redirectUrl = new URL('/admin/login', request.url);
-    const response = NextResponse.redirect(redirectUrl);
+    // 创建一个成功的响应
+    const response = NextResponse.json({ message: '登出成功' }, { status: 200 });
 
     // 在响应中清除 cookie
-    response.cookies.delete('auth_token');
+    response.cookies.set('auth_token', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        expires: new Date(0), // 设置为过去的时间使其立即过期
+    });
 
     return response;
 
