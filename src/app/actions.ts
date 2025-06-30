@@ -79,9 +79,40 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
 }
 
 
-export async function sendVerificationEmail(email: string, graphicalCaptchaInput: string, graphicalCaptchaAnswer: string) {
+export async function sendVerificationEmail(
+    email: string,
+    graphicalCaptchaInput: string,
+    graphicalCaptchaAnswer: string,
+    // 通过可选的 phone 参数来区分是“注册”流程还是“忘记密码”流程
+    phone?: string
+) {
   if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
     return { success: false, message: '图形验证码不正确。' };
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const userKeyByEmail = `user:${normalizedEmail}`;
+  const existingUserByEmail = await kv.get(userKeyByEmail);
+
+  // 根据是否存在 phone 参数来判断意图
+  if (phone !== undefined) {
+    // 意图：注册。用户不应该存在。
+    if (existingUserByEmail) {
+      return { success: false, message: '该邮箱地址已被注册。' };
+    }
+    if (phone.trim()) {
+        const trimmedPhone = phone.trim();
+        const phoneIndexKey = `phone:${trimmedPhone}`;
+        const existingEmailForPhone = await kv.get(phoneIndexKey);
+        if (existingEmailForPhone) {
+            return { success: false, message: '该手机号码已被注册。' };
+        }
+    }
+  } else {
+    // 意图：忘记密码。用户必须存在。
+    if (!existingUserByEmail) {
+      return { success: false, message: '该邮箱地址未注册。' };
+    }
   }
 
   const apiKey = process.env.SENDGRID_API_KEY;
@@ -94,7 +125,6 @@ export async function sendVerificationEmail(email: string, graphicalCaptchaInput
   sgMail.setApiKey(apiKey);
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const normalizedEmail = email.trim().toLowerCase();
   const verificationKey = `verification:${normalizedEmail}`;
 
   try {
@@ -135,14 +165,13 @@ export async function registerUser(userInfo: RegistrationInfo) {
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
 
-    // 检查邮箱是否已注册
+    // 作为最终保障，在写入数据库前再次检查
     const userKeyByEmail = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.get(userKeyByEmail);
     if (existingUserByEmail) {
       throw new Error('该邮箱地址已被注册。');
     }
 
-    // 如果提供了手机号，检查手机号是否已注册
     if (phone && phone.trim()) {
         const trimmedPhone = phone.trim();
         const phoneIndexKey = `phone:${trimmedPhone}`;
