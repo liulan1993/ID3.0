@@ -38,6 +38,7 @@ export default function LoginPage() {
                 setError(data.message || '账号或密码错误');
             }
         } catch (err) {
+            console.error('Login page submit error:', err);
             setError('登录时发生错误，请稍后再试');
         } finally {
             setIsLoading(false);

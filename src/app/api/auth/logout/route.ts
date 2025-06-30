@@ -1,7 +1,6 @@
 // 文件路径: src/app/api/auth/logout/route.ts
 
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {
   try {
@@ -15,6 +14,7 @@ export async function GET(request: Request) {
     return response;
 
   } catch (error) {
+    console.error('Logout API error:', error);
     return NextResponse.json({ message: '服务器内部错误' }, { status: 500 });
   }
 }

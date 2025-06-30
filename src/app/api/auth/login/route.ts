@@ -10,8 +10,8 @@ const secret = new TextEncoder().encode(
 );
 
 // 在这里设置固定的账号和密码
-const ADMIN_USERNAME = 'sara';
-const ADMIN_PASSWORD = 'Apex@2025'; // 请务必修改为更安全的密码
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'password123'; // 请务必修改为更安全的密码
 
 export async function POST(request: Request) {
   try {
@@ -47,6 +47,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: '账号或密码错误' }, { status: 401 });
     }
   } catch (error) {
+    console.error('Login API error:', error);
     return NextResponse.json({ message: '服务器内部错误' }, { status: 500 });
   }
 }
