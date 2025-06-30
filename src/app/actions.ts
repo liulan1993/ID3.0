@@ -93,14 +93,7 @@ export async function sendVerificationEmail(
   
   // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行唯一性检查
   if (phone !== undefined) {
-    // 检查邮箱是否已存在
-    const emailKey = `user:${normalizedEmail}`;
-    const existingUserByEmail = await kv.get(emailKey);
-    if (existingUserByEmail) {
-        return { success: false, message: '此邮箱地址已被注册。' };
-    }
-    
-    // 检查手机号是否已存在 (仅当手机号不为空时)
+    // 优先检查手机号是否已存在 (仅当手机号不为空时)
     const trimmedPhone = phone.trim();
     if (trimmedPhone) {
         const phoneKey = `phone:${trimmedPhone}`;
@@ -109,6 +102,14 @@ export async function sendVerificationEmail(
             return { success: false, message: '此手机号码已被注册。' };
         }
     }
+
+    // 接着检查邮箱是否已存在
+    const emailKey = `user:${normalizedEmail}`;
+    const existingUserByEmail = await kv.get(emailKey);
+    if (existingUserByEmail) {
+        return { success: false, message: '此邮箱地址已被注册。' };
+    }
+    
   } else {
     // 如果是忘记密码请求, 检查用户是否存在
     const emailKey = `user:${normalizedEmail}`;
