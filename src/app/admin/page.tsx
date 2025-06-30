@@ -4,7 +4,8 @@
 
 import React, { useState, useEffect, FC, PropsWithChildren, ComponentProps, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck, Users, Eye, EyeOff } from 'lucide-react';
+// 新增 ClipboardList 图标
+import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck, Users, Eye, EyeOff, ClipboardList } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
@@ -21,6 +22,22 @@ interface User {
     username: string;
     permission: UserPermission;
 }
+
+// 新增问卷类型定义
+interface QuestionnaireAnswer {
+  qId: string;
+  question: string;
+  answer: string | string[];
+}
+
+interface QuestionnaireSubmission {
+  key: string;
+  userName: string;
+  userEmail: string;
+  submittedAt: string;
+  answers: QuestionnaireAnswer[];
+}
+
 
 // --- 登录表单组件 ---
 const LoginForm: FC<{ onLoginSuccess: (data: { username: string, permission: UserPermission }) => void }> = ({ onLoginSuccess }) => {
@@ -49,7 +66,6 @@ const LoginForm: FC<{ onLoginSuccess: (data: { username: string, permission: Use
 
             const data = await res.json();
             if (res.ok) {
-                // 修复：将整个成功返回的 data 对象传递给回调
                 onLoginSuccess(data);
             } else {
                 setError(data.message || '账号或密码错误');
@@ -793,6 +809,8 @@ export default function AdminPage() {
         setUsername(null);
         window.location.href = '/admin';
     };
+
+
 
     if (!isLoggedIn || !permission || !username) {
         return <LoginForm onLoginSuccess={handleLoginSuccess} />;
