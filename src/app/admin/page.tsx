@@ -315,8 +315,8 @@ const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article
     return (
         <div className="p-4 md:p-8 w-full h-full flex flex-col">
             <h1 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">{isEditMode ? '编辑文章' : '写新文章'}</h1>
-            <div className="bg-neutral-200 dark:bg-neutral-800 p-4 rounded-xl flex-1 flex flex-col shadow-lg">
-                {/* UI BUG 修复：为网格容器添加 min-h-0 以约束其高度，防止布局溢出 */}
+            {/* UI BUG 修复：为这个作为 flex-1 子项的面板添加 min-h-0，以强制其高度受限于父容器，解决内容溢出问题。 */}
+            <div className="bg-neutral-200 dark:bg-neutral-800 p-4 rounded-xl flex-1 flex flex-col shadow-lg min-h-0">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
                     <textarea ref={textAreaRef} value={markdownContent} onPaste={handlePaste} onChange={(e) => setMarkdownContent(e.target.value)} className="w-full h-full p-4 rounded-lg bg-white dark:bg-black/40 border border-gray-300 dark:border-gray-700 resize-none font-mono focus:ring-2 focus:ring-blue-500" />
                     <div className="h-full bg-white dark:bg-black/40 border rounded-lg overflow-y-auto p-4">
