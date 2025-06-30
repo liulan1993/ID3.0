@@ -6,6 +6,15 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useRouter } from 'next/navigation';
 
+// 声明全局变量以修复 'any' 类型错误
+declare global {
+  interface Window {
+    marked?: {
+      parse: (markdown: string) => string;
+    };
+  }
+}
+
 // --- 类型定义 ---
 interface User {
   name: string;
@@ -86,7 +95,7 @@ function MarkdownPreview({ content, imagePreviewUrls }: { content: string, image
     useEffect(() => {
         const scriptId = 'marked-script';
         const loadMarked = () => {
-            const marked = (window as any).marked;
+            const marked = window.marked;
             if (marked) {
                 setHtml(marked.parse(content));
             }
