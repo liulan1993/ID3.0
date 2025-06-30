@@ -64,7 +64,7 @@ export default function Page() {
         setIsLoginModalOpen(false);
     };
 
-    // 修正: 为 data 参数添加明确的类型
+    // 修正: 为 data 参数添加明确的类型, 并删除 alert
     const handleLoginSuccess = (data: LoginSuccessData) => {
         setIsAuthenticated(true);
         setUser(data.user);
@@ -73,21 +73,20 @@ export default function Page() {
         localStorage.setItem('userInfo', JSON.stringify(data.user));
 
         handleCloseModal();
-        alert('登录成功！');
     };
 
+    // 修正: 删除 alert
     const handleLogout = () => {
         setIsAuthenticated(false);
         setUser(null);
         localStorage.removeItem('authToken');
         localStorage.removeItem('userInfo');
-        alert('您已成功退出。');
     };
 
+    // 修正: 删除 alert
     const handleProtectedLinkClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => {
         e.preventDefault();
         if (!isAuthenticated) {
-            alert('请先登录以访问此页面。');
             handleLoginClick();
         } else {
             window.location.href = href;

@@ -23,7 +23,7 @@ interface FooterEmailData {
 }
 
 interface RegistrationInfo {
-  name: string;
+  name:string;
   email: string;
   phone?: string;
   password: string;
@@ -181,111 +181,5 @@ export async function loginUser(credentials: UserCredentials) {
     const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
     console.error(`用户登录时出错: ${errorMessage}`);
     return { success: false, message: errorMessage };
-  }
-}
-
-// --- 真实的微信登录逻辑 (保留) ---
-export async function loginWithWechat(code: string) {
-  try {
-    // !! 重要: 请替换为您的真实 AppID 和 AppSecret
-    const appId = process.env.WECHAT_APPID;
-    const appSecret = process.env.WECHAT_APPSECRET;
-
-    if (!appId || !appSecret) {
-      throw new Error("微信登录服务配置不完整。");
-    }
-
-    // 步骤 1: 使用 code 换取 access_token 和 openid
-    // 注意: fetch 需要在 Node.js 18+ 环境下才可用。
-    const tokenUrl = `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${appId}&secret=${appSecret}&code=${code}&grant_type=authorization_code`;
-    const tokenRes = await fetch(tokenUrl);
-    const tokenData = await tokenRes.json();
-    
-    if (tokenData.errcode) {
-      throw new Error(`获取 access_token 失败: ${tokenData.errmsg}`);
-    }
-
-    const { access_token, openid, unionid } = tokenData;
-    // 优先使用 unionid作为唯一标识。如果应用未获取 unionid 权限，则使用 openid。
-    const wechatUniqueId = unionid || openid;
-
-    // 步骤 2: 使用 wechatUniqueId 在您的数据库中查找用户
-    const userKey = `wechat_user:${wechatUniqueId}`;
-    let storedUser = await kv.get(userKey) as { name: string; email: string; avatar: string; } | null;
-    
-    // 步骤 3: 如果用户不存在，则获取用户信息并创建新用户
-    if (!storedUser) {
-      const userInfoUrl = `https://api.weixin.qq.com/sns/userinfo?access_token=${access_token}&openid=${openid}`;
-      const userInfoRes = await fetch(userInfoUrl);
-      const wechatUserInfo = await userInfoRes.json();
-
-      if (wechatUserInfo.errcode) {
-        throw new Error(`获取用户信息失败: ${wechatUserInfo.errmsg}`);
-      }
-
-      const newUser = {
-        name: wechatUserInfo.nickname,
-        email: `${wechatUniqueId}@wechat.user`, // 构造一个虚拟邮箱
-        avatar: wechatUserInfo.headimgurl,
-        createdAt: new Date().toISOString(),
-      };
-      await kv.set(userKey, JSON.stringify(newUser));
-      storedUser = newUser;
-    }
-
-    const userToReturn = {
-      name: storedUser.name,
-      email: storedUser.email,
-    };
-    
-    // 步骤 4: 返回成功信息和用户信息
-    return {
-      success: true,
-      data: {
-        user: userToReturn,
-        token: 'mock-jwt-token-for-wechat-login'
-      }
-    };
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
-    console.error(`微信登录时出错: ${errorMessage}`);
-    return { success: false, message: errorMessage };
-  }
-}
-
-// --- 新增: 模拟检查微信用户是否已注册 ---
-export async function checkWechatUser() {
-  try {
-    // 模拟网络延迟
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // 为了练习，我们用 50% 的概率随机决定用户是否存在
-    // 在真实场景中，这里应该是查询数据库的逻辑
-    const userExists = Math.random() > 0.5;
-
-    if (userExists) {
-      // 如果用户存在，返回一个模拟的用户数据和 token
-      console.log("模拟微信用户检查：用户已存在，将直接登录。");
-      return {
-        success: true,
-        exists: true,
-        data: {
-          user: { name: '已注册的微信用户', email: 'existing.wechat.user@example.com' },
-          token: 'mock-token-for-existing-wechat-user'
-        }
-      };
-    } else {
-      // 如果用户不存在，告诉前端需要注册
-      console.log("模拟微信用户检查：用户不存在，将引导注册。");
-      return {
-        success: true,
-        exists: false,
-        data: null
-      };
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '检查微信用户时发生未知错误';
-    return { success: false, exists: false, message: errorMessage, data: null };
   }
 }
