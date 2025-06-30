@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import Link from 'next/link'; // (修正) 引入 Link 组件
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import ReactMarkdown from 'react-markdown';
@@ -113,7 +114,8 @@ export default function BusinessClient({ articles }: { articles: Article[] }) {
                     <h1 className="text-4xl md:text-5xl font-bold text-white">商业洞察</h1>
                     <p className="text-gray-400 mt-2">点击卡片阅读全文</p>
                     <div className="mt-4">
-                        <a href="/" className="inline-block bg-sky-500/80 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-600/80 transition-colors duration-300">返回主页</a>
+                        {/* (修正) 使用 Link 组件代替 a 标签 */}
+                        <Link href="/" className="inline-block bg-sky-500/80 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-600/80 transition-colors duration-300">返回主页</Link>
                     </div>
                 </header>
 
