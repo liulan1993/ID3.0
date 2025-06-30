@@ -4,12 +4,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { LayoutDashboard, Settings, Menu, X, FileText, PlusCircle } from 'lucide-react';
+import { Settings, Menu, X, FileText, PlusCircle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 // import remarkGfm from 'remark-gfm'; // 暂时移除以解决编译问题
 
 // --- 工具函数 ---
-const cn = (...inputs: any[]) => {
+const cn = (...inputs: (string | boolean | null | undefined)[]) => {
   return inputs.filter(Boolean).join(' ');
 };
 
@@ -191,8 +191,12 @@ const ArticleEditor: React.FC<{ onArticlePublished: () => void }> = ({ onArticle
             }
             // 发布成功后，调用回调函数
             onArticlePublished();
-        } catch (err: any) {
-            setPublishError(err.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setPublishError(err.message);
+            } else {
+                setPublishError('发生未知错误');
+            }
         } finally {
             setIsPublishing(false);
         }
@@ -311,7 +315,7 @@ export default function AdminPage() {
             if (!response.ok) throw new Error('获取文章数据失败');
             // kv返回的数据可能是字符串，需要解析
             const data = await response.json();
-            const parsedArticles = data.map((item: any) => {
+            const parsedArticles = data.map((item: unknown) => {
                 if (typeof item === 'string') {
                     try {
                         return JSON.parse(item);
@@ -321,10 +325,14 @@ export default function AdminPage() {
                     }
                 }
                 return item;
-            }).filter((item: any): item is Article => item !== null); // 过滤掉解析失败的项目
+            }).filter((item: unknown): item is Article => item !== null); // 过滤掉解析失败的项目
             setArticles(parsedArticles);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('发生未知错误');
+            }
         } finally {
             setIsLoading(false);
         }
