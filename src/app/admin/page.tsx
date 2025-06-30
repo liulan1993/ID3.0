@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 // 新增 UserCheck 图标
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-// 移除 html-to-image，新增 jspdf 和 html2canvas
+// 修复：同时导入 jspdf 和 html2canvas
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -435,29 +435,88 @@ const CustomerFeedbackViewer: FC<{
     };
 
     const handleExportAsPdf = () => {
-        if (!modalContentRef.current) {
+        if (!modalContentRef.current || !selectedSubmission) {
             alert('无法导出，未找到内容。');
             return;
         }
+        
+        const doc = new jsPDF();
+        const margin = 15;
+        let y = margin;
 
-        const input = modalContentRef.current;
-        html2canvas(input, {
-            useCORS: true, // 允许加载跨域图片
-            scale: 2, // 提高分辨率
-            backgroundColor: '#18181b',
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'pt',
-                format: [canvas.width, canvas.height]
+        // 添加标题和用户信息
+        doc.setFontSize(16);
+        doc.text(selectedSubmission.userName, margin, y);
+        y += 10;
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        doc.text(`${selectedSubmission.userEmail} - ${new Date(selectedSubmission.submittedAt).toLocaleString()}`, margin, y);
+        y += 20;
+
+        // 添加内容
+        doc.setTextColor(0);
+        doc.setFontSize(12);
+        const contentLines = doc.splitTextToSize(selectedSubmission.content, doc.internal.pageSize.width - margin * 2);
+        doc.text(contentLines, margin, y);
+        y += contentLines.length * 12 + 10;
+
+        // 添加图片
+        if (selectedSubmission.fileUrls && selectedSubmission.fileUrls.length > 0) {
+            y += 10;
+            doc.setFontSize(14);
+            doc.text('附件图片:', margin, y);
+            y += 15;
+
+            const addImagesToPdf = async () => {
+                for (const url of selectedSubmission.fileUrls) {
+                    try {
+                        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
+                        const response = await fetch(proxyUrl);
+                        const blob = await response.blob();
+                        const dataUrl = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result as string);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                        
+                        const img = new Image();
+                        img.src = dataUrl;
+                        await new Promise(resolve => { img.onload = resolve; });
+
+                        const imgProps = doc.getImageProperties(dataUrl);
+                        const imgWidth = doc.internal.pageSize.width - margin * 2;
+                        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+
+                        if (y + imgHeight > doc.internal.pageSize.height - margin) {
+                            doc.addPage();
+                            y = margin;
+                        }
+
+                        doc.addImage(dataUrl, 'JPEG', margin, y, imgWidth, imgHeight);
+                        y += imgHeight + 10;
+                    } catch (err) {
+                        console.error(`加载图片失败: ${url}`, err);
+                        if (y + 12 > doc.internal.pageSize.height - margin) {
+                            doc.addPage();
+                            y = margin;
+                        }
+                        doc.setTextColor(255, 0, 0);
+                        doc.text(`[图片加载失败: ${url.slice(0, 50)}...]`, margin, y);
+                        doc.setTextColor(0);
+                        y += 12;
+                    }
+                }
+                doc.save(`feedback-${selectedSubmission.key.slice(-12)}.pdf`);
+            };
+
+            addImagesToPdf().catch(err => {
+                 console.error('生成PDF时出错:', err);
+                 alert('生成PDF时发生未知错误。');
             });
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-            pdf.save(`feedback-${selectedSubmission?.key.slice(-12)}.pdf`);
-        }).catch(err => {
-            console.error('导出PDF失败:', err);
-            alert('导出PDF失败，请查看控制台获取更多信息。');
-        });
+        } else {
+             doc.save(`feedback-${selectedSubmission.key.slice(-12)}.pdf`);
+        }
     };
 
     return (
