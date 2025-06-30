@@ -121,7 +121,15 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     }
 
     setIsSending(true);
-    const result = await sendVerificationEmail(email, captchaInput, captcha);
+    
+    let result;
+    // 修正: 根据视图传递不同参数
+    if (view === 'signup') {
+        result = await sendVerificationEmail(email, captchaInput, captcha, phone);
+    } else { // 'forgotPassword' view
+        result = await sendVerificationEmail(email, captchaInput, captcha);
+    }
+    
     setIsSending(false);
 
     if (result.success) {
@@ -129,8 +137,8 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       setCountdown(60);
       setIsEmailLocked(true);
       if (view === 'forgotPassword') {
-          setResetStep(2); // 进入下一步
-          setSuccessMessage(null); // 清除消息以便显示下一步的表单
+          setResetStep(2); 
+          setSuccessMessage(null);
       }
     } else {
       setErrorMessage(`发送失败: ${result.message}`);
@@ -266,7 +274,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
             </>
         )}
 
-        {/* --- 修改后的忘记密码视图 --- */}
         {view === 'forgotPassword' && (
              <>
               <AnimatedFormField 
