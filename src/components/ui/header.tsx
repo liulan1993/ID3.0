@@ -38,7 +38,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
             title: "客户支持", description: "拥抱数字化转型，提升客户体验。",
             items: [
                 { title: "问卷调查", href: "https://www.apex-elite-service.com/wenjuandiaocha" },
-                { title: "资料上传", href: "https://zl.apex-elite-service.com/" },
+                { title: "资料上传", href: "/upload" },
                 { title: "客户反馈", href: "https://www.apex-elite-service.com/kehufankui" },
                 { title: "活动报名", href: "https://www.apex-elite-service.com/huodongbaoming" },
             ],
