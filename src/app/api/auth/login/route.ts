@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
     const passwordMatch = await bcrypt.compare(password, userData.passwordHash);
 
     if (passwordMatch) {
-      // 凭证正确，创建包含权限信息的 JWT
       const expirationTime = '24h';
       const payload = { username, permission: userData.permission };
 
@@ -38,7 +37,12 @@ export async function POST(request: NextRequest) {
         .setExpirationTime(expirationTime)
         .sign(secret);
 
-      const response = NextResponse.json({ success: true, permission: userData.permission }, { status: 200 });
+      // 修复：在 JSON 响应中直接返回用户名和权限
+      const response = NextResponse.json({ 
+        success: true, 
+        username: username, 
+        permission: userData.permission 
+      }, { status: 200 });
 
       response.cookies.set('auth_token', token, {
         httpOnly: true,
@@ -50,7 +54,6 @@ export async function POST(request: NextRequest) {
 
       return response;
     } else {
-      // 凭证错误
       return NextResponse.json({ message: '账号或密码错误' }, { status: 401 });
     }
   } catch (error) {

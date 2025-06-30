@@ -23,7 +23,7 @@ interface User {
 }
 
 // --- 登录表单组件 ---
-const LoginForm: FC<{ onLoginSuccess: (permission: UserPermission) => void }> = ({ onLoginSuccess }) => {
+const LoginForm: FC<{ onLoginSuccess: (data: { username: string, permission: UserPermission }) => void }> = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -49,7 +49,8 @@ const LoginForm: FC<{ onLoginSuccess: (permission: UserPermission) => void }> = 
 
             const data = await res.json();
             if (res.ok) {
-                onLoginSuccess(data.permission);
+                // 修复：将整个成功返回的 data 对象传递给回调
+                onLoginSuccess(data);
             } else {
                 setError(data.message || '账号或密码错误');
             }
@@ -779,13 +780,10 @@ export default function AdminPage() {
         }
     }, []);
 
-    const handleLoginSuccess = (perm: UserPermission) => {
-        const token = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
-        if (token) {
-            const decoded: { username: string } = jwtDecode(token);
-            setUsername(decoded.username);
-        }
-        setPermission(perm);
+    const handleLoginSuccess = (data: { username: string, permission: UserPermission }) => {
+        // 修复：直接使用从 API 返回的数据设置 state
+        setUsername(data.username);
+        setPermission(data.permission);
         setIsLoggedIn(true);
     };
 
@@ -793,7 +791,6 @@ export default function AdminPage() {
         setIsLoggedIn(false);
         setPermission(null);
         setUsername(null);
-        // 强制页面刷新以清除所有状态并应用中间件重定向
         window.location.href = '/admin';
     };
 
