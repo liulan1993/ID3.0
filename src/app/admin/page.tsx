@@ -6,7 +6,8 @@ import React, { useState, useEffect, FC, PropsWithChildren, ComponentProps, useR
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useRouter } from 'next/navigation';
+// 移除了未使用的 useRouter
+// import { useRouter } from 'next/navigation';
 
 // 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -383,7 +384,6 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
     const [isChatLogsLoading, setIsChatLogsLoading] = useState(true);
     const [chatLogsError, setChatLogsError] = useState<string | null>(null);
-    const router = useRouter();
 
     useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
