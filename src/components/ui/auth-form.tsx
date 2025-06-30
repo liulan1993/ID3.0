@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X, Edit3 } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X, Edit3, ArrowLeft } from 'lucide-react';
 // 引入服务器动作
-import { loginUser, registerUser, sendVerificationEmail } from "@/app/actions";
+import { loginUser, registerUser, sendVerificationEmail, resetPassword } from "@/app/actions";
 
 // --- 类型定义 ---
 interface User {
@@ -41,12 +41,14 @@ interface AuthFormComponentProps {
 }
 
 const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginSuccess }) => {
+  const [view, setView] = useState<'login' | 'signup' | 'forgotPassword'>('login');
+  
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
@@ -56,8 +58,12 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
   const [isSending, setIsSending] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [isEmailLocked, setIsEmailLocked] = useState(false);
-  // 新增错误提示状态
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // 忘记密码流程的状态
+  const [resetStep, setResetStep] = useState(1);
+
 
   const generateCaptcha = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -76,13 +82,31 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
   }, [countdown]);
   
   useEffect(() => {
-    if (isSignUp) {
+    if (view === 'signup' || (view === 'forgotPassword' && resetStep === 1)) {
       generateCaptcha();
     }
-  }, [isSignUp, loginMethod]);
+  }, [view, resetStep]);
+
+  const clearFormState = () => {
+      setEmail(""); setPhone(""); setPassword(""); setConfirmPassword(""); setName("");
+      setShowPassword(false); setRememberMe(false);
+      setCaptchaInput(''); setEmailVerificationCode('');
+      setCountdown(0); setIsSending(false);
+      setIsEmailLocked(false);
+      setErrorMessage(null); setSuccessMessage(null);
+  }
+
+  const handleSwitchView = (newView: 'login' | 'signup' | 'forgotPassword') => {
+      setView(newView);
+      clearFormState();
+      if (newView === 'forgotPassword') {
+          setResetStep(1);
+      }
+  };
 
   const handleSendVerificationEmail = async () => {
-    setErrorMessage(null); // 清除旧的错误信息
+    setErrorMessage(null);
+    setSuccessMessage(null);
     if (!email) {
       setErrorMessage("请输入邮箱地址");
       return;
@@ -98,17 +122,21 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
 
     setIsSending(true);
     const result = await sendVerificationEmail(email, captchaInput, captcha);
+    setIsSending(false);
 
     if (result.success) {
+      setSuccessMessage('验证码已发送，请检查您的邮箱。');
       setCountdown(60);
       setIsEmailLocked(true);
+      if (view === 'forgotPassword') {
+          setResetStep(2); // 进入下一步
+          setSuccessMessage(null); // 清除消息以便显示下一步的表单
+      }
     } else {
       setErrorMessage(`发送失败: ${result.message}`);
       generateCaptcha();
       setCaptchaInput("");
     }
-
-    setIsSending(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,18 +144,20 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     if (isSubmitting) return;
     setIsSubmitting(true);
     setErrorMessage(null);
+    setSuccessMessage(null);
 
-    if (isSignUp) {
+    if (view === 'signup') {
       const userInfo = { name, email, phone, password, emailVerificationCode };
       const result = await registerUser(userInfo);
       if (result.success) {
-        toggleMode(); 
+        setSuccessMessage('注册成功！现在您可以登录了。');
+        setTimeout(() => handleSwitchView('login'), 2000);
       } else {
         setErrorMessage(`注册失败: ${result.message}`);
         generateCaptcha();
         setCaptchaInput('');
       }
-    } else {
+    } else if (view === 'login') {
       const credentials = { email, password };
       const result = await loginUser(credentials);
       if (result.success && result.data) {
@@ -135,38 +165,53 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       } else {
         setErrorMessage(`登录失败: ${result.message}`);
       }
+    } else if (view === 'forgotPassword') {
+        if (password !== confirmPassword) {
+            setErrorMessage("两次输入的密码不一致。");
+            setIsSubmitting(false);
+            return;
+        }
+        const resetInfo = { email, emailVerificationCode, newPassword: password };
+        const result = await resetPassword(resetInfo);
+        if (result.success) {
+            setSuccessMessage("密码重置成功！即将返回登录界面。");
+            setTimeout(() => {
+                handleSwitchView('login');
+            }, 2000);
+        } else {
+            setErrorMessage(`密码重置失败: ${result.message}`);
+        }
     }
 
     setIsSubmitting(false);
   };
 
-  const resetRegistrationForm = () => {
-    setEmail(""); setPhone(""); setPassword(""); setName("");
-    setShowPassword(false);
-    setCaptchaInput(''); setEmailVerificationCode('');
-    setCountdown(0); setIsSending(false);
-    setIsEmailLocked(false);
-    setErrorMessage(null);
-  };
+  const renderTitle = () => {
+      switch(view) {
+          case 'login': return '欢迎回来';
+          case 'signup': return '创建账户';
+          case 'forgotPassword': return '重置密码';
+      }
+  }
 
-  const toggleMode = () => {
-    setIsSignUp(!isSignUp);
-    resetRegistrationForm();
-    if(isSignUp) {
-        setLoginMethod('email');
+  const renderSubtitle = () => {
+    switch(view) {
+        case 'login': return '登录以继续';
+        case 'signup': return '请完善您的注册信息';
+        case 'forgotPassword': return '请根据提示完成密码重置';
     }
-  };
+  }
 
   return (
     <div className="relative w-full max-w-md bg-black border border-gray-800 rounded-2xl p-8 shadow-2xl shadow-white/5 font-sans">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-20" aria-label="关闭登录窗口"><X size={24} /></button>
         <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-full mb-4 border border-gray-800"><User className="w-8 h-8 text-white" /></div>
-            <h1 className="text-3xl font-bold text-white mb-2">{isSignUp ? '创建账户' : '欢迎回来'}</h1>
-            <p className="text-gray-400">{isSignUp ? '请完善您的注册信息' : '登录以继续'}</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{renderTitle()}</h1>
+            <p className="text-gray-400">{renderSubtitle()}</p>
         </div>
         
-        {!isSignUp && (
+        {view === 'login' && (
             <div className="flex justify-center bg-gray-900 rounded-lg p-1 mb-6">
               <button onClick={() => setLoginMethod('email')} className={`w-full py-2 text-sm font-medium rounded-md transition-colors duration-300 ${loginMethod === 'email' ? 'bg-white text-black' : 'text-gray-400 hover:bg-gray-800'}`}>邮箱登录</button>
               <button onClick={() => setLoginMethod('phone')} className={`w-full py-2 text-sm font-medium rounded-md transition-colors duration-300 ${loginMethod === 'phone' ? 'bg-white text-black' : 'text-gray-400 hover:bg-gray-800'}`}>手机登录</button>
@@ -174,7 +219,20 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-        {isSignUp ? (
+        {view === 'login' && (
+            <>
+              {loginMethod === 'email' ? 
+              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} />
+              : 
+              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />}
+               <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />}>
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+              </AnimatedFormField>
+            </>
+        )}
+        {view === 'signup' && (
             <>
               <AnimatedFormField type="text" placeholder="全名" value={name} onChange={(e) => setName(e.target.value)} icon={<User size={18} />} />
               <AnimatedFormField 
@@ -206,45 +264,89 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                </AnimatedFormField>
                <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} />
             </>
-        ) : (
-            <>
-              {loginMethod === 'email' ? 
-              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} />
-              : 
-              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />}
-               <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />}>
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-              </AnimatedFormField>
+        )}
+
+        {view === 'forgotPassword' && resetStep === 1 && (
+             <>
+              <AnimatedFormField 
+                  type="email" 
+                  placeholder="请输入您注册的邮箱地址" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  icon={<Mail size={18} />}
+              />
+              <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
+                    <div className="flex items-center space-x-2">
+                        <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
+                        <button type="button" onClick={generateCaptcha} className="text-white hover:text-gray-300 transition-colors"><RefreshCw size={18}/></button>
+                    </div>
+               </AnimatedFormField>
             </>
         )}
-        
+
+        {view === 'forgotPassword' && resetStep === 2 && (
+             <>
+                <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} />
+                <AnimatedFormField type="password" placeholder="设置新密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
+                <AnimatedFormField type="password" placeholder="确认新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} icon={<Lock size={18} />} />
+             </>
+        )}
+
         {errorMessage && (
           <div className="text-red-500 text-sm text-center p-2 bg-red-500/10 rounded-lg">
             {errorMessage}
           </div>
         )}
+        {successMessage && (
+          <div className="text-green-500 text-sm text-center p-2 bg-green-500/10 rounded-lg">
+            {successMessage}
+          </div>
+        )}
 
-        <div className="flex items-center justify-between">
-            <label className="flex items-center space-x-2 cursor-pointer group">
-              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 appearance-none bg-gray-800 border-gray-600 rounded-sm checked:bg-white focus:ring-white/50 focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition" />
-              <span className="text-sm text-gray-400 group-hover:text-white transition">记住我</span>
-            </label>
-            {!isSignUp && (<button type="button" className="text-sm text-white hover:underline">忘记密码?</button>)}
-        </div>
+        {view === 'login' && (
+            <div className="flex items-center justify-between">
+                <label className="flex items-center space-x-2 cursor-pointer group">
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 appearance-none bg-gray-800 border-gray-600 rounded-sm checked:bg-white focus:ring-white/50 focus:ring-2 focus:ring-offset-2 focus:ring-offset-black transition" />
+                  <span className="text-sm text-gray-400 group-hover:text-white transition">记住我</span>
+                </label>
+                <button type="button" onClick={() => handleSwitchView('forgotPassword')} className="text-sm text-white hover:underline">忘记密码?</button>
+            </div>
+        )}
 
-        <button type="submit" disabled={isSubmitting} className="w-full relative group bg-white text-black py-3 px-4 rounded-lg font-semibold transition-all duration-300 ease-in-out hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden">
-            <span className={`transition-opacity duration-200 ${isSubmitting ? 'opacity-0' : 'opacity-100'}`}>{isSignUp ? '创建账户' : '登 录'}</span>
-            {isSubmitting && <div className="absolute inset-0 flex items-center justify-center"><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /></div>}
-        </button>
+        {view !== 'forgotPassword' || resetStep === 2 ? (
+            <button type="submit" disabled={isSubmitting} className="w-full relative group bg-white text-black py-3 px-4 rounded-lg font-semibold transition-all duration-300 ease-in-out hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden">
+                <span className={`transition-opacity duration-200 ${isSubmitting ? 'opacity-0' : 'opacity-100'}`}>{view === 'login' ? '登 录' : view === 'signup' ? '创建账户' : '确认重置'}</span>
+                {isSubmitting && <div className="absolute inset-0 flex items-center justify-center"><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /></div>}
+            </button>
+        ) : (
+            <button type="button" onClick={handleSendVerificationEmail} disabled={isSending || countdown > 0} className="w-full relative group bg-white text-black py-3 px-4 rounded-lg font-semibold transition-all duration-300 ease-in-out hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-70 disabled:cursor-not-allowed overflow-hidden">
+                 <span className={`transition-opacity duration-200 ${isSending ? 'opacity-0' : 'opacity-100'}`}>{countdown > 0 ? `${countdown}s 后可重发` : "发送验证码"}</span>
+                {(isSending || countdown > 0) && <div className="absolute inset-0 flex items-center justify-center"><div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" /></div>}
+            </button>
+        )}
         </form>
 
         <div className="mt-8 text-center">
-          <p className="text-sm text-gray-400">
-            {isSignUp ? '已经有账户了?' : "还没有账户?"}{' '}
-            <button type="button" onClick={toggleMode} className="text-white hover:underline font-medium">{isSignUp ? '去登录' : '去注册'}</button>
-          </p>
+            {view === 'login' && (
+              <p className="text-sm text-gray-400">
+                还没有账户?{' '}
+                <button type="button" onClick={() => handleSwitchView('signup')} className="text-white hover:underline font-medium">去注册</button>
+              </p>
+            )}
+            {view === 'signup' && (
+              <p className="text-sm text-gray-400">
+                已经有账户了?{' '}
+                <button type="button" onClick={() => handleSwitchView('login')} className="text-white hover:underline font-medium">去登录</button>
+              </p>
+            )}
+             {view === 'forgotPassword' && (
+              <p className="text-sm text-gray-400">
+                <button type="button" onClick={() => handleSwitchView('login')} className="text-white hover:underline font-medium flex items-center justify-center gap-2 w-full">
+                    <ArrowLeft size={16} />
+                    <span>返回登录</span>
+                </button>
+              </p>
+            )}
         </div>
     </div>
   );

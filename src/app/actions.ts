@@ -35,6 +35,14 @@ interface UserCredentials {
   password:string;
 }
 
+// 新增：密码重置信息接口
+interface ResetPasswordInfo {
+    email: string;
+    emailVerificationCode: string;
+    newPassword: string;
+}
+
+
 // --- 原有函数 ---
 export async function saveContactToRedis(formData: ContactFormData) {
   try {
@@ -182,4 +190,52 @@ export async function loginUser(credentials: UserCredentials) {
     console.error(`用户登录时出错: ${errorMessage}`);
     return { success: false, message: errorMessage };
   }
+}
+
+// --- 新增：重置密码的服务器动作 ---
+export async function resetPassword(info: ResetPasswordInfo) {
+    try {
+        const { email, emailVerificationCode, newPassword } = info;
+        const normalizedEmail = email.trim().toLowerCase();
+        
+        // 1. 检查用户是否存在
+        const userKey = `user:${normalizedEmail}`;
+        const storedUserJSON = await kv.get(userKey);
+        if (!storedUserJSON) {
+            throw new Error('该邮箱地址未注册。');
+        }
+        const storedUser = storedUserJSON as { name: string; email: string; hashedPassword: string; };
+
+        // 2. 验证邮箱验证码
+        const verificationKey = `verification:${normalizedEmail}`;
+        const storedCode = await kv.get<string | number | null>(verificationKey);
+        
+        if (storedCode === null || storedCode === undefined) {
+            throw new Error('邮箱验证码已过期或不存在，请重新发送。');
+        }
+        if (storedCode.toString() !== emailVerificationCode.trim()) {
+            throw new Error('您输入的邮箱验证码与系统记录不符。');
+        }
+
+        // 3. 更新密码
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        
+        const updatedUser = {
+            ...storedUser,
+            hashedPassword,
+        };
+
+        await kv.set(userKey, JSON.stringify(updatedUser));
+        
+        // 4. 删除已使用的验证码
+        await kv.del(verificationKey);
+
+        return { success: true };
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '一个未知错误发生了';
+        console.error(`重置密码时出错: ${errorMessage}`);
+        return { success: false, message: errorMessage };
+    }
 }
