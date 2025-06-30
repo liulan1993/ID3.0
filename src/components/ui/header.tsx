@@ -47,7 +47,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
             title: "AI赋能", description: "AI驱动的智能，提升业务效率。",
             items: [
                 { title: "实时汇率", href: "https://www.apex-elite-service.com/shishihuilv" },
-                { title: "个税计算器", href: "https://www.apex-elite-service.com/geshuijisuanqi" },
+                { title: "个税计算器", href: "/tax-calculator" },
                 { title: "专属AI", href: "https://www.apex-elite-service.com/zhuanshuAI" },
                 { title: "敬请期待", href: "#" },
             ],
