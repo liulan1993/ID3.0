@@ -7,9 +7,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 // 新增 UserCheck 图标
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-// 修复：移除未使用的 html2canvas
-import jsPDF from 'jspdf';
-
 
 // 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -147,8 +144,8 @@ interface ChatLog {
     timestamp: string;
 }
 
-// 新增：客户反馈类型定义
-interface CustomerSubmission {
+// 导出客户反馈类型定义，以便在 API 路由中使用
+export interface CustomerSubmission {
     key: string;
     userName: string;
     userEmail: string;
@@ -433,88 +430,36 @@ const CustomerFeedbackViewer: FC<{
         }
     };
 
-    const handleExportAsPdf = () => {
-        if (!modalContentRef.current || !selectedSubmission) {
-            alert('无法导出，未找到内容。');
+    const handleExportAsPdf = async () => {
+        if (!selectedSubmission) {
+            alert('无法导出，请先选择一个反馈。');
             return;
         }
-        
-        const doc = new jsPDF();
-        const margin = 15;
-        let y = margin;
-
-        // 添加标题和用户信息
-        doc.setFontSize(16);
-        doc.text(selectedSubmission.userName, margin, y);
-        y += 10;
-        doc.setFontSize(10);
-        doc.setTextColor(150);
-        doc.text(`${selectedSubmission.userEmail} - ${new Date(selectedSubmission.submittedAt).toLocaleString()}`, margin, y);
-        y += 20;
-
-        // 添加内容
-        doc.setTextColor(0);
-        doc.setFontSize(12);
-        const contentLines = doc.splitTextToSize(selectedSubmission.content, doc.internal.pageSize.width - margin * 2);
-        doc.text(contentLines, margin, y);
-        y += contentLines.length * 12 + 10;
-
-        // 添加图片
-        if (selectedSubmission.fileUrls && selectedSubmission.fileUrls.length > 0) {
-            y += 10;
-            doc.setFontSize(14);
-            doc.text('附件图片:', margin, y);
-            y += 15;
-
-            const addImagesToPdf = async () => {
-                for (const url of selectedSubmission.fileUrls) {
-                    try {
-                        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(url)}`;
-                        const response = await fetch(proxyUrl);
-                        const blob = await response.blob();
-                        const dataUrl = await new Promise<string>((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resolve(reader.result as string);
-                            reader.onerror = reject;
-                            reader.readAsDataURL(blob);
-                        });
-                        
-                        const img = new Image();
-                        img.src = dataUrl;
-                        await new Promise(resolve => { img.onload = resolve; });
-
-                        const imgProps = doc.getImageProperties(dataUrl);
-                        const imgWidth = doc.internal.pageSize.width - margin * 2;
-                        const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-
-                        if (y + imgHeight > doc.internal.pageSize.height - margin) {
-                            doc.addPage();
-                            y = margin;
-                        }
-
-                        doc.addImage(dataUrl, 'JPEG', margin, y, imgWidth, imgHeight);
-                        y += imgHeight + 10;
-                    } catch (err) {
-                        console.error(`加载图片失败: ${url}`, err);
-                        if (y + 12 > doc.internal.pageSize.height - margin) {
-                            doc.addPage();
-                            y = margin;
-                        }
-                        doc.setTextColor(255, 0, 0);
-                        doc.text(`[图片加载失败: ${url.slice(0, 50)}...]`, margin, y);
-                        doc.setTextColor(0);
-                        y += 12;
-                    }
-                }
-                doc.save(`feedback-${selectedSubmission.key.slice(-12)}.pdf`);
-            };
-
-            addImagesToPdf().catch(err => {
-                 console.error('生成PDF时出错:', err);
-                 alert('生成PDF时发生未知错误。');
+        try {
+            const response = await fetch('/api/export-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(selectedSubmission),
             });
-        } else {
-             doc.save(`feedback-${selectedSubmission.key.slice(-12)}.pdf`);
+
+            if (!response.ok) {
+                const errorResult = await response.text();
+                throw new Error(errorResult || 'PDF 生成失败');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `feedback-${selectedSubmission.key.slice(-12)}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+        } catch (err) {
+            console.error('导出PDF失败:', err);
+            alert(`导出PDF失败: ${err instanceof Error ? err.message : '未知错误'}`);
         }
     };
 
