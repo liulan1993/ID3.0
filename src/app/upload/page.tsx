@@ -407,8 +407,7 @@ export default function UploadPage() {
     
     return (
         <div 
-            className="relative min-h-screen w-full flex items-center justify-center overflow-hidden py-20 px-4"
-            style={{background: 'linear-gradient(to bottom right, #000, #1A2428)'}}
+            className="relative min-h-screen w-full flex items-center justify-center overflow-hidden py-20 px-4 bg-black"
         >
             <Scene />
             <div className="relative z-10 container mx-auto px-2 md:px-6 flex flex-col items-center w-full">
