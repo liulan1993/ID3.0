@@ -21,17 +21,21 @@ interface FormFieldProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   icon: React.ReactNode;
+  autoComplete?: string; // [最终修复] 增加 autoComplete 属性以指导浏览器行为
   children?: React.ReactNode;
   disabled?: boolean;
 }
-const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, children, disabled = false}) => {
+const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, autoComplete, children, disabled = false}) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const handleMouseMove = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setMousePosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
-  return (<div className="relative group"><div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out ${disabled ? 'opacity-60' : ''}`} onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div><input type={type} value={value} onChange={onChange} disabled={disabled} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} /><div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && !disabled && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
+  return (<div className="relative group"><div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out ${disabled ? 'opacity-60' : ''}`} onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div>
+  {/* [最终修复] 将 autoComplete 属性应用到 input 元素上 */}
+  <input type={type} value={value} onChange={onChange} disabled={disabled} autoComplete={autoComplete} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} />
+  <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && !disabled && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
 };
 
 // --- 主组件 ---
@@ -233,10 +237,10 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         {view === 'login' && (
             <>
               {loginMethod === 'email' ? 
-              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} />
+              <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} autoComplete="email" />
               : 
-              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />}
-               <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />}>
+              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} autoComplete="tel" />}
+               <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="current-password">
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -245,13 +249,14 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         )}
         {view === 'signup' && (
             <>
-              <AnimatedFormField type="text" placeholder="全名" value={name} onChange={(e) => setName(e.target.value)} icon={<User size={18} />} />
+              <AnimatedFormField type="text" placeholder="全名" value={name} onChange={(e) => setName(e.target.value)} icon={<User size={18} />} autoComplete="name" />
               <AnimatedFormField 
                   type="email" 
                   placeholder="邮箱地址" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   icon={<Mail size={18} />}
+                  autoComplete="email"
                   disabled={isEmailLocked}
               >
                   {isEmailLocked ? (
@@ -265,22 +270,22 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                       </button>
                   )}
               </AnimatedFormField>
-              {/* [最终修复] 此处是问题的根源。将 type, value, 和 onChange 修正为与手机号（phone）相关。 */}
               <AnimatedFormField 
                   type="tel" 
                   placeholder="手机号码" 
                   value={phone} 
                   onChange={(e) => setPhone(e.target.value)} 
                   icon={<Phone size={18} />} 
+                  autoComplete="tel"
               />
-              <AnimatedFormField type="password" placeholder="设置密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
-               <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
+              <AnimatedFormField type="password" placeholder="设置密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="new-password" />
+               <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />} autoComplete="off">
                     <div className="flex items-center space-x-2">
                         <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
                         <button type="button" onClick={generateCaptcha} className="text-white hover:text-gray-300 transition-colors"><RefreshCw size={18}/></button>
                     </div>
                </AnimatedFormField>
-               <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} />
+               <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} autoComplete="one-time-code" />
             </>
         )}
 
@@ -292,10 +297,11 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   icon={<Mail size={18} />}
+                  autoComplete="email"
                   disabled={isEmailLocked}
               />
               {resetStep === 1 && (
-                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
+                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />} autoComplete="off">
                       <div className="flex items-center space-x-2">
                           <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
                           <button type="button" onClick={generateCaptcha} className="text-white hover:text-gray-300 transition-colors"><RefreshCw size={18}/></button>
@@ -304,13 +310,13 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
               )}
               {resetStep === 2 && (
                    <>
-                      <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<ShieldCheck size={18} />} />
-                      <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="设置新密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />}>
+                      <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<ShieldCheck size={18} />} autoComplete="one-time-code" />
+                      <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="设置新密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="new-password">
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                       </AnimatedFormField>
-                      <AnimatedFormField type="password" placeholder="确认新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} icon={<Lock size={18} />} />
+                      <AnimatedFormField type="password" placeholder="确认新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="new-password" />
                    </>
               )}
             </>
