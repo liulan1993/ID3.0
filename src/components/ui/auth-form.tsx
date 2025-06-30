@@ -265,7 +265,14 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                       </button>
                   )}
               </AnimatedFormField>
-              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} />
+              {/* [最终修复] 此处是问题的根源。将 type, value, 和 onChange 修正为与手机号（phone）相关。 */}
+              <AnimatedFormField 
+                  type="tel" 
+                  placeholder="手机号码" 
+                  value={phone} 
+                  onChange={(e) => setPhone(e.target.value)} 
+                  icon={<Phone size={18} />} 
+              />
               <AnimatedFormField type="password" placeholder="设置密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
                     <div className="flex items-center space-x-2">
