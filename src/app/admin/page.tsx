@@ -204,49 +204,53 @@ const ArticleEditor: React.FC<{ onArticlePublished: () => void }> = ({ onArticle
 
     return (
         <div className="p-4 md:p-8 w-full h-full flex flex-col">
-            <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">写新文章</h1>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
-                {/* 编辑区 */}
-                <div className="flex flex-col h-full">
-                    <textarea
-                        value={markdownContent}
-                        onChange={(e) => setMarkdownContent(e.target.value)}
-                        className="w-full flex-1 p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 resize-none font-mono"
-                        placeholder="在此输入Markdown..."
+            <h1 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">写新文章</h1>
+            
+            {/* (关键修正) 添加一个包裹层作为背景面板 */}
+            <div className="bg-gray-100 dark:bg-gray-800/50 p-4 rounded-lg flex-1 flex flex-col">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+                    {/* 编辑区 */}
+                    <div className="flex flex-col h-full">
+                        <textarea
+                            value={markdownContent}
+                            onChange={(e) => setMarkdownContent(e.target.value)}
+                            className="w-full flex-1 p-4 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 resize-none font-mono"
+                            placeholder="在此输入Markdown..."
+                        />
+                    </div>
+                    {/* 预览区 */}
+                    <div className="h-full bg-white dark:bg-gray-900 border rounded-lg overflow-y-auto p-4">
+                        <article className="prose prose-invert prose-lg max-w-none prose-img:rounded-lg prose-headings:text-white">
+                            <ReactMarkdown /*remarkPlugins={[remarkGfm]}*/ components={{
+                                img: (props) => {
+                                    if (typeof props.src === 'string' && (props.src.endsWith('.mp4') || props.src.endsWith('.webm') || props.src.endsWith('.ogg'))) {
+                                        return (<div className="w-full aspect-video my-6"><video src={props.src} controls preload="metadata" className="w-full h-full rounded-lg">您的浏览器不支持播放该视频。</video></div>);
+                                    }
+                                    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+                                    return <img {...props} />;
+                                },
+                            }}>{markdownContent}</ReactMarkdown>
+                        </article>
+                    </div>
+                </div>
+                 {/* (关键修正) 发布操作区现在位于背景面板内部 */}
+                 <div className="mt-4 flex items-center gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <input
+                        type="email"
+                        value={authorEmail}
+                        onChange={(e) => setAuthorEmail(e.target.value)}
+                        placeholder="作者邮箱"
+                        className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200"
                     />
+                    <button
+                        onClick={handlePublish}
+                        disabled={isPublishing}
+                        className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                        {isPublishing ? '发布中...' : '发布文章'}
+                    </button>
+                    {publishError && <p className="text-red-500">{publishError}</p>}
                 </div>
-                {/* 预览区 */}
-                <div className="h-full bg-white dark:bg-gray-900 border rounded-lg overflow-y-auto p-4">
-                    <article className="prose prose-invert prose-lg max-w-none prose-img:rounded-lg prose-headings:text-white">
-                        <ReactMarkdown /*remarkPlugins={[remarkGfm]}*/ components={{
-                            img: (props) => {
-                                if (typeof props.src === 'string' && (props.src.endsWith('.mp4') || props.src.endsWith('.webm') || props.src.endsWith('.ogg'))) {
-                                    return (<div className="w-full aspect-video my-6"><video src={props.src} controls preload="metadata" className="w-full h-full rounded-lg">您的浏览器不支持播放该视频。</video></div>);
-                                }
-                                // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-                                return <img {...props} />;
-                            },
-                        }}>{markdownContent}</ReactMarkdown>
-                    </article>
-                </div>
-            </div>
-             {/* 发布操作区 */}
-             <div className="mt-4 flex items-center gap-4">
-                <input
-                    type="email"
-                    value={authorEmail}
-                    onChange={(e) => setAuthorEmail(e.target.value)}
-                    placeholder="作者邮箱"
-                    className="px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200"
-                />
-                <button
-                    onClick={handlePublish}
-                    disabled={isPublishing}
-                    className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                    {isPublishing ? '发布中...' : '发布文章'}
-                </button>
-                {publishError && <p className="text-red-500">{publishError}</p>}
             </div>
         </div>
     );
