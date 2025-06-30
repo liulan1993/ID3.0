@@ -393,7 +393,7 @@ export default function UploadPage() {
         );
     };
 
-    const title = "Apex Upload";
+    const title = "Apex 资料上传";
     const words = title.split(" ");
 
     // 如果用户不存在，可以显示一个加载状态或者直接不渲染任何内容
