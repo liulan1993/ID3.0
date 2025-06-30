@@ -309,7 +309,7 @@ export default function MyProfilePage() {
         }
     };
 
-    const tabs: { id: Tab; label: string; icon: React.ComponentType<{ size?: number | string }> }[] = [
+    const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
         { id: 'submissions', label: '表单资料', icon: FileText },
         { id: 'questionnaires', label: '问卷调查', icon: ClipboardList },
         { id: 'feedback', label: '客户反馈', icon: MessageSquare },
