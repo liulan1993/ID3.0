@@ -91,9 +91,9 @@ export async function sendVerificationEmail(
 
   const normalizedEmail = email.trim().toLowerCase();
   
-  // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行唯一性检查
+  // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行严格的联合唯一性检查
   if (phone !== undefined) {
-    // 检查手机号是否已存在
+    // [BUG修复] 必须同时检查手机号和邮箱。只要任意一个存在，就立即返回错误。
     const trimmedPhone = phone.trim();
     if (trimmedPhone) {
         const phoneKey = `phone:${trimmedPhone}`;
@@ -103,14 +103,13 @@ export async function sendVerificationEmail(
         }
     }
     
-    // 检查邮箱是否已存在
     const emailKey = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.get(emailKey);
     if (existingUserByEmail) {
         return { success: false, message: '此邮箱地址已被注册。' };
     }
   } else {
-    // 如果是忘记密码请求, 检查用户是否存在
+    // 如果是忘记密码请求, 只检查用户是否存在
     const emailKey = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.get(emailKey);
     if (!existingUserByEmail) {
@@ -158,7 +157,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     
     const normalizedEmail = email.trim().toLowerCase();
     
-    // [BUG修复] 在注册写入数据库之前，执行最终的、决定性的唯一性检查，以防止任何竞态条件或数据不一致。
+    // 在注册写入数据库之前，执行最终的、决定性的唯一性检查，作为最后一道防线。
     const emailKey = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.get(emailKey);
     if (existingUserByEmail) {
@@ -199,8 +198,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     };
     
     // 步骤 3: 存储用户数据和手机号索引
-    const userKeyByEmail = `user:${normalizedEmail}`;
-    await kv.set(userKeyByEmail, JSON.stringify(newUser));
+    await kv.set(emailKey, JSON.stringify(newUser));
     if (trimmedPhone) {
         const phoneIndexKey = `phone:${trimmedPhone}`;
         await kv.set(phoneIndexKey, normalizedEmail);
