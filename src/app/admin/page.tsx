@@ -22,6 +22,20 @@ interface User {
     permission: UserPermission;
 }
 
+interface QuestionnaireAnswer {
+  qId: string;
+  question: string;
+  answer: string | string[];
+}
+
+export interface QuestionnaireSubmission {
+  key: string;
+  userName: string;
+  userEmail: string;
+  submittedAt: string;
+  answers: QuestionnaireAnswer[];
+}
+
 // --- 登录表单组件 ---
 const LoginForm: FC<{ onLoginSuccess: (data: { username: string, permission: UserPermission }) => void }> = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
@@ -161,20 +175,6 @@ export interface CustomerSubmission {
     content: string;
     fileUrls: string[];
     submittedAt: string;
-}
-
-interface QuestionnaireAnswer {
-  qId: string;
-  question: string;
-  answer: string | string[];
-}
-
-export interface QuestionnaireSubmission {
-  key: string;
-  userName: string;
-  userEmail: string;
-  submittedAt: string;
-  answers: QuestionnaireAnswer[];
 }
 
 interface SidebarContextProps {

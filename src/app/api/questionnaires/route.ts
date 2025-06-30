@@ -3,21 +3,6 @@
 import { kv } from '@vercel/kv';
 import { NextRequest, NextResponse } from 'next/server';
 
-// 定义问卷数据结构
-interface QuestionnaireAnswer {
-  qId: string;
-  question: string;
-  answer: string | string[];
-}
-
-interface QuestionnaireSubmission {
-  key: string;
-  userName: string;
-  userEmail: string;
-  submittedAt: string;
-  answers: QuestionnaireAnswer[];
-}
-
 // GET: 获取所有问卷提交记录
 export async function GET() {
   try {
