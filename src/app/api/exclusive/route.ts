@@ -1,127 +1,212 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
-import { NextRequest } from 'next/server';
 
-// 定义从客户端接收的数据结构
-interface RequestBody {
-    userEmail: string;
-    messages: { role: 'user' | 'assistant' | 'system'; content: string }[];
-    options: {
-        model: string;
-        enableWebSearch?: boolean;
-        enableDeepSearch?: boolean;
-        enableMarkdownOutput?: boolean;
-        fileContent?: string;
-    };
+// --- 类型定义 ---
+
+// 从前端接收的消息
+interface Message {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
 }
 
-// 模拟外部 AI API 调用并返回流
-async function callDeepSeekAPI(body: object) {
-    // 警告: 此处为模拟代码。在生产环境中，您应使用 'node-fetch' 或其他 HTTP 客户端库。
-    // 您需要将 'YOUR_DEEPSEEK_API_KEY' 替换为您真实有效的 API 密钥，并确保它已配置在 Vercel 的环境变量中。
-    const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-    const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+// AI模型及功能的选项
+interface RequestOptions {
+    model: string;
+    enableWebSearch: boolean;
+    enableDeepSearch: boolean;
+    enableMarkdownOutput: boolean;
+    fileContent: string;
+}
 
-    if (!DEEPSEEK_API_KEY) {
-        throw new Error("DeepSeek API key is not configured on the server.");
+// 登录用户信息
+interface User {
+  name: string;
+  email: string;
+}
+
+// Tavily API 搜索函数 (无修改)
+async function tavilySearch(query: string): Promise<string> {
+    const TAVILY_API_KEY = process.env.TAVILY_API_KEY;
+    if (!TAVILY_API_KEY) {
+        throw new Error('Tavily API key is not configured on the server.');
     }
-
-    const response = await fetch(DEEPSEEK_API_URL, {
+    const response = await fetch('https://api.tavily.com/search', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        },
-        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            api_key: TAVILY_API_KEY,
+            query: query,
+            search_depth: 'advanced',
+            max_results: 5,
+            include_answer: false,
+        }),
     });
-    
     if (!response.ok) {
-        const errorBody = await response.text();
-        console.error("DeepSeek API Error:", errorBody);
-        throw new Error(`DeepSeek API request failed with status ${response.status}: ${errorBody}`);
+        const errorText = await response.text();
+        throw new Error(`Tavily API responded with status ${response.status}: ${errorText}`);
     }
+    const data = await response.json();
+    return data.results.map((r: { content: string }) => r.content).join('\n\n');
+}
 
-    return response.body; // 返回可读流
+// 流式响应解析器 (无修改)
+function createDeepSeekStream(apiResponse: Response): ReadableStream {
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    return new ReadableStream({
+        async start(controller) {
+            if (!apiResponse.body) {
+                controller.close();
+                return;
+            }
+            const reader = apiResponse.body.getReader();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    controller.close();
+                    break;
+                }
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            // 处理流结束标志 [DONE]
+                            if (line.substring(6).trim() === '[DONE]') {
+                                continue;
+                            }
+                            const json = JSON.parse(line.substring(6));
+                            if (json.choices && json.choices[0].delta.content) {
+                                const content = json.choices[0].delta.content;
+                                controller.enqueue(encoder.encode(content));
+                            }
+                        } catch (e) {
+                            console.error('Error parsing stream JSON', e);
+                        }
+                    }
+                }
+            }
+        },
+    });
 }
 
 
-// 主处理函数，处理 POST 请求
+// --- 主 API 路由处理函数 ---
 export async function POST(req: NextRequest) {
     try {
-        const { userEmail, messages, options }: RequestBody = await req.json();
+        const body = await req.json();
+        const { messages, options, user }: { messages: Message[], options: RequestOptions, user: User } = body;
 
-        // 1. 输入验证
-        if (!userEmail || !messages || messages.length === 0) {
-            return new Response(JSON.stringify({ error: '无效的请求参数: 缺少 userEmail 或 messages。' }), { status: 400 });
+        // **新增: 步骤 1 - 验证用户身份**
+        if (!user || !user.email) {
+            return new NextResponse('Unauthorized: User information is missing.', { status: 401 });
+        }
+
+        const { model, enableWebSearch, enableDeepSearch, enableMarkdownOutput, fileContent } = options;
+
+        const DEEPSEEK_API_KEY = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY;
+        if (!DEEPSEEK_API_KEY) {
+            return new NextResponse('DeepSeek API key not configured', { status: 500 });
+        }
+
+        const latestUserMessage = messages[messages.length - 1];
+        let userQuery = latestUserMessage.content;
+
+        // **新增: 步骤 2 - 记录用户问题到 Vercel KV**
+        try {
+            const timestamp = new Date().toISOString();
+            const key = `chat:${user.email}:${timestamp}`;
+            const chatLog = {
+                user: {
+                    name: user.name,
+                    email: user.email,
+                },
+                question: userQuery,
+                options: {
+                    model,
+                    enableWebSearch,
+                    enableDeepSearch,
+                    enableMarkdownOutput,
+                },
+                hasFile: !!fileContent,
+                fileName: fileContent ? "Attached File" : "N/A", // 可以从前端传递更详细的文件名
+                timestamp: timestamp,
+            };
+            await kv.set(key, JSON.stringify(chatLog));
+        } catch (kvError) {
+            console.error("Failed to save chat log to Vercel KV:", kvError);
+            // 此处不中断流程，但记录错误
+        }
+
+
+        // --- 原有逻辑开始 ---
+        if (fileContent) {
+            userQuery = `基于以下文件内容:\n"""\n${fileContent}\n"""\n\n请回答这个问题: ${userQuery}`;
         }
         
-        const userMessage = messages[messages.length - 1];
-        if (userMessage.role !== 'user') {
-            return new Response(JSON.stringify({ error: '无效的请求: 最后一则消息必须来自用户。' }), { status: 400 });
-        }
+        messages[messages.length - 1].content = userQuery;
 
-        // (可选) 如果有文件内容, 将其附加到用户消息中
-        let finalUserContent = userMessage.content;
-        if (options.fileContent) {
-            finalUserContent += `\n\n--- 附带文件内容 ---\n${options.fileContent}`;
+        const currentDate = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+        let systemContent = `你是一个强大的人工智能助手。当前日期和时间是: ${currentDate}。`;
+
+        if (enableWebSearch) {
+            const searchResults = await tavilySearch(latestUserMessage.content);
+            systemContent = `你是一个非常强大的人工智能助手，能够访问实时互联网。当前准确日期和时间是: ${currentDate}。
+            这是关于用户问题的实时网络搜索结果摘要:
+            ---
+            ${searchResults}
+            ---
+            请你务必基于以上提供的实时网络信息，而不是你的内部知识，来全面、准确地回答用户的问题。`;
         }
         
-        const messagesForAI = [
-             ...messages.slice(0, -1),
-             { role: 'user', content: finalUserContent }
-        ];
-
-        // 2. 调用外部 AI 服务
-        const apiPayload = {
-            model: options.model,
-            messages: messagesForAI,
-            stream: true, // 必须为流式输出
-            // 根据需要传递其他参数, 例如 max_tokens, temperature 等
+        const systemMessage: Message = { role: 'system', content: systemContent };
+        
+        const messagesToSend: Message[] = [systemMessage, ...messages];
+        
+        if (enableMarkdownOutput) {
+            messagesToSend[messagesToSend.length - 1].content += "\n\n(请用Markdown语法格式化输出)";
+        }
+        
+        const payload = {
+            model: model,
+            messages: messagesToSend,
+            temperature: 1.0,
+            max_tokens: 8192,
+            stream: true, 
         };
-        const stream = await callDeepSeekAPI(apiPayload);
 
-        // 3. 将 AI 服务的流式响应转发给客户端
-        const transformStream = new TransformStream({
-            transform(chunk, controller) {
-                // 直接将 AI 的响应数据块传递给客户端
-                controller.enqueue(chunk);
+        if (enableDeepSearch) {
+            // 在此添加深度搜索相关的任何特定API参数
+        }
+
+        const response = await fetch('https://api.deepseek.com/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
             },
-            async flush(controller) {
-                // 流结束时, 执行保存用户问题的操作
-                try {
-                    // 创建只包含用户问题的记录
-                    const questionRecord = {
-                        user: userEmail,
-                        timestamp: new Date().toISOString(),
-                        model: options.model,
-                        question: finalUserContent, // 只保存最终的用户问题内容
-                    };
-                    
-                    // 使用 user-email 和 timestamp 创建一个唯一的 key
-                    const key = `chat:${userEmail}:${questionRecord.timestamp}`;
-                    
-                    // 将问题记录保存到 Vercel KV
-                    await kv.set(key, JSON.stringify(questionRecord));
-                    console.log(`Question from ${userEmail} saved to KV with key: ${key}`);
-
-                } catch (kvError) {
-                    console.error("Failed to save question to Vercel KV:", kvError);
-                    // 注意: 此处的错误不会发送给客户端，因为它发生在流结束之后
-                }
-                controller.terminate();
-            }
+            body: JSON.stringify(payload),
         });
 
-        if (!stream) {
-             throw new Error("The AI service did not return a readable stream.");
+        if (!response.ok) {
+            const errorText = await response.text();
+            return new NextResponse(errorText, { status: response.status });
         }
-
-        return new Response(stream.pipeThrough(transformStream), {
-            headers: { 'Content-Type': 'text/event-stream; charset=utf-8' },
+        
+        const stream = createDeepSeekStream(response);
+        
+        return new Response(stream, {
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
         });
 
     } catch (error) {
-        console.error('[API /api/exclusive Error]:', error);
-        const errorMessage = error instanceof Error ? error.message : 'An unknown server error occurred.';
-        return new Response(JSON.stringify({ error: errorMessage }), { status: 500 });
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        console.error('API Route Error:', errorMessage);
+        return new NextResponse(errorMessage, { status: 500 });
     }
 }

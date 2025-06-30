@@ -8,51 +8,51 @@ import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // 引入 useRouter
 
-// --- 类型定义 ---
+// --- 用户类型定义 ---
 interface User {
   name: string;
   email: string;
 }
 
-interface Message {
-    role: 'user' | 'assistant' | 'system';
-    content: string;
-}
-
-// --- 图标组件 (从旧文件移植, 无修改) ---
+// --- 图标组件 (无修改) ---
 const PaperclipIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.59a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
     </svg>
 );
+
 const XIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg {...props} xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M18 6 6 18" />
     <path d="m6 6 12 12" />
   </svg>
 );
+
 const CopyIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
         <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
     </svg>
 );
+
 const DownloadIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
         <polyline points="7 10 12 15 17 10" />
         <line x1="12" x2="12" y1="15" y2="3" />
     </svg>
 );
+
 const CheckIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg {...props} xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="20 6 9 17 4 12" />
     </svg>
 );
 
-// --- 背景动画组件 (从旧文件移植, 无修改) ---
+
+// --- 背景动画组件 (无修改) ---
 const Box = ({ position, rotation }: { position: [number, number, number], rotation: [number, number, number] }) => {
     const shape = new THREE.Shape();
     const angleStep = Math.PI * 0.5;
@@ -63,27 +63,81 @@ const Box = ({ position, rotation }: { position: [number, number, number], rotat
     shape.absarc(-2, -2, radius, angleStep * 2, angleStep * 3, false);
     shape.absarc(2, -2, radius, angleStep * 3, angleStep * 4, false);
 
-    const extrudeSettings = { depth: 0.3, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 20, curveSegments: 20 };
+    const extrudeSettings = {
+        depth: 0.3,
+        bevelEnabled: true,
+        bevelThickness: 0.05,
+        bevelSize: 0.05,
+        bevelSegments: 20,
+        curveSegments: 20
+    };
+
     const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     geometry.center();
 
     return (
-        <mesh geometry={geometry} position={position} rotation={rotation}>
-            <meshPhysicalMaterial color="#232323" metalness={1} roughness={0.3} reflectivity={0.5} ior={1.5} emissive="#000000" emissiveIntensity={0} transparent={false} opacity={1.0} transmission={0.0} thickness={0.5} clearcoat={0.0} clearcoatRoughness={0.0} sheen={0} sheenRoughness={1.0} sheenColor="#ffffff" specularIntensity={1.0} specularColor="#ffffff" iridescence={1} iridescenceIOR={1.3} iridescenceThicknessRange={[100, 400]} flatShading={false} />
+        <mesh
+            geometry={geometry}
+            position={position}
+            rotation={rotation}
+        >
+            <meshPhysicalMaterial 
+                color="#232323"
+                metalness={1}
+                roughness={0.3}
+                reflectivity={0.5}
+                ior={1.5}
+                emissive="#000000"
+                emissiveIntensity={0}
+                transparent={false}
+                opacity={1.0}
+                transmission={0.0}
+                thickness={0.5}
+                clearcoat={0.0}
+                clearcoatRoughness={0.0}
+                sheen={0}
+                sheenRoughness={1.0}
+                sheenColor="#ffffff"
+                specularIntensity={1.0}
+                specularColor="#ffffff"
+                iridescence={1}
+                iridescenceIOR={1.3}
+                iridescenceThicknessRange={[100, 400]}
+                flatShading={false}
+            />
         </mesh>
     );
 };
+
 const AnimatedBoxes = () => {
     const groupRef = useRef<THREE.Group>(null!);
+
     useFrame((state, delta) => {
         if (groupRef.current) {
             groupRef.current.rotation.x += delta * 0.05;
             groupRef.current.rotation.y += delta * 0.05;
         }
     });
-    const boxes = Array.from({ length: 50 }, (_, index) => ({ position: [(index - 25) * 0.75, 0, 0] as [number, number, number], rotation: [ (index - 10) * 0.1, Math.PI / 2, 0 ] as [number, number, number], id: index }));
-    return (<group ref={groupRef}>{boxes.map((box) => (<Box key={box.id} position={box.position} rotation={box.rotation}/>))}</group>);
+
+    const boxes = Array.from({ length: 50 }, (_, index) => ({
+        position: [(index - 25) * 0.75, 0, 0] as [number, number, number],
+        rotation: [ (index - 10) * 0.1, Math.PI / 2, 0 ] as [number, number, number],
+        id: index
+    }));
+
+    return (
+        <group ref={groupRef}>
+            {boxes.map((box) => (
+                <Box
+                    key={box.id}
+                    position={box.position}
+                    rotation={box.rotation}
+                />
+            ))}
+        </group>
+    );
 };
+
 const Scene = () => {
     return (
         <div className="absolute inset-0 w-full h-full z-0">
@@ -96,7 +150,13 @@ const Scene = () => {
     );
 };
 
-// --- 聊天窗口组件 (核心逻辑修改) ---
+
+// --- 聊天窗口组件 ---
+interface Message {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CodeBlock = ({ inline, className, children, ...props }: any) => {
     const [copied, setCopied] = useState(false);
@@ -135,14 +195,23 @@ const CodeBlock = ({ inline, className, children, ...props }: any) => {
                     </button>
                 </div>
             </div>
-            <SyntaxHighlighter style={atomDark} language={match[1]} PreTag="div" {...props}>{code}</SyntaxHighlighter>
+            <SyntaxHighlighter
+                style={atomDark}
+                language={match[1]}
+                PreTag="div"
+                {...props}
+            >
+                {code}
+            </SyntaxHighlighter>
         </div>
     ) : (
-        <code className="bg-gray-200 text-red-600 px-1 rounded-sm" {...props}>{children}</code>
+        <code className="bg-gray-200 text-red-600 px-1 rounded-sm" {...props}>
+            {children}
+        </code>
     );
 };
 
-function ChatWindow({ user }: { user: User }) { // (新增) 接收 user 属性
+function ChatWindow({ user }: { user: User | null }) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -168,7 +237,7 @@ function ChatWindow({ user }: { user: User }) { // (新增) 接收 user 属性
     };
 
     const handleSendMessage = async () => {
-        if ((!input.trim() && !selectedFile) || isLoading) return;
+        if ((!input.trim() && !selectedFile) || isLoading || !user) return; // 确保用户已登录
         setIsLoading(true);
 
         const newUserMessage: Message = { role: 'user', content: input };
@@ -193,13 +262,13 @@ function ChatWindow({ user }: { user: User }) { // (新增) 接收 user 属性
         if(fileInputRef.current) fileInputRef.current.value = '';
 
         try {
-            // (修改) API 地址和请求体
+            // **修改: API端点和请求体**
             const response = await fetch('/api/exclusive', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userEmail: user.email, // (新增) 传递用户邮箱
                     messages: currentMessages, 
+                    user: user, // 传递用户信息
                     options: {
                         model: selectedModel,
                         enableWebSearch,
@@ -210,6 +279,9 @@ function ChatWindow({ user }: { user: User }) { // (新增) 接收 user 属性
                 }),
             });
 
+            if (response.status === 401) {
+                throw new Error("用户未授权，请重新登录。");
+            }
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(errorText || `后端API请求失败，状态码: ${response.status}`);
@@ -221,41 +293,21 @@ function ChatWindow({ user }: { user: User }) { // (新增) 接收 user 属性
             
             setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
-            // 这是新的、正确的代码块
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            let buffer = '';
-
+            
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) { break; }
-                
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || ''; // 保留不完整的行到下一次循环处理
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const jsonStr = line.substring(6);
-                        if (jsonStr === '[DONE]') {
-                            break;
-                        }
-                        try {
-                            const parsed = JSON.parse(jsonStr);
-                            const content = parsed.choices?.[0]?.delta?.content;
-                            if (content) {
-                                setMessages(prev => {
-                                    const newMessages = [...prev];
-                                    const lastMessageIndex = newMessages.length - 1;
-                                    newMessages[lastMessageIndex].content += content;
-                                    return newMessages;
-                                });
-                            }
-                        } catch (e) {
-                            console.error('Failed to parse stream chunk:', e);
-                        }
-                    }
+                if (done) {
+                    break;
                 }
+                const chunk = decoder.decode(value, { stream: true });
+                setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastMessageIndex = newMessages.length - 1;
+                    newMessages[lastMessageIndex].content += chunk;
+                    return newMessages;
+                });
             }
 
         } catch (error) {
@@ -288,7 +340,13 @@ function ChatWindow({ user }: { user: User }) { // (新增) 接收 user 属性
                             <div className={`rounded-lg px-4 py-2 max-w-lg whitespace-pre-wrap shadow-sm ${msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-50 text-gray-800'}`}>
                                 {msg.role === 'assistant' && enableMarkdownOutput ? (
                                     <div className="prose dark:prose-invert max-w-none">
-                                        <ReactMarkdown components={{ code: CodeBlock }}>{msg.content}</ReactMarkdown>
+                                        <ReactMarkdown
+                                            components={{
+                                                code: CodeBlock,
+                                            }}
+                                        >
+                                            {msg.content}
+                                        </ReactMarkdown>
                                     </div>
                                 ) : (
                                     msg.content
@@ -320,66 +378,114 @@ function ChatWindow({ user }: { user: User }) { // (新增) 接收 user 属性
                                 <option value="deepseek-reasoner">DeepSeek-R1</option>
                             </select>
                         </div>
-                        <label htmlFor="deep-search-toggle" className="flex items-center cursor-pointer"><span className="mr-2 text-sm font-medium text-black">深度搜索:</span><div className="relative"><input id="deep-search-toggle" type="checkbox" className="sr-only peer" checked={enableDeepSearch} onChange={() => setEnableDeepSearch(!enableDeepSearch)} /><div className="block bg-gray-200/80 w-10 h-6 rounded-full peer-checked:bg-blue-500 transition"></div><div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4`}></div></div></label>
-                        <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer"><span className="mr-2 text-sm font-medium text-black">联网搜索:</span><div className="relative"><input id="web-search-toggle" type="checkbox" className="sr-only peer" checked={enableWebSearch} onChange={() => setEnableWebSearch(!enableWebSearch)} /><div className="block bg-gray-200/80 w-10 h-6 rounded-full peer-checked:bg-blue-500 transition"></div><div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4`}></div></div></label>
-                        <label htmlFor="markdown-toggle" className="flex items-center cursor-pointer"><span className="mr-2 text-sm font-medium text-black">Markdown输出:</span><div className="relative"><input id="markdown-toggle" type="checkbox" className="sr-only peer" checked={enableMarkdownOutput} onChange={() => setEnableMarkdownOutput(!enableMarkdownOutput)} /><div className="block bg-gray-200/80 w-10 h-6 rounded-full peer-checked:bg-blue-500 transition"></div><div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4`}></div></div></label>
+                        <label htmlFor="deep-search-toggle" className="flex items-center cursor-pointer">
+                            <span className="mr-2 text-sm font-medium text-black">深度搜索:</span>
+                            <div className="relative">
+                                <input id="deep-search-toggle" type="checkbox" className="sr-only peer" checked={enableDeepSearch} onChange={() => setEnableDeepSearch(!enableDeepSearch)} />
+                                <div className="block bg-gray-200/80 w-10 h-6 rounded-full peer-checked:bg-blue-500 transition"></div>
+                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4`}></div>
+                            </div>
+                        </label>
+                        <label htmlFor="web-search-toggle" className="flex items-center cursor-pointer">
+                            <span className="mr-2 text-sm font-medium text-black">联网搜索:</span>
+                            <div className="relative">
+                                <input id="web-search-toggle" type="checkbox" className="sr-only peer" checked={enableWebSearch} onChange={() => setEnableWebSearch(!enableWebSearch)} />
+                                <div className="block bg-gray-200/80 w-10 h-6 rounded-full peer-checked:bg-blue-500 transition"></div>
+                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4`}></div>
+                            </div>
+                        </label>
+                        <label htmlFor="markdown-toggle" className="flex items-center cursor-pointer">
+                            <span className="mr-2 text-sm font-medium text-black">Markdown输出:</span>
+                            <div className="relative">
+                                <input id="markdown-toggle" type="checkbox" className="sr-only peer" checked={enableMarkdownOutput} onChange={() => setEnableMarkdownOutput(!enableMarkdownOutput)} />
+                                <div className="block bg-gray-200/80 w-10 h-6 rounded-full peer-checked:bg-blue-500 transition"></div>
+                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform peer-checked:translate-x-4`}></div>
+                            </div>
+                        </label>
                     </div>
                     <div className="flex items-center space-x-2">
-                        <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-600 hover:text-blue-600 rounded-full hover:bg-white/50 focus:outline-none"><PaperclipIcon className="w-5 h-5"/></button>
+                        <button onClick={() => fileInputRef.current?.click()} className="p-2 text-gray-600 hover:text-blue-600 rounded-full hover:bg-white/50 focus:outline-none">
+                            <PaperclipIcon className="w-5 h-5"/>
+                        </button>
                         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
                         <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={handleKeyPress} placeholder="在此输入您的问题..." rows={1} className="flex-grow p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white/80 text-black" disabled={isLoading}/>
-                        <Link href="/" className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex-shrink-0">主页</Link>
-                        <button onClick={handleSendMessage} disabled={isLoading || (!input.trim() && !selectedFile)} className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-blue-300 disabled:cursor-not-allowed">{isLoading ? '发送中...' : '发送'}</button>
+                        <Link href="/" className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex-shrink-0">
+                            主页
+                        </Link>
+                        <button onClick={handleSendMessage} disabled={isLoading || (!input.trim() && !selectedFile) || !user} className="px-4 py-2 bg-blue-500 text-white rounded-lg disabled:bg-blue-300 disabled:cursor-not-allowed">
+                            {isLoading ? '发送中...' : '发送'}
+                        </button>
                     </div>
-                    {selectedFile && (<div className="mt-2 text-sm text-gray-600 flex items-center"><span>已选择: {selectedFile.name}</span><button onClick={() => {setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = '';}} className="ml-2 text-red-500 hover:text-red-700"><XIcon className="w-4 h-4"/></button></div>)}
+                    {selectedFile && (
+                        <div className="mt-2 text-sm text-gray-600 flex items-center">
+                            <span>已选择: {selectedFile.name}</span>
+                            <button onClick={() => {setSelectedFile(null); if(fileInputRef.current) fileInputRef.current.value = '';}} className="ml-2 text-red-500 hover:text-red-700"><XIcon className="w-4 h-4"/></button>
+                        </div>
+                    )}
                 </div>
             </div>
         </motion.div>
     );
 }
 
-// --- 主页面组件 (核心逻辑修改) ---
+
+// --- 主页面组件 ---
 export default function ExclusivePage() {
     const title = "Apex—DeepSeek";
     const words = title.split(" ");
-    const router = useRouter();
+    
+    // --- 新增: 用户认证逻辑 ---
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState<User | null>(null);
-    const [authStatus, setAuthStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading');
+    const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+    const router = useRouter();
 
-    // (新增) 身份验证逻辑
     useEffect(() => {
-        const userInfoStr = localStorage.getItem('userInfo');
         const token = localStorage.getItem('authToken');
-        if (userInfoStr && token) {
+        const userInfo = localStorage.getItem('userInfo');
+        if (token && userInfo) {
             try {
-                setUser(JSON.parse(userInfoStr));
-                setAuthStatus('authenticated');
-            } catch (e) {
-                console.error("Failed to parse user info", e);
-                setAuthStatus('unauthenticated');
-                router.push('/'); // 解析失败则认为未登录
+                const parsedUser: User = JSON.parse(userInfo);
+                setUser(parsedUser);
+                setIsAuthenticated(true);
+            } catch (error) {
+                // 如果解析失败，则清除无效数据
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userInfo');
             }
-        } else {
-            setAuthStatus('unauthenticated');
-            router.push('/'); // 没有凭证则重定向到主页
         }
-    }, [router]);
+        setIsLoadingAuth(false);
+    }, []);
 
-    // 加载状态或未验证状态下的 UI
-    if (authStatus !== 'authenticated' || !user) {
+    // 认证加载中
+    if (isLoadingAuth) {
         return (
-            <main className="relative w-screen h-screen overflow-hidden bg-[#000] text-white flex items-center justify-center">
-                <div className="text-center">
-                    <h1 className="text-3xl font-bold">正在验证身份...</h1>
-                    <p className="text-neutral-400 mt-2">
-                      {authStatus === 'unauthenticated' && "您需要登录才能访问此页面，正在跳转到主页。"}
-                    </p>
-                </div>
+            <main className="relative w-screen h-screen overflow-hidden bg-[#000] flex items-center justify-center text-white">
+                <div>正在加载...</div>
             </main>
         );
     }
+    
+    // 未登录状态
+    if (!isAuthenticated) {
+        return (
+            <main className="relative w-screen h-screen overflow-hidden bg-[#000] flex flex-col items-center justify-center text-white p-4">
+                 <Scene />
+                 <div className="relative z-10 text-center">
+                    <h1 className="text-4xl font-bold mb-4">访问受限</h1>
+                    <p className="text-xl text-neutral-300 mb-8">请先登录以使用此功能。</p>
+                    <button 
+                        onClick={() => router.push('/')} 
+                        className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    >
+                        返回主页登录
+                    </button>
+                 </div>
+            </main>
+        )
+    }
   
-    // 已验证状态下渲染完整页面
+    // 已登录状态
     return (
         <main 
             className="relative w-screen h-screen overflow-hidden bg-[#000] text-white"
@@ -390,7 +496,7 @@ export default function ExclusivePage() {
             <div className="relative w-full h-full flex flex-col items-center justify-center z-10 p-4 overflow-y-auto">
                 <div className="text-center flex-shrink-0">
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 2 }} className="max-w-4xl mx-auto">
-                        <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold mb-4 tracking-tighter">
+                        <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold mb-2 tracking-tighter">
                             {words.map((word, wordIndex) => (
                                 <span key={wordIndex} className="inline-block mr-4 last:mr-0">
                                     {word.split("").map((letter, letterIndex) => (
@@ -411,14 +517,13 @@ export default function ExclusivePage() {
                             initial={{ opacity: 0, y: 20 }} 
                             animate={{ opacity: 1, y: 0 }} 
                             transition={{ delay: 0.8, duration: 1.2 }} 
-                            className="text-lg md:text-xl text-neutral-400 mt-4 max-w-2xl mx-auto"
+                            className="text-lg md:text-xl text-neutral-400 mt-2"
                         >
-                            欢迎回来, {user.name}！这是您的专属满血版DeepSeek。
+                            欢迎, <span className='font-bold text-white'>{user?.name}</span>. 开始您的对话。
                         </motion.p>
                     </motion.div>
                 </div>
-                <div className="mt-8">
-                    {/* (修改) 传递 user 对象给 ChatWindow */}
+                <div className="mt-6">
                     <ChatWindow user={user} />
                 </div>
             </div>
