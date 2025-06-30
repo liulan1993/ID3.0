@@ -4,10 +4,11 @@
 
 import React, { useState, useEffect, FC, PropsWithChildren, ComponentProps, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut } from 'lucide-react';
+// 新增 UserCheck 图标
+import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-// 移除了未使用的 useRouter
-// import { useRouter } from 'next/navigation';
+// 新增 html-to-image 库的导入
+import * as htmlToImage from 'html-to-image';
 
 // 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -143,6 +144,16 @@ interface ChatLog {
     user: { name: string; email: string; };
     question: string;
     timestamp: string;
+}
+
+// 新增：客户反馈类型定义
+interface CustomerSubmission {
+    key: string;
+    userName: string;
+    userEmail: string;
+    content: string;
+    fileUrls: string[];
+    submittedAt: string;
 }
 
 interface SidebarContextProps {
@@ -372,11 +383,166 @@ const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | n
     );
 };
 
+// --- 新增：客户反馈查看器组件 ---
+const CustomerFeedbackViewer: FC<{ 
+    submissions: CustomerSubmission[]; 
+    isLoading: boolean; 
+    error: string | null; 
+    onDelete: (keys: string[]) => void;
+    onRefresh: () => void;
+}> = ({ submissions, isLoading, error, onDelete, onRefresh }) => {
+    const [filteredSubmissions, setFilteredSubmissions] = useState<CustomerSubmission[]>([]);
+    const [selectedSubmission, setSelectedSubmission] = useState<CustomerSubmission | null>(null);
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const modalContentRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        let tempSubmissions = [...submissions];
+        if (startDate) {
+            tempSubmissions = tempSubmissions.filter(s => new Date(s.submittedAt) >= new Date(startDate));
+        }
+        if (endDate) {
+            const endOfDay = new Date(endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            tempSubmissions = tempSubmissions.filter(s => new Date(s.submittedAt) <= endOfDay);
+        }
+        setFilteredSubmissions(tempSubmissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()));
+    }, [submissions, startDate, endDate]);
+
+    const handleSelect = (key: string) => {
+        const newSelection = new Set(selectedKeys);
+        if (newSelection.has(key)) {
+            newSelection.delete(key);
+        } else {
+            newSelection.add(key);
+        }
+        setSelectedKeys(newSelection);
+    };
+
+    const handleDelete = () => {
+        if (selectedKeys.size === 0) {
+            alert('请先选择要删除的反馈。');
+            return;
+        }
+        if (window.confirm(`确定要删除选中的 ${selectedKeys.size} 条反馈吗？`)) {
+            onDelete(Array.from(selectedKeys));
+            setSelectedKeys(new Set());
+        }
+    };
+
+    const handleExportAsJpg = () => {
+        if (!modalContentRef.current) {
+            alert('无法导出，未找到内容。');
+            return;
+        }
+        htmlToImage.toJpeg(modalContentRef.current, { quality: 0.95, backgroundColor: '#18181b' })
+            .then((dataUrl) => {
+                const link = document.createElement('a');
+                link.download = `feedback-${selectedSubmission?.key.slice(-12)}.jpg`;
+                link.href = dataUrl;
+                link.click();
+            })
+            .catch((err) => {
+                console.error('导出图片失败:', err);
+                alert('导出图片失败，请查看控制台获取更多信息。');
+            });
+    };
+
+    return (
+        <div className="p-4 md:p-8 w-full h-full flex flex-col text-white">
+            <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">客户反馈</h1>
+            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-gray-500" />
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700 text-white" />
+                    <span>-</span>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700 text-white" />
+                </div>
+                <button onClick={handleDelete} disabled={selectedKeys.size === 0} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400">
+                    <Trash2 className="h-5 w-5" />删除选中
+                </button>
+                 <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    刷新
+                </button>
+            </div>
+
+            {isLoading ? <div className="text-center p-8">正在加载...</div> :
+             error ? <div className="text-center p-8 text-red-500">{error}</div> :
+             filteredSubmissions.length === 0 ? <div className="text-center p-8">没有符合条件的反馈</div> :
+             (
+                <div className="flex-1 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-1">
+                    {filteredSubmissions.map(submission => (
+                        <div key={submission.key} className="bg-neutral-800 rounded-lg shadow-lg overflow-hidden flex flex-col cursor-pointer transition-all duration-300 hover:shadow-cyan-500/50 hover:scale-105" onClick={() => setSelectedSubmission(submission)}>
+                            <div className="h-40 bg-neutral-900 flex items-center justify-center text-neutral-600">
+                                {submission.fileUrls && submission.fileUrls.length > 0 ? (
+                                    <img 
+                                        src={submission.fileUrls[0]} 
+                                        alt="反馈封面" 
+                                        className="w-full h-full object-cover"
+                                        crossOrigin="anonymous"
+                                    />
+                                ) : (
+                                    <span>无图片</span>
+                                )}
+                            </div>
+                            <div className="p-4 flex-grow">
+                                <div className="flex justify-between items-start">
+                                    <p className="text-sm text-gray-400 break-all">{submission.userEmail}</p>
+                                    <input type="checkbox" checked={selectedKeys.has(submission.key)} onChange={(e) => { e.stopPropagation(); handleSelect(submission.key); }} className="ml-4 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                </div>
+                                <p className="mt-2 text-gray-300 text-sm line-clamp-3">{submission.content || "无文本内容"}</p>
+                            </div>
+                            <div className="px-4 py-2 bg-neutral-900 text-xs text-gray-500 mt-auto">
+                                {new Date(submission.submittedAt).toLocaleString()}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+             )
+            }
+
+            {selectedSubmission && (
+                <AnimatePresence>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-neutral-900 border border-neutral-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                            <div ref={modalContentRef} className="p-6 overflow-y-auto">
+                                <h2 className="text-xl font-bold text-cyan-400 mb-2">{selectedSubmission.userName} <span className="text-sm font-normal text-gray-400">({selectedSubmission.userEmail})</span></h2>
+                                <p className="text-xs text-gray-500 mb-4">提交于: {new Date(selectedSubmission.submittedAt).toLocaleString()}</p>
+                                <div className="prose prose-invert max-w-none prose-img:rounded-lg">
+                                    <ReactMarkdown>{selectedSubmission.content}</ReactMarkdown>
+                                </div>
+                                {selectedSubmission.fileUrls && selectedSubmission.fileUrls.length > 0 && (
+                                    <div className="mt-6">
+                                        <h3 className="font-bold text-lg mb-2 text-gray-300">附件图片:</h3>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            {selectedSubmission.fileUrls.map(url => (
+                                                <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                                                    <img src={url} alt="附件图片" className="w-full h-auto object-cover rounded-lg shadow-md transition-transform duration-300 hover:scale-105" crossOrigin="anonymous" />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex justify-end items-center gap-4 p-4 border-t border-neutral-700 mt-auto">
+                                <button onClick={handleExportAsJpg} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">导出为 JPG</button>
+                                <button onClick={() => setSelectedSubmission(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700">关闭</button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                </AnimatePresence>
+            )}
+        </div>
+    );
+};
+
 
 // --- 主页面组件 ---
 const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [open, setOpen] = useState(true);
-    const [view, setView] = useState<'list' | 'editor' | 'questions'>('list');
+    const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback'>('list');
     const [articles, setArticles] = useState<Article[]>([]);
     const [isArticlesLoading, setIsArticlesLoading] = useState(true);
     const [articlesError, setArticlesError] = useState<string | null>(null);
@@ -384,6 +550,11 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
     const [isChatLogsLoading, setIsChatLogsLoading] = useState(true);
     const [chatLogsError, setChatLogsError] = useState<string | null>(null);
+    
+    // 新增：客户反馈的状态
+    const [customerSubmissions, setCustomerSubmissions] = useState<CustomerSubmission[]>([]);
+    const [isSubmissionsLoading, setIsSubmissionsLoading] = useState(true);
+    const [submissionsError, setSubmissionsError] = useState<string | null>(null);
 
     useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
@@ -418,16 +589,49 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
             setIsChatLogsLoading(false);
         }
     };
+    
+    // 新增：获取客户反馈数据的函数
+    const fetchCustomerSubmissions = async () => {
+        setIsSubmissionsLoading(true);
+        setSubmissionsError(null);
+        try {
+            const response = await fetch('/api/customer-feedback');
+            if (!response.ok) throw new Error('获取客户反馈数据失败');
+            const data = await response.json();
+            setCustomerSubmissions(data);
+        } catch (err: unknown) {
+            setSubmissionsError(err instanceof Error ? err.message : '未知错误');
+        } finally {
+            setIsSubmissionsLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (view === 'list') fetchArticles();
         if (view === 'questions') fetchChatLogs();
+        if (view === 'customerFeedback') fetchCustomerSubmissions();
     }, [view]);
 
     const handleEditArticle = (article: Article) => { setEditingArticle(article); setView('editor'); };
     const handleNewArticle = () => { setEditingArticle(null); setView('editor'); };
     const handleDeleteArticle = async (articleId: string) => { if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
     const handlePublishSuccess = () => { alert('操作成功！'); setView('list'); };
+    
+    // 新增：删除客户反馈的函数
+    const handleDeleteSubmissions = async (keys: string[]) => {
+        try {
+            const response = await fetch('/api/customer-feedback', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ keys }),
+            });
+            if (!response.ok) throw new Error('删除失败');
+            alert('删除成功！');
+            fetchCustomerSubmissions(); // 重新加载数据
+        } catch (err) {
+            alert(err instanceof Error ? err.message : '删除时发生未知错误');
+        }
+    };
     
     const handleLogout = async () => {
         try {
@@ -443,6 +647,8 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
         { label: "文章管理", href: "#", icon: <FileText className="h-5 w-5" />, action: () => setView('list') },
         { label: "写新文章", href: "#", icon: <PlusCircle className="h-5 w-5" />, action: handleNewArticle },
         { label: "问题一览", href: "#", icon: <MessageSquare className="h-5 w-5" />, action: () => setView('questions') },
+        // 新增：客户反馈菜单项
+        { label: "客户反馈", href: "#", icon: <UserCheck className="h-5 w-5" />, action: () => setView('customerFeedback') },
         { label: "系统设置", href: "#", icon: <Settings className="h-5 w-5" />, action: () => alert('设置功能待开发') },
     ];
 
@@ -461,6 +667,14 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
             case 'list': return <ArticleList articles={articles} isLoading={isArticlesLoading} error={articlesError} onEdit={handleEditArticle} onDelete={handleDeleteArticle} />;
             case 'editor': return <ArticleEditor onArticlePublished={handlePublishSuccess} articleToEdit={editingArticle} />;
             case 'questions': return <ChatLogViewer logs={chatLogs} isLoading={isChatLogsLoading} error={chatLogsError} onRefresh={fetchChatLogs} />;
+            // 新增：渲染客户反馈视图
+            case 'customerFeedback': return <CustomerFeedbackViewer 
+                                                submissions={customerSubmissions} 
+                                                isLoading={isSubmissionsLoading} 
+                                                error={submissionsError}
+                                                onDelete={handleDeleteSubmissions}
+                                                onRefresh={fetchCustomerSubmissions}
+                                            />;
             default: return <div>请选择一个视图</div>;
         }
     };
@@ -491,9 +705,8 @@ export default function AdminPage() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     // 尝试在客户端检查 cookie 来维持登录状态
-    // 注意：这只是一个简单的UI状态维持，真正的安全验证由API路由处理
     useEffect(() => {
-        if (document.cookie.includes('auth_token=')) {
+        if (typeof window !== 'undefined' && document.cookie.includes('auth_token=')) {
             setIsLoggedIn(true);
         }
     }, []);
