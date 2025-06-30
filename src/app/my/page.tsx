@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
-import { jwtDecode } from 'jwt-decode';
 import { LogOut, Loader, ServerCrash, FileDown, X, FileText, ClipboardList, MessageSquare, Trash2 } from 'lucide-react';
 import { PutBlobResult } from '@vercel/blob';
 
@@ -252,11 +251,11 @@ export default function MyProfilePage() {
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
-        const userInfo = localStorage.getItem('userInfo'); // **FIX**: Also check for userInfo
+        const userInfo = localStorage.getItem('userInfo');
         
-        if (token && userInfo) { // **FIX**: Check for both token and userInfo
+        if (token && userInfo) {
             try {
-                const parsedUser = JSON.parse(userInfo); // **FIX**: Parse userInfo from localStorage
+                const parsedUser = JSON.parse(userInfo);
                 setUser(parsedUser);
             } catch (e) {
                 console.error("解析用户信息失败:", e);
@@ -299,7 +298,6 @@ export default function MyProfilePage() {
                 throw new Error(errData.error || '删除失败');
             }
             
-            // 从本地状态中移除已删除的项目
             setAllData(prevData => ({
                 submissions: prevData.submissions.filter(item => item.key !== key),
                 questionnaires: prevData.questionnaires.filter(item => item.key !== key),
@@ -311,7 +309,7 @@ export default function MyProfilePage() {
         }
     };
 
-    const tabs: { id: Tab; label: string; icon: FC<{ size?: number | string }> }[] = [
+    const tabs: { id: Tab; label: string; icon: React.ComponentType<{ size?: number | string }> }[] = [
         { id: 'submissions', label: '表单资料', icon: FileText },
         { id: 'questionnaires', label: '问卷调查', icon: ClipboardList },
         { id: 'feedback', label: '客户反馈', icon: MessageSquare },
