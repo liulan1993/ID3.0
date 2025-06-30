@@ -16,18 +16,21 @@ const kv = createClient({
 });
 
 // 递归函数，用于从表单数据中查找所有文件URL
-function findFileUrls(data: any): string[] {
+function findFileUrls(data: unknown): string[] {
     let urls: string[] = [];
     if (Array.isArray(data)) {
         for (const item of data) {
             urls = urls.concat(findFileUrls(item));
         }
     } else if (typeof data === 'object' && data !== null) {
-        if (data.url && typeof data.url === 'string') {
-            urls.push(data.url);
+        // Type guard to check for 'url' property
+        if ('url' in data && typeof (data as {url: unknown}).url === 'string') {
+            urls.push((data as {url: string}).url);
         } else {
             for (const key in data) {
-                urls = urls.concat(findFileUrls(data[key]));
+                 if (Object.prototype.hasOwnProperty.call(data, key)) {
+                    urls = urls.concat(findFileUrls((data as Record<string, unknown>)[key]));
+                 }
             }
         }
     }
