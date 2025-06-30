@@ -39,7 +39,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
             items: [
                 { title: "问卷调查", href: "https://www.apex-elite-service.com/wenjuandiaocha" },
                 { title: "资料上传", href: "/upload" },
-                { title: "客户反馈", href: "https://www.apex-elite-service.com/kehufankui" },
+                { title: "客户反馈", href: "/customer" },
                 { title: "活动报名", href: "/activity" },
             ],
         },
