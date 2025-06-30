@@ -4,8 +4,10 @@
 
 import React, { useState, useEffect, FC, PropsWithChildren, ComponentProps, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload } from 'lucide-react';
+// 新增 LogOut 图标
+import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { useRouter } from 'next/navigation'; // 引入 useRouter
 
 // 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -279,6 +281,7 @@ export default function AdminPage() {
     const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
     const [isChatLogsLoading, setIsChatLogsLoading] = useState(true);
     const [chatLogsError, setChatLogsError] = useState<string | null>(null);
+    const router = useRouter(); // 初始化 router
 
     useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
@@ -323,6 +326,11 @@ export default function AdminPage() {
     const handleNewArticle = () => { setEditingArticle(null); setView('editor'); };
     const handleDeleteArticle = async (articleId: string) => { if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
     const handlePublishSuccess = () => { alert('操作成功！'); setView('list'); };
+    
+    // 新增：登出处理函数
+    const handleLogout = () => {
+        router.push('/api/auth/logout');
+    };
 
     const adminLinks: LinkItem[] = [
         { label: "文章管理", href: "#", icon: <FileText className="h-5 w-5" />, action: () => setView('list') },
@@ -333,6 +341,14 @@ export default function AdminPage() {
 
     const userData = { name: "管理员", href: "#", avatarUrl: "https://placehold.co/100x100/E5E7EB/4B5563?text=A" };
     const userLink = { label: userData.name, href: userData.href, icon: (<img src={userData.avatarUrl} className="h-7 w-7 rounded-full" alt="avatar" />) };
+    
+    // 新增：登出链接
+    const logoutLink: LinkItem = {
+        label: "退出登录",
+        href: "#",
+        icon: <LogOut className="h-5 w-5" />,
+        action: handleLogout,
+    };
 
     const renderView = () => {
         switch(view) {
@@ -351,7 +367,11 @@ export default function AdminPage() {
                         <div className='px-2 py-1'>{open ? <Logo /> : <LogoIcon />}</div>
                         <div className="mt-8 flex flex-col gap-2">{adminLinks.map((link, idx) => (<SidebarLink key={idx} link={link} />))}</div>
                     </div>
-                    <div><SidebarLink link={userLink} /></div>
+                    {/* 修改侧边栏底部，增加登出按钮 */}
+                    <div className="flex flex-col gap-2">
+                        <SidebarLink link={userLink} />
+                        <SidebarLink link={logoutLink} />
+                    </div>
                 </SidebarBody>
             </Sidebar>
             <main className="flex-1 bg-white dark:bg-neutral-900 flex">
