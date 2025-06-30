@@ -66,7 +66,6 @@ export async function saveFooterEmailToRedis(emailData: FooterEmailData) {
         }
         const key = `subscription:${email}`;
         
-        // 修正: 生成北京时区的 ISO 字符串
         const beijingTime = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
         const beijingISOString = beijingTime.toISOString().replace('Z', '+08:00');
         
@@ -90,21 +89,16 @@ export async function sendVerificationEmail(
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  
-  // phone 参数存在 (即使是空字符串) 意味着是注册意图
-  // phone 参数为 undefined 意味着是忘记密码意图
   const isSignupAttempt = phone !== undefined;
 
+  // 关键修正: 在发送邮件前执行所有存在性检查
   if (isSignupAttempt) {
-    // --- 注册前的存在性校验 ---
-    // 1. 检查邮箱是否已注册
     const userKeyByEmail = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.get(userKeyByEmail);
     if (existingUserByEmail) {
         return { success: false, message: '该邮箱地址已被注册。' };
     }
     
-    // 2. 如果提供了手机号，检查手机号是否已注册
     if (phone && phone.trim()) {
         const trimmedPhone = phone.trim();
         const phoneIndexKey = `phone:${trimmedPhone}`;
@@ -113,9 +107,7 @@ export async function sendVerificationEmail(
             return { success: false, message: '该手机号码已被注册。' };
         }
     }
-  } else {
-    // --- 忘记密码的校验 ---
-    // 检查邮箱是否存在
+  } else { // 忘记密码流程
     const userKeyByEmail = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.get(userKeyByEmail);
     if (!existingUserByEmail) {
@@ -172,8 +164,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
     if (storedCode.toString() !== emailVerificationCode.trim()) {
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
-
-    // 注意: 存在性检查已在 sendVerificationEmail 中完成，此处不再重复
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
