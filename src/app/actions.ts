@@ -82,40 +82,43 @@ export async function sendVerificationEmail(
     email: string,
     graphicalCaptchaInput: string,
     graphicalCaptchaAnswer: string,
-    phone?: string // phone 参数仅在注册流程中传递
+    phone?: string // `phone`参数的存在(即使是空字符串)表示这是一个注册请求
 ) {
-  if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
+  // 步骤 1: 验证图形验证码
+  if (graphicalCaptchaInput.toLowerCase() !== graphicalCaptchaAnswer.toLowerCase()) {
     return { success: false, message: '图形验证码不正确。' };
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const isSignupAttempt = phone !== undefined;
-
-  // 关键修正: 在发送邮件前执行所有存在性检查
-  if (isSignupAttempt) {
-    const userKeyByEmail = `user:${normalizedEmail}`;
-    const existingUserByEmail = await kv.get(userKeyByEmail);
+  
+  // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行唯一性检查
+  if (phone !== undefined) {
+    // 检查邮箱是否已存在
+    const emailKey = `user:${normalizedEmail}`;
+    const existingUserByEmail = await kv.get(emailKey);
     if (existingUserByEmail) {
-        return { success: false, message: '该邮箱地址已被注册。' };
+        return { success: false, message: '此邮箱地址已被注册。' };
     }
     
-    if (phone && phone.trim()) {
-        const trimmedPhone = phone.trim();
-        const phoneIndexKey = `phone:${trimmedPhone}`;
-        const existingEmailForPhone = await kv.get(phoneIndexKey);
-        if (existingEmailForPhone) {
-            return { success: false, message: '该手机号码已被注册。' };
+    // 检查手机号是否已存在 (仅当手机号不为空时)
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone) {
+        const phoneKey = `phone:${trimmedPhone}`;
+        const existingUserByPhone = await kv.get(phoneKey);
+        if (existingUserByPhone) {
+            return { success: false, message: '此手机号码已被注册。' };
         }
     }
-  } else { // 忘记密码流程
-    const userKeyByEmail = `user:${normalizedEmail}`;
-    const existingUserByEmail = await kv.get(userKeyByEmail);
+  } else {
+    // 如果是忘记密码请求, 检查用户是否存在
+    const emailKey = `user:${normalizedEmail}`;
+    const existingUserByEmail = await kv.get(emailKey);
     if (!existingUserByEmail) {
       return { success: false, message: '该邮箱地址未注册。' };
     }
   }
 
-  // --- 发送邮件逻辑 ---
+  // 步骤 3: 所有检查通过，发送验证邮件
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
@@ -156,7 +159,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const normalizedEmail = email.trim().toLowerCase();
     const verificationKey = `verification:${normalizedEmail}`;
     
-    // 验证码校验
+    // 步骤 1: 验证邮箱验证码
     const storedCode = await kv.get<string | number | null>(verificationKey);
     if (storedCode === null || storedCode === undefined) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
@@ -165,6 +168,9 @@ export async function registerUser(userInfo: RegistrationInfo) {
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
 
+    // 注意：邮箱和手机号的唯一性检查已在 sendVerificationEmail 中完成，此处不再重复检查，以避免逻辑混乱。
+
+    // 步骤 2: 创建新用户
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -179,7 +185,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
       createdAt: beijingISOString,
     };
     
-    // 存储用户数据和手机号索引
+    // 步骤 3: 存储用户数据和手机号索引
     const userKeyByEmail = `user:${normalizedEmail}`;
     await kv.set(userKeyByEmail, JSON.stringify(newUser));
     if (phone && phone.trim()) {
@@ -187,6 +193,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
         await kv.set(phoneIndexKey, normalizedEmail);
     }
     
+    // 步骤 4: 删除用过的验证码
     await kv.del(verificationKey);
 
     return { success: true };
