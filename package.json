@@ -19,6 +19,7 @@
     "@react-three/fiber": "^9.1.2",
     "@react-three/postprocessing": "^3.0.4",
     "@sendgrid/mail": "^8.1.5",
+    "@vercel/analytics": "^1.5.0",
     "@vercel/blob": "^1.1.1",
     "@vercel/kv": "^3.0.0",
     "ai": "^4.3.16",
