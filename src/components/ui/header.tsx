@@ -151,7 +151,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                 </Button>
                                 {isDropdownOpen && (
                                     <div className="absolute right-0 mt-2 w-48 bg-black border border-slate-700 rounded-md shadow-lg py-2 z-50">
-                                        <Link href="/profile" className="block w-full text-left px-4 py-3 text-base md:text-lg text-white hover:bg-slate-800 transition-colors duration-200">
+                                        <Link href="/my" className="block w-full text-left px-4 py-3 text-base md:text-lg text-white hover:bg-slate-800 transition-colors duration-200">
                                             我的资料
                                         </Link>
                                         <Link href="/application-status" className="block w-full text-left px-4 py-3 text-base md:text-lg text-white hover:bg-slate-800 transition-colors duration-200">
