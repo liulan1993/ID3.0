@@ -437,7 +437,12 @@ const CustomerFeedbackViewer: FC<{
             alert('无法导出，未找到内容。');
             return;
         }
-        htmlToImage.toJpeg(modalContentRef.current, { quality: 0.95, backgroundColor: '#18181b', skipFonts: true, cacheBust: true, })
+        htmlToImage.toJpeg(modalContentRef.current, { 
+            quality: 0.95, 
+            backgroundColor: '#18181b',
+            skipFonts: true,
+            cacheBust: true,
+        })
             .then((dataUrl) => {
                 const link = document.createElement('a');
                 link.download = `feedback-${selectedSubmission?.key.slice(-12)}.jpg`;
@@ -445,7 +450,7 @@ const CustomerFeedbackViewer: FC<{
                 link.click();
             })
             .catch((err) => {
-                console.error('oops, something went wrong!', err); 
+                console.error('oops, something went wrong!', err);
                 alert('导出图片失败，请查看控制台获取更多信息。');
             });
     };
@@ -478,10 +483,9 @@ const CustomerFeedbackViewer: FC<{
                             <div className="h-40 bg-neutral-900 flex items-center justify-center text-neutral-600">
                                 {submission.fileUrls && submission.fileUrls.length > 0 ? (
                                     <img 
-                                        src={submission.fileUrls[0]} 
+                                        src={`/api/image-proxy?url=${encodeURIComponent(submission.fileUrls[0])}`} 
                                         alt="反馈封面" 
                                         className="w-full h-full object-cover"
-                                        crossOrigin="anonymous"
                                     />
                                 ) : (
                                     <span>无图片</span>
@@ -519,7 +523,11 @@ const CustomerFeedbackViewer: FC<{
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                             {selectedSubmission.fileUrls.map(url => (
                                                 <a key={url} href={url} target="_blank" rel="noopener noreferrer">
-                                                    <img src={url} alt="附件图片" className="w-full h-auto object-cover rounded-lg shadow-md transition-transform duration-300 hover:scale-105" crossOrigin="anonymous" />
+                                                    <img 
+                                                        src={`/api/image-proxy?url=${encodeURIComponent(url)}`} 
+                                                        alt="附件图片" 
+                                                        className="w-full h-auto object-cover rounded-lg shadow-md transition-transform duration-300 hover:scale-105" 
+                                                    />
                                                 </a>
                                             ))}
                                         </div>
