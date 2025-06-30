@@ -437,7 +437,7 @@ const CustomerFeedbackViewer: FC<{
             alert('无法导出，未找到内容。');
             return;
         }
-        htmlToImage.toJpeg(modalContentRef.current, { quality: 0.95, backgroundColor: '#18181b' })
+        htmlToImage.toJpeg(modalContentRef.current, { quality: 0.95, backgroundColor: '#18181b', skipFonts: true, cacheBust: true, })
             .then((dataUrl) => {
                 const link = document.createElement('a');
                 link.download = `feedback-${selectedSubmission?.key.slice(-12)}.jpg`;
@@ -445,7 +445,7 @@ const CustomerFeedbackViewer: FC<{
                 link.click();
             })
             .catch((err) => {
-                console.error('导出图片失败:', err);
+                console.error('oops, something went wrong!', err); 
                 alert('导出图片失败，请查看控制台获取更多信息。');
             });
     };
