@@ -94,23 +94,23 @@ export async function sendVerificationEmail(
   // 步骤 2: 根据流程类型执行不同的唯一性检查
   if (phone !== undefined) {
     // --- 这是注册流程 ---
-    // [最终修复] 此处是问题的根源。重写验证逻辑，确保其绝对正确。
-    
-    // 检查 1: 手机号唯一性。这是最高优先级的检查。
+    // [最终修复] 遵从您的指令，废弃索引，直接扫描所有 user:* 主数据进行唯一性检查。
+    // 警告：此方法在用户数量巨大时会产生严重的性能问题。
+
+    // 检查 1: 手机号唯一性 (通过扫描所有用户主数据)
     const trimmedPhone = phone.trim();
-    if (trimmedPhone) { 
-        const phoneKey = `phone:${trimmedPhone}`;
-        // 我们直接检查 `phone:<号码>` 这个键是否存在于数据库中。
-        // `kv.exists` 会返回一个数字：1 代表存在，0 代表不存在。
-        const phoneExists = await kv.exists(phoneKey); 
-        
-        // 如果 phoneExists 的值为 1，说明该手机号已被注册，必须立即终止。
-        if (phoneExists) {
-            return { success: false, message: '此手机号码已被注册。' };
+    if (trimmedPhone) {
+        const userKeys = await kv.keys('user:*');
+        for (const key of userKeys) {
+            const userData = await kv.get<{ phone?: string }>(key);
+            // 检查每个用户记录中的 phone 字段
+            if (userData && userData.phone === trimmedPhone) {
+                return { success: false, message: '此手机号码已被注册。' };
+            }
         }
     }
     
-    // 检查 2: 邮箱唯一性。仅在手机号检查通过后才执行。
+    // 检查 2: 邮箱唯一性 (这个可以继续使用直接查找，因为键本身就是唯一的)
     const emailKey = `user:${normalizedEmail}`;
     const emailExists = await kv.exists(emailKey);
     if (emailExists) {
@@ -165,6 +165,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const { email, password, name, phone, emailVerificationCode } = userInfo;
     
     const normalizedEmail = email.trim().toLowerCase();
+    const trimmedPhone = phone ? phone.trim() : '';
     
     // [加固措施] 在写入数据库前的最后一步，执行最终的唯一性检查，作为最后防线。
     const emailKey = `user:${normalizedEmail}`;
@@ -172,16 +173,17 @@ export async function registerUser(userInfo: RegistrationInfo) {
     if (existingUserByEmail) {
         throw new Error('此邮箱地址已被注册。');
     }
-    const trimmedPhone = phone ? phone.trim() : '';
     if (trimmedPhone) {
-        const phoneKey = `phone:${trimmedPhone}`;
-        const existingUserByPhone = await kv.exists(phoneKey);
-        if (existingUserByPhone) {
-            throw new Error('此手机号码已被注册。');
+        const userKeys = await kv.keys('user:*');
+        for (const key of userKeys) {
+            const userData = await kv.get<{ phone?: string }>(key);
+            if (userData && userData.phone === trimmedPhone) {
+                throw new Error('此手机号码已被注册。');
+            }
         }
     }
 
-    // 步骤 1: 验证邮箱验证码 (确保处理 Vercel KV 可能返回 number 类型的问题)
+    // 步骤 1: 验证邮箱验证码
     const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string | number | null>(verificationKey);
     if (storedCode === null || storedCode === undefined) {
@@ -206,12 +208,10 @@ export async function registerUser(userInfo: RegistrationInfo) {
       createdAt: beijingISOString,
     };
     
-    // 步骤 3: 存储用户数据和手机号索引
+    // 步骤 3: 存储用户数据
     await kv.set(emailKey, JSON.stringify(newUser));
-    if (trimmedPhone) {
-        const phoneIndexKey = `phone:${trimmedPhone}`;
-        await kv.set(phoneIndexKey, normalizedEmail);
-    }
+    
+    // [最终修复] 移除不再使用的 phone:* 索引的创建逻辑。
     
     // 步骤 4: 删除用过的验证码
     await kv.del(verificationKey);
