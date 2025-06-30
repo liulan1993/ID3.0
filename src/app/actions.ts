@@ -91,8 +91,7 @@ export async function sendVerificationEmail(
 
   const normalizedEmail = email.trim().toLowerCase();
   
-  // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行联合唯一性检查
-  // [BUG修复] 检查手机号和邮箱是否任意一个已被注册。如果任意一个存在，则直接返回错误，不发送邮件。
+  // 步骤 2: 如果是注册请求(phone参数不为undefined), 则执行唯一性检查
   if (phone !== undefined) {
     // 检查手机号是否已存在
     const trimmedPhone = phone.trim();
@@ -158,20 +157,31 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const { email, password, name, phone, emailVerificationCode } = userInfo;
     
     const normalizedEmail = email.trim().toLowerCase();
-    const verificationKey = `verification:${normalizedEmail}`;
     
+    // [BUG修复] 在注册写入数据库之前，执行最终的、决定性的唯一性检查，以防止任何竞态条件或数据不一致。
+    const emailKey = `user:${normalizedEmail}`;
+    const existingUserByEmail = await kv.get(emailKey);
+    if (existingUserByEmail) {
+        throw new Error('此邮箱地址已被注册。');
+    }
+    const trimmedPhone = phone ? phone.trim() : '';
+    if (trimmedPhone) {
+        const phoneKey = `phone:${trimmedPhone}`;
+        const existingUserByPhone = await kv.get(phoneKey);
+        if (existingUserByPhone) {
+            throw new Error('此手机号码已被注册。');
+        }
+    }
+
     // 步骤 1: 验证邮箱验证码
-    // [BUG修复] 从Vercel KV获取的值可能是数字(Number)类型，必须转换为字符串再进行比较。
+    const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string | number | null>(verificationKey);
     if (storedCode === null || storedCode === undefined) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
     }
-    // 使用 .toString() 确保与前端传来的字符串类型进行严格比较。
     if (storedCode.toString() !== emailVerificationCode.trim()) {
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
-
-    // 注意：邮箱和手机号的唯一性检查已在 sendVerificationEmail 中完成，此处不再重复检查，以避免逻辑混乱。
 
     // 步骤 2: 创建新用户
     const salt = await bcrypt.genSalt(10);
@@ -183,7 +193,7 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const newUser = {
       name,
       email: normalizedEmail,
-      phone: phone ? phone.trim() : '',
+      phone: trimmedPhone,
       hashedPassword,
       createdAt: beijingISOString,
     };
@@ -191,8 +201,8 @@ export async function registerUser(userInfo: RegistrationInfo) {
     // 步骤 3: 存储用户数据和手机号索引
     const userKeyByEmail = `user:${normalizedEmail}`;
     await kv.set(userKeyByEmail, JSON.stringify(newUser));
-    if (phone && phone.trim()) {
-        const phoneIndexKey = `phone:${phone.trim()}`;
+    if (trimmedPhone) {
+        const phoneIndexKey = `phone:${trimmedPhone}`;
         await kv.set(phoneIndexKey, normalizedEmail);
     }
     
@@ -255,13 +265,11 @@ export async function resetPassword(info: ResetPasswordInfo) {
         const storedUser = storedUserJSON as { name: string; email: string; hashedPassword: string; };
 
         const verificationKey = `verification:${normalizedEmail}`;
-        // [BUG修复] 从Vercel KV获取的值可能是数字(Number)类型，必须转换为字符串再进行比较。
         const storedCode = await kv.get<string | number | null>(verificationKey);
         
         if (storedCode === null || storedCode === undefined) {
             throw new Error('邮箱验证码已过期或不存在，请重新发送。');
         }
-        // 使用 .toString() 确保与前端传来的字符串类型进行严格比较。
         if (storedCode.toString() !== emailVerificationCode.trim()) {
             throw new Error('您输入的邮箱验证码与系统记录不符。');
         }
