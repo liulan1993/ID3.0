@@ -23,14 +23,15 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   const { searchParams } = new URL(request.url);
   const filename = searchParams.get('filename');
-  // **新增**: 从 URL 参数获取用户邮箱
+  
+  // **确认**: 从 URL 参数获取用户邮箱
   const userEmail = searchParams.get('userEmail');
 
   if (!filename) {
     return NextResponse.json({ error: '必须提供文件名。' }, { status: 400 });
   }
 
-  // **新增**: 验证用户邮箱是否存在
+  // **确认**: 验证用户邮箱是否存在
   if (!userEmail) {
     return NextResponse.json({ error: '未提供用户信息，禁止上传。' }, { status: 401 });
   }
@@ -40,7 +41,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const randomPrefix = nanoid();
-  // **修改**: 创建包含用户邮箱的唯一文件路径
+  // **确认**: 创建包含用户邮箱的唯一文件路径
   // 例如: uploads/user@example.com/randomId-original-filename.jpg
   const uniquePath = `uploads/${userEmail}/${randomPrefix}-${filename}`;
 

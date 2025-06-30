@@ -99,7 +99,7 @@ const Scene = React.memo(() => {
 Scene.displayName = 'Scene';
 
 
-// --- 表单相关类型定义 (与旧文件一致) ---
+// --- 表单相关类型定义 ---
 type Option = { value: string; label: string };
 type Column = { key: string; header: string };
 interface BaseFieldProps { id: string; label?: string; title?: string; }
@@ -117,7 +117,7 @@ type SubmissionStatus = 'idle' | 'loading' | 'success' | 'error';
 type Service = { id: string; title: string; fields: Field[] };
 
 
-// --- 工具函数 (与旧文件一致) ---
+// --- 工具函数 ---
 function cn(...inputs: (string | undefined | null | boolean | { [key: string]: boolean })[]): string {
     const classSet = new Set<string>();
     inputs.forEach(input => {
@@ -132,7 +132,7 @@ function cn(...inputs: (string | undefined | null | boolean | { [key: string]: b
     return Array.from(classSet).join(' ');
 }
 
-// --- 表单组件 (与旧文件一致) ---
+// --- 表单组件 ---
 const SectionHeader: FC<{ title: string }> = ({ title }) => ( <h3 className="text-xl font-semibold text-gray-800 border-b pb-2 mb-6 mt-6 first:mt-0">{title}</h3> );
 const SubHeader: FC<{ title: string }> = ({ title }) => ( <h4 className="text-lg font-semibold text-gray-700 mt-6 mb-4">{title}</h4> );
 const FormField: FC<{ label: string; type?: string; placeholder?: string; value: string; onChange: (e: ChangeEvent<HTMLInputElement>) => void }> = ({ label, type = 'text', placeholder, value, onChange }) => ( <div className="mb-4"> <label className="block text-gray-700 text-sm font-bold mb-2 text-left">{label}</label> <input className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" type={type} placeholder={placeholder} value={value || ''} onChange={onChange} /> </div> );
@@ -144,7 +144,7 @@ const TextareaField: FC<{ label: string, placeholder?: string, value: string, on
 const TableField: FC<{ label: string, columns: Column[], value: TableRow[], onChange: (value: TableRow[]) => void }> = ({ label, columns, value = [], onChange }) => { const safeColumns = useMemo(() => Array.isArray(columns) ? columns : [], [columns]); useEffect(() => { if (value.length === 0 && safeColumns.length > 0) { const newRow: TableRow = safeColumns.reduce((acc, col) => ({ ...acc, [col.key]: '' }), {}); onChange([newRow]); } }, [safeColumns, value.length, onChange]); const handleAddRow = () => { const newRow: TableRow = safeColumns.reduce((acc, col) => ({ ...acc, [col.key]: '' }), {}); onChange([...value, newRow]); }; const handleRemoveRow = (index: number) => { const newRows = [...value]; newRows.splice(index, 1); onChange(newRows); }; const handleCellChange = (rowIndex: number, columnKey: string, cellValue: string) => { const newRows = [...value]; newRows[rowIndex] = { ...newRows[rowIndex], [columnKey]: cellValue }; onChange(newRows); }; return ( <div className="mb-4"> <label className="block text-gray-700 text-sm font-bold mb-2 text-left">{label}</label> <div className="overflow-x-auto"> <table className="w-full text-sm text-left text-gray-500"> <thead className="text-xs text-gray-700 uppercase bg-gray-50"> <tr> {safeColumns.map(col => <th key={col.key} scope="col" className="px-4 py-3">{col.header}</th>)} <th scope="col" className="px-4 py-3">操作</th> </tr> </thead> <tbody> {value.map((row, rowIndex) => ( <tr key={rowIndex} className="bg-white border-b"> {safeColumns.map(col => ( <td key={col.key} className="px-4 py-3"> <input type="text" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2" value={row[col.key] || ''} onChange={(e) => handleCellChange(rowIndex, col.key, e.target.value)} /> </td> ))} <td className="px-4 py-3"> <button type="button" onClick={() => handleRemoveRow(rowIndex)} className="text-red-600 hover:text-red-900">删除</button> </td> </tr> ))} </tbody> </table> </div> <button type="button" onClick={handleAddRow} className="mt-2 text-blue-600 hover:text-blue-900 font-semibold text-sm">+ 添加一行</button> </div> ); };
 const DynamicPersonField: FC<{ title?: string, personType: string, value: PersonData[], onChange: (value: PersonData[]) => void, fieldSet: Field[], max?: number }> = ({ title, personType, value = [], onChange, fieldSet, max }) => { const handleAdd = () => { if (!max || value.length < max) { onChange([...value, {}]); } }; const handleRemove = (index: number) => { const newValues = [...value]; newValues.splice(index, 1); onChange(newValues); }; const handleChange = (index: number, fieldId: string, fieldValue: string) => { const newValues = [...value]; newValues[index] = { ...newValues[index], [fieldId]: fieldValue }; onChange(newValues); }; return ( <div> {title && <SectionHeader title={title} />} {value.map((personData, index) => ( <div key={index} className="p-4 border rounded-lg mb-4 relative bg-gray-50"> <h4 className="font-semibold text-gray-700 mb-4">{personType} {index + 1}</h4> <button type="button" onClick={() => handleRemove(index)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 font-bold text-lg">×</button> {fieldSet.map(field => { const { Component, id, ...props } = field; const currentValue = personData[id] || ''; switch (Component) { case FormField: case TextareaField: case SelectField: return <Component key={id} {...props} value={currentValue} onChange={(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => handleChange(index, id, e.target.value)} />; case RadioGroupField: return <Component key={id} {...props} value={currentValue} onChange={(e: { target: { name: string; value: string; }}) => handleChange(index, id, e.target.value)} />; default: return null; } })} </div> ))} {(!max || value.length < max) && (<button type="button" onClick={handleAdd} className="mt-2 text-blue-600 hover:text-blue-900 font-semibold text-sm">+ 添加{personType}</button>)} </div> ); };
 
-// --- 服务和字段定义 (与旧文件一致) ---
+// --- 服务和字段定义 ---
 const clientAgentFields: Field[]=[{id:'fullName',label:'全名 (包括任何别名)',Component:FormField},{id:'idNumber',label:'身份证/护照号码',Component:FormField},{id:'homeAddress',label:'住家地址',Component:FormField},{id:'nationality',label:'国籍',Component:FormField},{id:'contactNumber',label:'联系号码',Component:FormField}];
 const directorFields: Field[]=[{id:'fullName',label:'全名 (包括任何别名)',Component:FormField},{id:'idNumber',label:'身份证/护照号码',Component:FormField},{id:'gender',label:'性别',name:'director_gender',options:[{label:'男',value:'male'},{label:'女',value:'female'}],Component:RadioGroupField},{id:'expiry',label:'身份证 & 护照有效期',type:'date',Component:FormField},{id:'homeAddress',label:'住家地址',Component:FormField},{id:'nationality',label:'国籍',Component:FormField},{id:'dob',label:'出生日期',type:'date',Component:FormField},{id:'contactNumber',label:'联系号码',Component:FormField},{id:'email',label:'邮箱地址',Component:FormField}];
 const shareholderFields: Field[]=[{id:'fullName',label:'全名/公司名',Component:FormField},{id:'idNumber',label:'身份证/护照号码/公司注册号(UEN)',Component:FormField},{id:'gender',label:'性别',name:'shareholder_gender',options:[{label:'男',value:'male'},{label:'女',value:'female'}],Component:RadioGroupField},{id:'expiry',label:'身份证 & 护照有效期',type:'date',Component:FormField},{id:'address',label:'住家地址/公司注册地址/公司运营地址',Component:FormField},{id:'dob',label:'出生日期/公司注册日期',type:'date',Component:FormField},{id:'nationality',label:'国籍/公司注册地',Component:FormField},{id:'shares',label:'持股数量',type:'number',Component:FormField},{id:'contactNumber',label:'联系号码',Component:FormField},{id:'email',label:'邮箱地址',Component:FormField}];
@@ -234,7 +234,7 @@ const UploadModal: FC<UploadModalProps> = ({ isOpen, onClose, selectedServiceIds
                 if (typeof value === 'object' && value !== null && 'files' in value && Array.isArray((value as FileData).files)) {
                     const filesToUpload = (value as FileData).files as File[];
                     for (const file of filesToUpload) {
-                        // **修改**: 将用户信息传递给上传API
+                        // **核心修改**: 将用户信息传递给上传API
                         const promise = fetch(`/api/upload?filename=${encodeURIComponent(file.name)}&userEmail=${encodeURIComponent(currentUser.email)}`, {
                             method: 'POST',
                             body: file,
@@ -293,13 +293,14 @@ const UploadModal: FC<UploadModalProps> = ({ isOpen, onClose, selectedServiceIds
             const dataWithQuestions = formatDataWithQuestions(formDataToSubmit);
             const submissionId = uuidv4();
 
-            // **修改**: 在提交请求中包含用户信息
+            // **核心修改**: 在提交请求中包含完整的用户信息
             const redisResponse = await fetch('/api/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     id: submissionId,
-                    userEmail: currentUser.email, // 新增用户邮箱
+                    userName: currentUser.name,     // 新增用户姓名
+                    userEmail: currentUser.email,   // 新增用户邮箱
                     services: selectedServiceIds.map(id => services.find(s => s.id === id)?.title),
                     formData: dataWithQuestions,
                 }),
@@ -371,17 +372,14 @@ export default function UploadPage() {
     const [user, setUser] = useState<User | null>(null);
     const router = useRouter();
 
-    // **新增**: 权限验证和用户信息获取
+    // 权限验证和用户信息获取
     useEffect(() => {
         const token = localStorage.getItem('authToken');
         const userInfo = localStorage.getItem('userInfo');
-
         if (token && userInfo) {
-            setUser(JSON.parse(userInfo));
-        } else {
-            // 如果未登录，重定向到主页
-            router.push('/');
-        }
+            try { setUser(JSON.parse(userInfo)); }
+            catch (e) { console.error("解析用户信息失败", e); router.push('/'); }
+        } else { router.push('/'); }
     }, [router]);
 
 
@@ -396,7 +394,6 @@ export default function UploadPage() {
     const title = "Apex 资料上传";
     const words = title.split(" ");
 
-    // 如果用户不存在，可以显示一个加载状态或者直接不渲染任何内容
     if (!user) {
         return (
             <div className="min-h-screen w-full flex items-center justify-center bg-black">

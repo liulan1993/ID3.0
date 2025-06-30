@@ -3,10 +3,11 @@
 import { createClient } from '@vercel/kv';
 import { NextResponse } from 'next/server';
 
-// **修改**: 更新请求体结构，加入用户邮箱
+// **核心修改**: 更新请求体结构，加入用户姓名和邮箱
 interface SubmissionPayload {
     id: string;
-    userEmail: string; // 新增字段
+    userName: string;   // 新增字段
+    userEmail: string;  // 新增字段
     services: string[];
     formData: Record<string, unknown>;
 }
@@ -24,15 +25,18 @@ export async function POST(req: Request) {
     try {
         const body = await req.json() as SubmissionPayload;
 
-        // **新增**: 验证请求体中是否包含用户邮箱
-        if (!body.userEmail) {
+        // **新增**: 验证请求体中是否包含完整的用户信息
+        if (!body.userName || !body.userEmail) {
             return NextResponse.json({ error: '提交失败: 缺少用户信息。' }, { status: 401 });
         }
 
         // **修改**: 使用新的、包含用户邮箱的 Key 结构
         const submissionKey = `user_submissions:${body.userEmail}:${body.id}`;
         
+        // **核心修改**: 将用户信息和表单数据一起存入数据库
         const dataToStore = {
+            userName: body.userName,
+            userEmail: body.userEmail,
             services: body.services,
             formData: body.formData,
             submittedAt: new Date().toISOString(),
