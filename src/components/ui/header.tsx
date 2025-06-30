@@ -168,7 +168,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                 )}
                             </div>
                             
-                            <Link href="/business-insights">
+                            <Link href="/business">
                                 <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
                             </Link>
                         </>
@@ -177,7 +177,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                             <Button variant="outline" onClick={onLoginClick} className="text-base md:text-lg">
                                 登录
                             </Button>
-                            <Link href="#">
+                            <Link href="/business">
                                 <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
                             </Link>
                         </>
