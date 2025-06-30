@@ -28,23 +28,23 @@ export async function GET() {
     const submissionsRaw = await kv.mget(...submissionKeys);
 
     const submissions = submissionsRaw.map((sub, index) => {
-      if (sub && typeof sub === 'object') {
-        return {
-          key: submissionKeys[index],
-          ...(sub as Omit<QuestionnaireSubmission, 'key'>),
-        };
-      }
-      // 兼容旧的字符串格式数据
+      const key = submissionKeys[index];
+      let data;
       if (typeof sub === 'string') {
         try {
-            const parsedSub = JSON.parse(sub);
-            return { key: submissionKeys[index], ...parsedSub };
+          data = JSON.parse(sub);
         } catch (e) {
-            console.error("Failed to parse questionnaire submission:", sub, e);
-            return null;
+          console.error("Failed to parse questionnaire submission:", sub, e);
+          return null;
         }
+      } else if (sub && typeof sub === 'object') {
+        data = sub;
+      } else {
+        return null;
       }
-      return null;
+      
+      return { key, ...data };
+
     }).filter(Boolean);
 
     return NextResponse.json(submissions);

@@ -4,7 +4,6 @@
 
 import React, { useState, useEffect, FC, PropsWithChildren, ComponentProps, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-// 新增 ClipboardList 图标
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck, Users, Eye, EyeOff, ClipboardList } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -22,22 +21,6 @@ interface User {
     username: string;
     permission: UserPermission;
 }
-
-// 新增问卷类型定义
-interface QuestionnaireAnswer {
-  qId: string;
-  question: string;
-  answer: string | string[];
-}
-
-interface QuestionnaireSubmission {
-  key: string;
-  userName: string;
-  userEmail: string;
-  submittedAt: string;
-  answers: QuestionnaireAnswer[];
-}
-
 
 // --- 登录表单组件 ---
 const LoginForm: FC<{ onLoginSuccess: (data: { username: string, permission: UserPermission }) => void }> = ({ onLoginSuccess }) => {
@@ -178,6 +161,20 @@ export interface CustomerSubmission {
     content: string;
     fileUrls: string[];
     submittedAt: string;
+}
+
+interface QuestionnaireAnswer {
+  qId: string;
+  question: string;
+  answer: string | string[];
+}
+
+export interface QuestionnaireSubmission {
+  key: string;
+  userName: string;
+  userEmail: string;
+  submittedAt: string;
+  answers: QuestionnaireAnswer[];
 }
 
 interface SidebarContextProps {
@@ -797,7 +794,6 @@ export default function AdminPage() {
     }, []);
 
     const handleLoginSuccess = (data: { username: string, permission: UserPermission }) => {
-        // 修复：直接使用从 API 返回的数据设置 state
         setUsername(data.username);
         setPermission(data.permission);
         setIsLoggedIn(true);
