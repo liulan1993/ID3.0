@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 如果访问的是登录页，直接放行
-  if (pathname.startsWith('/admin/login')) {
+  if (pathname === '/admin/login') {
     return NextResponse.next();
   }
 
@@ -39,5 +39,9 @@ export async function middleware(request: NextRequest) {
 
 // 配置中间件要匹配的路径
 export const config = {
-  matcher: '/admin/:path*', // 保护所有 /admin 下的路径
+  // 修复：确保同时匹配 /admin 和 /admin/ 下的所有路径，但排除 API 和静态文件
+  matcher: [
+    '/admin', 
+    '/admin/:path*'
+  ],
 };
