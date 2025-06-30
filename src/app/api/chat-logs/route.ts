@@ -14,19 +14,23 @@ export async function GET() {
 
         // 解析数据，并为每一条记录添加一个唯一的 key 字段
         const chatLogs = chatLogsRaw.map((log, index) => {
+            const key = chatLogKeys[index];
             if (typeof log === 'string') {
                 try {
                     const parsedLog = JSON.parse(log);
-                    // 将数据库的 key 附加到对象上，以便前端可以识别并用于删除
-                    parsedLog.key = chatLogKeys[index]; 
+                    parsedLog.key = key; 
                     return parsedLog;
                 } catch (e) {
                     console.error("Failed to parse chat log:", log, e);
                     return null;
                 }
             }
-            return log;
-        }).filter(Boolean); // 过滤掉解析失败的 null 值
+            if (log && typeof log === 'object') {
+                (log as any).key = key;
+                return log;
+            }
+            return null;
+        }).filter(Boolean);
 
         return NextResponse.json(chatLogs);
     } catch (error) {
@@ -38,18 +42,16 @@ export async function GET() {
 // DELETE: 删除一个或多个聊天记录
 export async function DELETE(req: NextRequest) {
     try {
-        const { keys } = await req.json(); // keys 是一个包含要删除的数据库key的数组
+        const { keys } = await req.json();
         if (!keys || !Array.isArray(keys) || keys.length === 0) {
             return NextResponse.json({ message: "缺少要删除的记录 key" }, { status: 400 });
         }
 
-        const result = await kv.del(...keys);
+        // BUG 2 修复：直接执行删除操作，并返回删除的数量。
+        // 如果 kv.del 抛出异常，将被外层 try...catch 捕获。
+        const deletedCount = await kv.del(...keys);
 
-        if (result === 0) {
-            return NextResponse.json({ message: "记录不存在或已被删除" }, { status: 404 });
-        }
-
-        return NextResponse.json({ message: `成功删除了 ${result} 条记录` }, { status: 200 });
+        return NextResponse.json({ message: `成功删除了 ${deletedCount} 条记录` }, { status: 200 });
     } catch (error) {
         console.error("Error deleting chat logs:", error);
         return NextResponse.json({ message: "删除聊天记录失败" }, { status: 500 });

@@ -7,6 +7,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 // 新增 UserCheck 图标
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+// 引入 remark-gfm 插件
+import remarkGfm from 'remark-gfm';
 // 重新引入 html-to-image
 import { toPng } from 'html-to-image';
 
@@ -317,7 +319,12 @@ const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
                     <textarea ref={textAreaRef} value={markdownContent} onPaste={handlePaste} onChange={(e) => setMarkdownContent(e.target.value)} className="w-full h-full p-4 rounded-lg bg-white dark:bg-black/40 border border-gray-300 dark:border-gray-700 resize-none font-mono focus:ring-2 focus:ring-blue-500" />
                     <div className="h-full bg-white dark:bg-black/40 border rounded-lg overflow-y-auto p-4">
-                        <article className="prose prose-invert prose-lg max-w-none prose-img:rounded-lg"><ReactMarkdown>{markdownContent}</ReactMarkdown></article>
+                        {/* BUG 1 修复：添加 remarkPlugins={[remarkGfm]} 以支持 Markdown 渲染 */}
+                        <article className="prose prose-invert prose-lg max-w-none prose-img:rounded-lg">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {markdownContent}
+                            </ReactMarkdown>
+                        </article>
                     </div>
                 </div>
                 <div className="mt-4 flex items-center gap-4 pt-4 border-t border-neutral-300 dark:border-neutral-700">
@@ -433,26 +440,74 @@ const CustomerFeedbackViewer: FC<{
         }
     };
 
-    const handleExportAsPng = () => {
-        if (!modalContentRef.current) {
-            alert('无法截图，未找到内容。');
+    const handleExportAsPng = async () => {
+        // 修复：添加对 selectedSubmission 的存在性检查
+        if (!modalContentRef.current || !selectedSubmission) {
+            alert('无法截图，请确保已打开一个反馈详情。');
             return;
         }
-        toPng(modalContentRef.current, { 
-            cacheBust: true, 
-            skipFonts: true, 
-            backgroundColor: '#1a1a1a' // 使用深色背景
-        })
-            .then((dataUrl) => {
-                const link = document.createElement('a');
-                link.download = `feedback-${selectedSubmission?.key.slice(-12)}.png`;
-                link.href = dataUrl;
-                link.click();
-            })
-            .catch((err) => {
-                console.error('截图失败:', err);
-                alert('截图失败，请查看控制台获取更多信息。');
+
+        const elementToCapture = modalContentRef.current;
+        
+        // 增强版截图逻辑：先将所有图片转换为 Data URL
+        const images = Array.from(elementToCapture.getElementsByTagName('img'));
+        const originalSrcs = images.map(img => img.src);
+        
+        try {
+            // 将所有代理的图片 src 转换为 Data URL
+            const dataUrlPromises = images.map(img =>
+                fetch(img.src) // img.src 已经是代理URL
+                    .then(response => {
+                        if (!response.ok) throw new Error(`图片加载失败: ${response.statusText}`);
+                        return response.blob();
+                    })
+                    .then(blob => new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result as string);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(blob);
+                    }))
+            );
+
+            const dataUrls = await Promise.all(dataUrlPromises);
+
+            // 替换图片源为 Data URL
+            images.forEach((img, index) => {
+                img.src = dataUrls[index];
             });
+
+            // 等待浏览器渲染 Data URL
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // 执行截图
+            const dataUrl = await toPng(elementToCapture, {
+                cacheBust: true,
+                skipFonts: true,
+                backgroundColor: '#1a1a1a',
+                width: elementToCapture.scrollWidth,
+                height: elementToCapture.scrollHeight,
+            });
+
+            // 恢复原始图片源
+            images.forEach((img, index) => {
+                img.src = originalSrcs[index];
+            });
+
+            // 下载截图
+            const link = document.createElement('a');
+            // 修复：确保 selectedSubmission 和 key 存在
+            link.download = `feedback-${selectedSubmission.key.slice(-12)}.png`;
+            link.href = dataUrl;
+            link.click();
+
+        } catch (err) {
+            // 发生错误时恢复原始图片源
+            images.forEach((img, index) => {
+                img.src = originalSrcs[index];
+            });
+            console.error('截图失败:', err);
+            alert('截图失败，请查看控制台获取更多信息。');
+        }
     };
 
     return (
@@ -494,7 +549,8 @@ const CustomerFeedbackViewer: FC<{
                             <div className="p-4 flex-grow">
                                 <div className="flex justify-between items-start">
                                     <p className="text-sm text-gray-400 break-all">{submission.userEmail}</p>
-                                    <input type="checkbox" checked={selectedKeys.has(submission.key)} onChange={(e) => { e.stopPropagation(); handleSelect(submission.key); }} className="ml-4 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+                                    {/* 修复：添加 onClick 来阻止事件冒泡 */}
+                                    <input type="checkbox" checked={selectedKeys.has(submission.key)} onClick={(e) => e.stopPropagation()} onChange={() => handleSelect(submission.key)} className="ml-4 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                 </div>
                                 <p className="mt-2 text-gray-300 text-sm line-clamp-3">{submission.content || "无文本内容"}</p>
                             </div>
@@ -521,8 +577,9 @@ const CustomerFeedbackViewer: FC<{
                                     <div className="mt-6">
                                         <h3 className="font-bold text-lg mb-2 text-gray-300">附件图片:</h3>
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                            {selectedSubmission.fileUrls.map(url => (
-                                                <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                                            {/* 修复：为列表中的每个元素添加唯一的 key prop */}
+                                            {selectedSubmission.fileUrls.map((url, index) => (
+                                                <a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer">
                                                     <img 
                                                         src={`/api/image-proxy?url=${encodeURIComponent(url)}`} 
                                                         alt="附件图片" 

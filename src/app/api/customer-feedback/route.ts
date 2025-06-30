@@ -1,7 +1,7 @@
 // 文件路径: src/app/api/customer-feedback/route.ts
 
 import { createClient } from '@vercel/kv';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // 检查环境变量
 if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
@@ -17,8 +17,7 @@ const kv = createClient({
 // 获取所有客户反馈
 export async function GET() {
     try {
-        const keys: string[] = []; // 修复：为 keys 数组明确指定 string[] 类型
-        // 使用 scanIterator 遍历所有匹配的键
+        const keys: string[] = [];
         for await (const key of kv.scanIterator({ match: 'user_content_submissions:*' })) {
             keys.push(key);
         }
@@ -27,24 +26,35 @@ export async function GET() {
             return NextResponse.json([]);
         }
 
-        // 使用 mget 批量获取所有键的值
         const submissionsData = await kv.mget(...keys);
         
-        const submissions = submissionsData.map((data, index) => {
+        // BUG 3 修复：过滤掉 key 重复的数据，解决“勾选一个选中多个”的问题。
+        const uniqueSubmissions = new Map<string, any>();
+        submissionsData.forEach((data, index) => {
+            const key = keys[index];
+            if (uniqueSubmissions.has(key)) {
+                console.warn(`发现重复的 key，已忽略: ${key}`);
+                return;
+            }
+
+            let submission;
             if (typeof data === 'string') {
                 try {
-                    const parsedData = JSON.parse(data);
-                    return {
-                        key: keys[index], // 将数据库的 key 也返回给前端
-                        ...parsedData
-                    };
+                    submission = JSON.parse(data);
                 } catch (e) {
-                    console.error(`解析失败，key: ${keys[index]}`, e);
-                    return null;
+                    console.error(`解析失败，key: ${key}`, e);
+                    return;
                 }
+            } else if (data && typeof data === 'object') {
+                submission = data;
+            } else {
+                return;
             }
-            return data; // 直接返回非字符串类型的数据
-        }).filter(Boolean); // 过滤掉解析失败的 null 值
+            
+            uniqueSubmissions.set(key, { key, ...submission });
+        });
+
+        const submissions = Array.from(uniqueSubmissions.values());
 
         return NextResponse.json(submissions);
 
@@ -55,7 +65,7 @@ export async function GET() {
 }
 
 // 删除指定的客户反馈
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
     try {
         const { keys } = await request.json();
 
@@ -63,10 +73,14 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: '缺少要删除的键' }, { status: 400 });
         }
 
-        // 使用 del 批量删除
-        await kv.del(...keys);
+        // BUG 3 修复：使用 del 批量删除并获取删除的数量，提供更明确的反馈。
+        const deletedCount = await kv.del(...keys);
 
-        return NextResponse.json({ message: '删除成功' });
+        if (deletedCount > 0) {
+            return NextResponse.json({ message: `成功删除了 ${deletedCount} 条反馈。` });
+        } else {
+            return NextResponse.json({ error: '未找到要删除的反馈，或已被删除。' }, { status: 404 });
+        }
 
     } catch (error) {
         console.error("删除客户反馈时出错:", error);
