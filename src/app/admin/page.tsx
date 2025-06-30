@@ -4,14 +4,116 @@
 
 import React, { useState, useEffect, FC, PropsWithChildren, ComponentProps, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-// 新增 LogOut 图标
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useRouter } from 'next/navigation'; // 引入 useRouter
+import { useRouter } from 'next/navigation';
 
 // 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const XLSX: any;
+
+// --- 登录表单组件 ---
+const LoginForm: FC<{ onLoginSuccess: () => void }> = ({ onLoginSuccess }) => {
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        if (!username || !password) {
+            setError('账号和密码不能为空');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password }),
+            });
+
+            if (res.ok) {
+                onLoginSuccess();
+            } else {
+                const data = await res.json();
+                setError(data.message || '账号或密码错误');
+            }
+        } catch (err) {
+            console.error('Login page submit error:', err);
+            setError('登录时发生错误，请稍后再试');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-neutral-900">
+            <div className="w-full max-w-md p-8 space-y-8 bg-white dark:bg-neutral-800 rounded-lg shadow-md">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                        管理员登录
+                    </h1>
+                </div>
+                <form className="space-y-6" onSubmit={handleSubmit}>
+                    <div>
+                        <label
+                            htmlFor="username"
+                            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            账号
+                        </label>
+                        <input
+                            id="username"
+                            name="username"
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm dark:bg-neutral-700 dark:border-neutral-600 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label
+                            htmlFor="password"
+                            className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            密码
+                        </label>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            required
+                            className="w-full px-3 py-2 mt-1 text-gray-900 bg-gray-50 border border-gray-300 rounded-md shadow-sm dark:bg-neutral-700 dark:border-neutral-600 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                        />
+                    </div>
+                    {error && (
+                        <p className="text-sm text-red-600 dark:text-red-400">
+                            {error}
+                        </p>
+                    )}
+                    <div>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400"
+                        >
+                            {isLoading ? '登录中...' : '登录'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 // --- 工具函数 ---
 const cn = (...inputs: (string | boolean | null | undefined)[]): string => {
@@ -56,7 +158,7 @@ const useSidebar = () => {
   return context;
 };
 const SidebarProvider: FC<PropsWithChildren<{ open?: boolean; setOpen?: React.Dispatch<React.SetStateAction<boolean>>; animate?: boolean; }>> = ({ children, open: openProp, setOpen: setOpenProp, animate = true }) => {
-  const [openState, setOpenState] = useState(true); // 默认展开
+  const [openState, setOpenState] = useState(true);
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
   return (<SidebarContext.Provider value={{ open, setOpen, animate }}>{children}</SidebarContext.Provider>);
@@ -271,7 +373,7 @@ const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | n
 
 
 // --- 主页面组件 ---
-export default function AdminPage() {
+const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [open, setOpen] = useState(true);
     const [view, setView] = useState<'list' | 'editor' | 'questions'>('list');
     const [articles, setArticles] = useState<Article[]>([]);
@@ -281,7 +383,7 @@ export default function AdminPage() {
     const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
     const [isChatLogsLoading, setIsChatLogsLoading] = useState(true);
     const [chatLogsError, setChatLogsError] = useState<string | null>(null);
-    const router = useRouter(); // 初始化 router
+    const router = useRouter();
 
     useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
@@ -327,9 +429,14 @@ export default function AdminPage() {
     const handleDeleteArticle = async (articleId: string) => { if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
     const handlePublishSuccess = () => { alert('操作成功！'); setView('list'); };
     
-    // 新增：登出处理函数
-    const handleLogout = () => {
-        router.push('/api/auth/logout');
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout');
+        } catch (error) {
+            console.error("Logout failed", error);
+        } finally {
+            onLogout();
+        }
     };
 
     const adminLinks: LinkItem[] = [
@@ -342,7 +449,6 @@ export default function AdminPage() {
     const userData = { name: "管理员", href: "#", avatarUrl: "https://placehold.co/100x100/E5E7EB/4B5563?text=A" };
     const userLink = { label: userData.name, href: userData.href, icon: (<img src={userData.avatarUrl} className="h-7 w-7 rounded-full" alt="avatar" />) };
     
-    // 新增：登出链接
     const logoutLink: LinkItem = {
         label: "退出登录",
         href: "#",
@@ -367,7 +473,6 @@ export default function AdminPage() {
                         <div className='px-2 py-1'>{open ? <Logo /> : <LogoIcon />}</div>
                         <div className="mt-8 flex flex-col gap-2">{adminLinks.map((link, idx) => (<SidebarLink key={idx} link={link} />))}</div>
                     </div>
-                    {/* 修改侧边栏底部，增加登出按钮 */}
                     <div className="flex flex-col gap-2">
                         <SidebarLink link={userLink} />
                         <SidebarLink link={logoutLink} />
@@ -379,4 +484,23 @@ export default function AdminPage() {
             </main>
         </div>
     );
+};
+
+
+export default function AdminPage() {
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    // 尝试在客户端检查 cookie 来维持登录状态
+    // 注意：这只是一个简单的UI状态维持，真正的安全验证由API路由处理
+    useEffect(() => {
+        if (document.cookie.includes('auth_token=')) {
+            setIsLoggedIn(true);
+        }
+    }, []);
+
+    if (!isLoggedIn) {
+        return <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />;
+    }
+
+    return <AdminDashboard onLogout={() => setIsLoggedIn(false)} />;
 }
