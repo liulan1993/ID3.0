@@ -449,6 +449,8 @@ export default function ExclusivePage() {
                 setUser(parsedUser);
                 setIsAuthenticated(true);
             } catch (error) {
+                // **修复: 使用 'error' 变量以解决 linting 错误**
+                console.error("Failed to parse user info from localStorage:", error);
                 // 如果解析失败，则清除无效数据
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('userInfo');
