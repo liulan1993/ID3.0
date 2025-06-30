@@ -37,7 +37,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
         {
             title: "客户支持", description: "拥抱数字化转型，提升客户体验。",
             items: [
-                { title: "问卷调查", href: "https://www.apex-elite-service.com/wenjuandiaocha" },
+                { title: "问卷调查", href: "/questionnaire" },
                 { title: "资料上传", href: "/upload" },
                 { title: "客户反馈", href: "/customer" },
                 { title: "活动报名", href: "/activity" },
@@ -48,7 +48,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
             items: [
                 { title: "实时汇率", href: "/exchange" },
                 { title: "个税计算器", href: "/tax" },
-                { title: "专属AI", href: "https://www.apex-elite-service.com/zhuanshuAI" },
+                { title: "专属AI", href: "/exclusive" },
                 { title: "敬请期待", href: "#" },
             ],
         },
