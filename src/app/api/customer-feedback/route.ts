@@ -1,6 +1,7 @@
 // 文件路径: src/app/api/customer-feedback/route.ts
 
 import { createClient } from '@vercel/kv';
+import { del } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 
 // 检查环境变量
@@ -14,7 +15,7 @@ const kv = createClient({
   token: process.env.KV_REST_API_TOKEN,
 });
 
-// 定义客户反馈的数据结构以替代 any
+// 定义客户反馈的数据结构
 interface CustomerSubmission {
     key: string;
     userName: string;
@@ -38,7 +39,6 @@ export async function GET() {
 
         const submissionsData = await kv.mget(...keys);
         
-        // 使用具体的 CustomerSubmission 类型来初始化 Map，替代 any
         const uniqueSubmissions = new Map<string, CustomerSubmission>();
         
         submissionsData.forEach((data, index) => {
@@ -76,7 +76,7 @@ export async function GET() {
     }
 }
 
-// 删除指定的客户反馈
+// 删除指定的客户反馈及其关联图片
 export async function DELETE(request: NextRequest) {
     try {
         const { keys } = await request.json();
@@ -85,10 +85,31 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: '缺少要删除的键' }, { status: 400 });
         }
 
+        // 1. 从 KV 获取所有待删除的反馈数据
+        const submissionsRaw = await kv.mget(...keys);
+
+        // 2. 收集所有需要删除的图片 URL
+        const urlsToDelete: string[] = [];
+        submissionsRaw.forEach(subRaw => {
+            if (subRaw) {
+                const submission = typeof subRaw === 'string' ? JSON.parse(subRaw) : subRaw;
+                if (submission.fileUrls && Array.isArray(submission.fileUrls)) {
+                    urlsToDelete.push(...submission.fileUrls);
+                }
+            }
+        });
+
+        // 3. 从 Vercel Blob 中删除图片 (去重后)
+        const uniqueUrls = [...new Set(urlsToDelete)];
+        if (uniqueUrls.length > 0) {
+            await del(uniqueUrls);
+        }
+
+        // 4. 从 KV 中删除反馈记录
         const deletedCount = await kv.del(...keys);
 
         if (deletedCount > 0) {
-            return NextResponse.json({ message: `成功删除了 ${deletedCount} 条反馈。` });
+            return NextResponse.json({ message: `成功删除了 ${deletedCount} 条反馈及其关联图片。` });
         } else {
             return NextResponse.json({ error: '未找到要删除的反馈，或已被删除。' }, { status: 404 });
         }

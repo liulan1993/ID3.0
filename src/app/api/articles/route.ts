@@ -1,6 +1,7 @@
 // 文件路径: src/app/api/articles/route.ts
 
 import { kv } from '@vercel/kv';
+import { del } from '@vercel/blob';
 import { NextRequest, NextResponse } from 'next/server';
 
 // 辅助函数：从 Markdown 中解析标题和第一张图片作为备用封面
@@ -12,7 +13,7 @@ const parseMarkdown = (content: string) => {
     return { title, imageUrl };
 };
 
-// GET: 获取所有文章 (无改动)
+// GET: 获取所有文章
 export async function GET() {
     try {
         const articleKeys = await kv.keys('article:*');
@@ -25,17 +26,15 @@ export async function GET() {
     }
 }
 
-// POST: 创建一篇新文章 (已整合封面图逻辑)
+// POST: 创建一篇新文章
 export async function POST(req: NextRequest) {
     try {
-        const { markdownContent, authorEmail, coverImageUrl } = await req.json(); // 接收从前端传来的 coverImageUrl
+        const { markdownContent, authorEmail, coverImageUrl } = await req.json();
         if (!markdownContent || !authorEmail) {
             return NextResponse.json({ message: "缺少必要参数" }, { status: 400 });
         }
 
         const { title, imageUrl: parsedImageUrl } = parseMarkdown(markdownContent);
-        
-        // 关键逻辑：优先使用用户上传的封面图(coverImageUrl)，如果没有，再自动从文章内容里找第一张图(parsedImageUrl)
         const finalCoverImageUrl = coverImageUrl || parsedImageUrl;
 
         const uniqueId = crypto.randomUUID();
@@ -44,7 +43,7 @@ export async function POST(req: NextRequest) {
             id: uniqueId,
             title,
             markdownContent,
-            coverImageUrl: finalCoverImageUrl, // 保存最终的封面图URL
+            coverImageUrl: finalCoverImageUrl,
             authorEmail,
             createdAt: new Date().toISOString()
         };
@@ -58,10 +57,10 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// PUT: 更新一篇文章 (已整合封面图逻辑)
+// PUT: 更新一篇文章
 export async function PUT(req: NextRequest) {
     try {
-        const { id, markdownContent, authorEmail, coverImageUrl } = await req.json(); // 接收新的 coverImageUrl
+        const { id, markdownContent, authorEmail, coverImageUrl } = await req.json();
         if (!id || !markdownContent || !authorEmail) {
             return NextResponse.json({ message: "缺少必要参数" }, { status: 400 });
         }
@@ -74,8 +73,6 @@ export async function PUT(req: NextRequest) {
         
         const existingArticle = typeof existingArticleRaw === 'string' ? JSON.parse(existingArticleRaw) : existingArticleRaw;
         const { title, imageUrl: parsedImageUrl } = parseMarkdown(markdownContent);
-
-        // 关键逻辑：优先使用用户上传的新封面图
         const finalCoverImageUrl = coverImageUrl || parsedImageUrl;
 
         const updatedArticle = {
@@ -83,7 +80,7 @@ export async function PUT(req: NextRequest) {
             title,
             markdownContent,
             authorEmail,
-            coverImageUrl: finalCoverImageUrl, // 更新封面图URL
+            coverImageUrl: finalCoverImageUrl,
             updatedAt: new Date().toISOString()
         };
 
@@ -96,19 +93,47 @@ export async function PUT(req: NextRequest) {
     }
 }
 
-// DELETE: 删除一篇文章 (无改动)
+// DELETE: 删除一篇文章及其关联图片
 export async function DELETE(req: NextRequest) {
     try {
         const { id } = await req.json();
         if (!id) return NextResponse.json({ message: "缺少文章ID" }, { status: 400 });
         
         const articleKey = `article:${id}`;
-        const result = await kv.del(articleKey);
         
-        if (result === 0) {
+        // 1. 从 KV 获取文章数据
+        const articleRaw = await kv.get(articleKey);
+        if (!articleRaw) {
             return NextResponse.json({ message: "文章不存在或已被删除" }, { status: 404 });
         }
-        return NextResponse.json({ message: "文章删除成功" }, { status: 200 });
+        const article = typeof articleRaw === 'string' ? JSON.parse(articleRaw) : articleRaw;
+
+        // 2. 收集所有需要删除的图片 URL
+        const urlsToDelete: string[] = [];
+        // 添加封面图
+        if (article.coverImageUrl) {
+            urlsToDelete.push(article.coverImageUrl);
+        }
+        // 从 Markdown 内容中提取所有图片 URL
+        const markdownImageRegex = /!\[.*?\]\((.*?)\)/g;
+        let match;
+        while ((match = markdownImageRegex.exec(article.markdownContent)) !== null) {
+            if (match[1]) {
+                urlsToDelete.push(match[1]);
+            }
+        }
+
+        // 3. 从 Vercel Blob 中删除图片 (去重后)
+        const uniqueUrls = [...new Set(urlsToDelete)];
+        if (uniqueUrls.length > 0) {
+            await del(uniqueUrls);
+        }
+
+        // 4. 从 KV 中删除文章记录
+        await kv.del(articleKey);
+        
+        return NextResponse.json({ message: "文章及关联图片删除成功" }, { status: 200 });
+
     } catch (error) {
         console.error("Error deleting article:", error);
         return NextResponse.json({ message: "删除文章失败" }, { status: 500 });

@@ -316,10 +316,10 @@ const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article
         <div className="p-4 md:p-8 w-full h-full flex flex-col">
             <h1 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">{isEditMode ? '编辑文章' : '写新文章'}</h1>
             <div className="bg-neutral-200 dark:bg-neutral-800 p-4 rounded-xl flex-1 flex flex-col shadow-lg">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
+                {/* UI BUG 修复：为网格容器添加 min-h-0 以约束其高度，防止布局溢出 */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
                     <textarea ref={textAreaRef} value={markdownContent} onPaste={handlePaste} onChange={(e) => setMarkdownContent(e.target.value)} className="w-full h-full p-4 rounded-lg bg-white dark:bg-black/40 border border-gray-300 dark:border-gray-700 resize-none font-mono focus:ring-2 focus:ring-blue-500" />
                     <div className="h-full bg-white dark:bg-black/40 border rounded-lg overflow-y-auto p-4">
-                        {/* BUG 1 修复：添加 remarkPlugins={[remarkGfm]} 以支持 Markdown 渲染 */}
                         <article className="prose prose-invert prose-lg max-w-none prose-img:rounded-lg">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                 {markdownContent}
@@ -441,22 +441,18 @@ const CustomerFeedbackViewer: FC<{
     };
 
     const handleExportAsPng = async () => {
-        // 修复：添加对 selectedSubmission 的存在性检查
         if (!modalContentRef.current || !selectedSubmission) {
             alert('无法截图，请确保已打开一个反馈详情。');
             return;
         }
 
         const elementToCapture = modalContentRef.current;
-        
-        // 增强版截图逻辑：先将所有图片转换为 Data URL
         const images = Array.from(elementToCapture.getElementsByTagName('img'));
         const originalSrcs = images.map(img => img.src);
         
         try {
-            // 将所有代理的图片 src 转换为 Data URL
             const dataUrlPromises = images.map(img =>
-                fetch(img.src) // img.src 已经是代理URL
+                fetch(img.src)
                     .then(response => {
                         if (!response.ok) throw new Error(`图片加载失败: ${response.statusText}`);
                         return response.blob();
@@ -470,16 +466,9 @@ const CustomerFeedbackViewer: FC<{
             );
 
             const dataUrls = await Promise.all(dataUrlPromises);
-
-            // 替换图片源为 Data URL
-            images.forEach((img, index) => {
-                img.src = dataUrls[index];
-            });
-
-            // 等待浏览器渲染 Data URL
+            images.forEach((img, index) => { img.src = dataUrls[index]; });
             await new Promise(resolve => setTimeout(resolve, 200));
 
-            // 执行截图
             const dataUrl = await toPng(elementToCapture, {
                 cacheBust: true,
                 skipFonts: true,
@@ -488,23 +477,15 @@ const CustomerFeedbackViewer: FC<{
                 height: elementToCapture.scrollHeight,
             });
 
-            // 恢复原始图片源
-            images.forEach((img, index) => {
-                img.src = originalSrcs[index];
-            });
+            images.forEach((img, index) => { img.src = originalSrcs[index]; });
 
-            // 下载截图
             const link = document.createElement('a');
-            // 修复：确保 selectedSubmission 和 key 存在
             link.download = `feedback-${selectedSubmission.key.slice(-12)}.png`;
             link.href = dataUrl;
             link.click();
 
         } catch (err) {
-            // 发生错误时恢复原始图片源
-            images.forEach((img, index) => {
-                img.src = originalSrcs[index];
-            });
+            images.forEach((img, index) => { img.src = originalSrcs[index]; });
             console.error('截图失败:', err);
             alert('截图失败，请查看控制台获取更多信息。');
         }
@@ -549,7 +530,6 @@ const CustomerFeedbackViewer: FC<{
                             <div className="p-4 flex-grow">
                                 <div className="flex justify-between items-start">
                                     <p className="text-sm text-gray-400 break-all">{submission.userEmail}</p>
-                                    {/* 修复：添加 onClick 来阻止事件冒泡 */}
                                     <input type="checkbox" checked={selectedKeys.has(submission.key)} onClick={(e) => e.stopPropagation()} onChange={() => handleSelect(submission.key)} className="ml-4 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                                 </div>
                                 <p className="mt-2 text-gray-300 text-sm line-clamp-3">{submission.content || "无文本内容"}</p>
@@ -577,7 +557,6 @@ const CustomerFeedbackViewer: FC<{
                                     <div className="mt-6">
                                         <h3 className="font-bold text-lg mb-2 text-gray-300">附件图片:</h3>
                                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                            {/* 修复：为列表中的每个元素添加唯一的 key prop */}
                                             {selectedSubmission.fileUrls.map((url, index) => (
                                                 <a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer">
                                                     <img 
@@ -616,7 +595,6 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const [isChatLogsLoading, setIsChatLogsLoading] = useState(true);
     const [chatLogsError, setChatLogsError] = useState<string | null>(null);
     
-    // 新增：客户反馈的状态
     const [customerSubmissions, setCustomerSubmissions] = useState<CustomerSubmission[]>([]);
     const [isSubmissionsLoading, setIsSubmissionsLoading] = useState(true);
     const [submissionsError, setSubmissionsError] = useState<string | null>(null);
@@ -655,7 +633,6 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
         }
     };
     
-    // 新增：获取客户反馈数据的函数
     const fetchCustomerSubmissions = async () => {
         setIsSubmissionsLoading(true);
         setSubmissionsError(null);
@@ -682,7 +659,6 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
     const handleDeleteArticle = async (articleId: string) => { if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
     const handlePublishSuccess = () => { alert('操作成功！'); setView('list'); };
     
-    // 新增：删除客户反馈的函数
     const handleDeleteSubmissions = async (keys: string[]) => {
         try {
             const response = await fetch('/api/customer-feedback', {
@@ -692,7 +668,7 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
             });
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
-            fetchCustomerSubmissions(); // 重新加载数据
+            fetchCustomerSubmissions();
         } catch (err) {
             alert(err instanceof Error ? err.message : '删除时发生未知错误');
         }
@@ -712,7 +688,6 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
         { label: "文章管理", href: "#", icon: <FileText className="h-5 w-5" />, action: () => setView('list') },
         { label: "写新文章", href: "#", icon: <PlusCircle className="h-5 w-5" />, action: handleNewArticle },
         { label: "问题一览", href: "#", icon: <MessageSquare className="h-5 w-5" />, action: () => setView('questions') },
-        // 新增：客户反馈菜单项
         { label: "客户反馈", href: "#", icon: <UserCheck className="h-5 w-5" />, action: () => setView('customerFeedback') },
         { label: "系统设置", href: "#", icon: <Settings className="h-5 w-5" />, action: () => alert('设置功能待开发') },
     ];
@@ -732,7 +707,6 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
             case 'list': return <ArticleList articles={articles} isLoading={isArticlesLoading} error={articlesError} onEdit={handleEditArticle} onDelete={handleDeleteArticle} />;
             case 'editor': return <ArticleEditor onArticlePublished={handlePublishSuccess} articleToEdit={editingArticle} />;
             case 'questions': return <ChatLogViewer logs={chatLogs} isLoading={isChatLogsLoading} error={chatLogsError} onRefresh={fetchChatLogs} />;
-            // 新增：渲染客户反馈视图
             case 'customerFeedback': return <CustomerFeedbackViewer 
                                                 submissions={customerSubmissions} 
                                                 isLoading={isSubmissionsLoading} 
@@ -769,7 +743,6 @@ const AdminDashboard: FC<{ onLogout: () => void }> = ({ onLogout }) => {
 export default function AdminPage() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-    // 尝试在客户端检查 cookie 来维持登录状态
     useEffect(() => {
         if (typeof window !== 'undefined' && document.cookie.includes('auth_token=')) {
             setIsLoggedIn(true);
