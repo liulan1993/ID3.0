@@ -94,50 +94,39 @@ export async function sendVerificationEmail(
   // 步骤 2: 根据流程类型执行不同的唯一性检查
   if (phone !== undefined) {
     // --- 这是注册流程 ---
-    // [最终修复] 增加诊断日志并重写验证逻辑，确保绝对的执行正确性。
-    console.log('--- 开始注册流程唯一性检查 ---');
-    console.log(`接收到的邮箱: "${email}", 接收到的手机号: "${phone}"`);
-
-    // 检查 1: 手机号唯一性
+    // [最终修复] 此处是问题的根源。重写验证逻辑，确保其绝对正确。
+    
+    // 检查 1: 手机号唯一性。这是最高优先级的检查。
     const trimmedPhone = phone.trim();
     if (trimmedPhone) { 
         const phoneKey = `phone:${trimmedPhone}`;
-        console.log(`正在检查手机号索引，键: "${phoneKey}"`);
-        const phoneIndexValue = await kv.get(phoneKey);
-        console.log(`数据库返回的手机号索引值:`, phoneIndexValue, `(类型: ${typeof phoneIndexValue})`);
-
-        // 如果 phoneIndexValue 不是 null 或 undefined，说明该键存在，手机号已被注册。
-        if (phoneIndexValue) {
-            console.log('--- 诊断结论: 手机号已存在。终止操作。 ---');
+        // 我们直接检查 `phone:<号码>` 这个键是否存在于数据库中。
+        // `kv.exists` 会返回一个数字：1 代表存在，0 代表不存在。
+        const phoneExists = await kv.exists(phoneKey); 
+        
+        // 如果 phoneExists 的值为 1，说明该手机号已被注册，必须立即终止。
+        if (phoneExists) {
             return { success: false, message: '此手机号码已被注册。' };
         }
-        console.log('--- 诊断结论: 手机号可用。 ---');
     }
     
-    // 检查 2: 邮箱唯一性
+    // 检查 2: 邮箱唯一性。仅在手机号检查通过后才执行。
     const emailKey = `user:${normalizedEmail}`;
-    console.log(`正在检查用户邮箱，键: "${emailKey}"`);
-    const emailUserValue = await kv.get(emailKey);
-    console.log(`数据库返回的用户邮箱值:`, emailUserValue, `(类型: ${typeof emailUserValue})`);
-
-    // 如果 emailUserValue 不是 null 或 undefined，说明该键存在，邮箱已被注册。
-    if (emailUserValue) {
-        console.log('--- 诊断结论: 邮箱已存在。终止操作。 ---');
+    const emailExists = await kv.exists(emailKey);
+    if (emailExists) {
         return { success: false, message: '此邮箱地址已被注册。' };
     }
-    console.log('--- 诊断结论: 邮箱可用。 ---');
 
   } else {
     // --- 这是忘记密码流程 ---
     const emailKey = `user:${normalizedEmail}`;
-    const emailUserExists = await kv.get(emailKey);
-    if (!emailUserExists) {
+    const emailExists = await kv.exists(emailKey);
+    if (!emailExists) {
       return { success: false, message: '该邮箱地址未注册。' };
     }
   }
 
   // 步骤 3: 所有检查均已通过。现在可以安全地发送验证邮件。
-  console.log('--- 所有唯一性检查通过，准备发送验证邮件。 ---');
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
@@ -162,7 +151,6 @@ export async function sendVerificationEmail(
     };
 
     await sgMail.send(msg);
-    console.log(`--- 验证邮件已成功发送至 ${email} ---`);
     return { success: true };
 
   } catch (error) {
@@ -180,14 +168,14 @@ export async function registerUser(userInfo: RegistrationInfo) {
     
     // [加固措施] 在写入数据库前的最后一步，执行最终的唯一性检查，作为最后防线。
     const emailKey = `user:${normalizedEmail}`;
-    const existingUserByEmail = await kv.get(emailKey);
+    const existingUserByEmail = await kv.exists(emailKey);
     if (existingUserByEmail) {
         throw new Error('此邮箱地址已被注册。');
     }
     const trimmedPhone = phone ? phone.trim() : '';
     if (trimmedPhone) {
         const phoneKey = `phone:${trimmedPhone}`;
-        const existingUserByPhone = await kv.get(phoneKey);
+        const existingUserByPhone = await kv.exists(phoneKey);
         if (existingUserByPhone) {
             throw new Error('此手机号码已被注册。');
         }
