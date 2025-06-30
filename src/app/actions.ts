@@ -94,34 +94,41 @@ export async function sendVerificationEmail(
   // 步骤 2: 根据流程类型执行不同的唯一性检查
   if (phone !== undefined) {
     // --- 这是注册流程 ---
-    // [最终修复] 在发送邮件之前，必须对手机号和邮箱进行严格的、独立的唯一性检查。
-    // 只要其中任意一个已被注册，就必须立即终止流程。
+    // [最终修复] 增加诊断日志并重写验证逻辑，确保绝对的执行正确性。
+    console.log('--- 开始注册流程唯一性检查 ---');
+    console.log(`接收到的邮箱: "${email}", 接收到的手机号: "${phone}"`);
 
-    // 检查 1: 手机号唯一性。
-    // 我们查询 `phone:<号码>` 索引。如果这个键存在，说明手机号已被占用。
+    // 检查 1: 手机号唯一性
     const trimmedPhone = phone.trim();
     if (trimmedPhone) { 
         const phoneKey = `phone:${trimmedPhone}`;
-        const phoneIndexExists = await kv.get(phoneKey);
-        if (phoneIndexExists) {
-            // 如果索引存在，立即返回错误，不再继续执行。
+        console.log(`正在检查手机号索引，键: "${phoneKey}"`);
+        const phoneIndexValue = await kv.get(phoneKey);
+        console.log(`数据库返回的手机号索引值:`, phoneIndexValue, `(类型: ${typeof phoneIndexValue})`);
+
+        // 如果 phoneIndexValue 不是 null 或 undefined，说明该键存在，手机号已被注册。
+        if (phoneIndexValue) {
+            console.log('--- 诊断结论: 手机号已存在。终止操作。 ---');
             return { success: false, message: '此手机号码已被注册。' };
         }
+        console.log('--- 诊断结论: 手机号可用。 ---');
     }
     
-    // 检查 2: 邮箱唯一性。
-    // 仅在手机号检查通过后，我们才检查邮箱。
-    // 我们查询 `user:<邮箱>`。如果这个键存在，说明邮箱已被占用。
+    // 检查 2: 邮箱唯一性
     const emailKey = `user:${normalizedEmail}`;
-    const emailUserExists = await kv.get(emailKey);
-    if (emailUserExists) {
-        // 如果用户存在，立即返回错误。
+    console.log(`正在检查用户邮箱，键: "${emailKey}"`);
+    const emailUserValue = await kv.get(emailKey);
+    console.log(`数据库返回的用户邮箱值:`, emailUserValue, `(类型: ${typeof emailUserValue})`);
+
+    // 如果 emailUserValue 不是 null 或 undefined，说明该键存在，邮箱已被注册。
+    if (emailUserValue) {
+        console.log('--- 诊断结论: 邮箱已存在。终止操作。 ---');
         return { success: false, message: '此邮箱地址已被注册。' };
     }
+    console.log('--- 诊断结论: 邮箱可用。 ---');
 
   } else {
     // --- 这是忘记密码流程 ---
-    // 在此流程中，我们只关心用户是否存在，以便重置密码。
     const emailKey = `user:${normalizedEmail}`;
     const emailUserExists = await kv.get(emailKey);
     if (!emailUserExists) {
@@ -130,6 +137,7 @@ export async function sendVerificationEmail(
   }
 
   // 步骤 3: 所有检查均已通过。现在可以安全地发送验证邮件。
+  console.log('--- 所有唯一性检查通过，准备发送验证邮件。 ---');
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
@@ -154,6 +162,7 @@ export async function sendVerificationEmail(
     };
 
     await sgMail.send(msg);
+    console.log(`--- 验证邮件已成功发送至 ${email} ---`);
     return { success: true };
 
   } catch (error) {
