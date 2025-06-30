@@ -115,6 +115,10 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       setErrorMessage("请输入有效的邮箱地址");
       return;
     }
+    if (view === 'signup' && !phone) {
+      setErrorMessage("请输入手机号码");
+      return;
+    }
     if (!captchaInput) {
       setErrorMessage("发送邮件前，请先输入图形验证码。");
       return;
@@ -123,7 +127,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     setIsSending(true);
     
     let result;
-    // 根据视图传递不同参数
     if (view === 'signup') {
         result = await sendVerificationEmail(email, captchaInput, captcha, phone);
     } else { // 'forgotPassword' view
