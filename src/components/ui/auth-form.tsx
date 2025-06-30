@@ -266,7 +266,8 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
             </>
         )}
 
-        {view === 'forgotPassword' && resetStep === 1 && (
+        {/* --- 修改后的忘记密码视图 --- */}
+        {view === 'forgotPassword' && (
              <>
               <AnimatedFormField 
                   type="email" 
@@ -274,22 +275,28 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   icon={<Mail size={18} />}
+                  disabled={isEmailLocked}
               />
-              <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
-                    <div className="flex items-center space-x-2">
-                        <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
-                        <button type="button" onClick={generateCaptcha} className="text-white hover:text-gray-300 transition-colors"><RefreshCw size={18}/></button>
-                    </div>
-               </AnimatedFormField>
+              {resetStep === 1 && (
+                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />}>
+                      <div className="flex items-center space-x-2">
+                          <span className="text-lg font-bold tracking-widest text-gray-400 select-none" style={{ fontFamily: 'monospace', letterSpacing: '0.2em' }}>{captcha}</span>
+                          <button type="button" onClick={generateCaptcha} className="text-white hover:text-gray-300 transition-colors"><RefreshCw size={18}/></button>
+                      </div>
+                 </AnimatedFormField>
+              )}
+              {resetStep === 2 && (
+                   <>
+                      <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<ShieldCheck size={18} />} />
+                      <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="设置新密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />}>
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
+                           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </AnimatedFormField>
+                      <AnimatedFormField type="password" placeholder="确认新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} icon={<Lock size={18} />} />
+                   </>
+              )}
             </>
-        )}
-
-        {view === 'forgotPassword' && resetStep === 2 && (
-             <>
-                <AnimatedFormField type="text" placeholder="邮箱验证码" value={emailVerificationCode} onChange={(e) => setEmailVerificationCode(e.target.value)} icon={<Mail size={18} />} />
-                <AnimatedFormField type="password" placeholder="设置新密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} />
-                <AnimatedFormField type="password" placeholder="确认新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} icon={<Lock size={18} />} />
-             </>
         )}
 
         {errorMessage && (
