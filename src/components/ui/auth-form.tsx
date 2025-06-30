@@ -123,7 +123,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     setIsSending(true);
     
     let result;
-    // 修正: 根据视图传递不同参数
+    // 根据视图传递不同参数
     if (view === 'signup') {
         result = await sendVerificationEmail(email, captchaInput, captcha, phone);
     } else { // 'forgotPassword' view

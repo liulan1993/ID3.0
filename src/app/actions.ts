@@ -83,24 +83,29 @@ export async function sendVerificationEmail(
     email: string,
     graphicalCaptchaInput: string,
     graphicalCaptchaAnswer: string,
-    // 通过可选的 phone 参数来区分是“注册”流程还是“忘记密码”流程
-    phone?: string
+    phone?: string // phone 参数仅在注册流程中传递
 ) {
   if (graphicalCaptchaAnswer.toLowerCase() !== graphicalCaptchaInput.toLowerCase()) {
     return { success: false, message: '图形验证码不正确。' };
   }
 
   const normalizedEmail = email.trim().toLowerCase();
-  const userKeyByEmail = `user:${normalizedEmail}`;
-  const existingUserByEmail = await kv.get(userKeyByEmail);
+  
+  // phone 参数存在 (即使是空字符串) 意味着是注册意图
+  // phone 参数为 undefined 意味着是忘记密码意图
+  const isSignupAttempt = phone !== undefined;
 
-  // 根据是否存在 phone 参数来判断意图
-  if (phone !== undefined) {
-    // 意图：注册。用户不应该存在。
+  if (isSignupAttempt) {
+    // --- 注册前的存在性校验 ---
+    // 1. 检查邮箱是否已注册
+    const userKeyByEmail = `user:${normalizedEmail}`;
+    const existingUserByEmail = await kv.get(userKeyByEmail);
     if (existingUserByEmail) {
-      return { success: false, message: '该邮箱地址已被注册。' };
+        return { success: false, message: '该邮箱地址已被注册。' };
     }
-    if (phone.trim()) {
+    
+    // 2. 如果提供了手机号，检查手机号是否已注册
+    if (phone && phone.trim()) {
         const trimmedPhone = phone.trim();
         const phoneIndexKey = `phone:${trimmedPhone}`;
         const existingEmailForPhone = await kv.get(phoneIndexKey);
@@ -109,12 +114,16 @@ export async function sendVerificationEmail(
         }
     }
   } else {
-    // 意图：忘记密码。用户必须存在。
+    // --- 忘记密码的校验 ---
+    // 检查邮箱是否存在
+    const userKeyByEmail = `user:${normalizedEmail}`;
+    const existingUserByEmail = await kv.get(userKeyByEmail);
     if (!existingUserByEmail) {
       return { success: false, message: '该邮箱地址未注册。' };
     }
   }
 
+  // --- 发送邮件逻辑 ---
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
@@ -155,36 +164,20 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const normalizedEmail = email.trim().toLowerCase();
     const verificationKey = `verification:${normalizedEmail}`;
     
+    // 验证码校验
     const storedCode = await kv.get<string | number | null>(verificationKey);
-    
     if (storedCode === null || storedCode === undefined) {
       throw new Error('邮箱验证码已过期或不存在，请重新发送。');
     }
-    
     if (storedCode.toString() !== emailVerificationCode.trim()) {
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
 
-    // 作为最终保障，在写入数据库前再次检查
-    const userKeyByEmail = `user:${normalizedEmail}`;
-    const existingUserByEmail = await kv.get(userKeyByEmail);
-    if (existingUserByEmail) {
-      throw new Error('该邮箱地址已被注册。');
-    }
-
-    if (phone && phone.trim()) {
-        const trimmedPhone = phone.trim();
-        const phoneIndexKey = `phone:${trimmedPhone}`;
-        const existingEmailForPhone = await kv.get(phoneIndexKey);
-        if (existingEmailForPhone) {
-            throw new Error('该手机号码已被注册。');
-        }
-    }
+    // 注意: 存在性检查已在 sendVerificationEmail 中完成，此处不再重复
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 生成北京时区的 ISO 字符串
     const beijingTime = new Date(new Date().getTime() + (8 * 60 * 60 * 1000));
     const beijingISOString = beijingTime.toISOString().replace('Z', '+08:00');
 
@@ -196,7 +189,8 @@ export async function registerUser(userInfo: RegistrationInfo) {
       createdAt: beijingISOString,
     };
     
-    // 存储新用户数据和手机号索引
+    // 存储用户数据和手机号索引
+    const userKeyByEmail = `user:${normalizedEmail}`;
     await kv.set(userKeyByEmail, JSON.stringify(newUser));
     if (phone && phone.trim()) {
         const phoneIndexKey = `phone:${phone.trim()}`;
@@ -248,13 +242,11 @@ export async function loginUser(credentials: UserCredentials) {
   }
 }
 
-// --- 新增：重置密码的服务器动作 ---
 export async function resetPassword(info: ResetPasswordInfo) {
     try {
         const { email, emailVerificationCode, newPassword } = info;
         const normalizedEmail = email.trim().toLowerCase();
         
-        // 1. 检查用户是否存在
         const userKey = `user:${normalizedEmail}`;
         const storedUserJSON = await kv.get(userKey);
         if (!storedUserJSON) {
@@ -262,7 +254,6 @@ export async function resetPassword(info: ResetPasswordInfo) {
         }
         const storedUser = storedUserJSON as { name: string; email: string; hashedPassword: string; };
 
-        // 2. 验证邮箱验证码
         const verificationKey = `verification:${normalizedEmail}`;
         const storedCode = await kv.get<string | number | null>(verificationKey);
         
@@ -273,7 +264,6 @@ export async function resetPassword(info: ResetPasswordInfo) {
             throw new Error('您输入的邮箱验证码与系统记录不符。');
         }
 
-        // 3. 更新密码
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
         
@@ -284,7 +274,6 @@ export async function resetPassword(info: ResetPasswordInfo) {
 
         await kv.set(userKey, JSON.stringify(updatedUser));
         
-        // 4. 删除已使用的验证码
         await kv.del(verificationKey);
 
         return { success: true };
