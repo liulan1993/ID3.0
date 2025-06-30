@@ -7,8 +7,10 @@ import { AnimatePresence, motion } from 'framer-motion';
 // 新增 UserCheck 图标
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-// 新增 html-to-image 库的导入
-import * as htmlToImage from 'html-to-image';
+// 移除 html-to-image，新增 jspdf 和 html2canvas
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
 
 // 告诉 TypeScript XLSX 是一个通过 script 标签加载的全局变量
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -432,27 +434,30 @@ const CustomerFeedbackViewer: FC<{
         }
     };
 
-    const handleExportAsJpg = () => {
+    const handleExportAsPdf = () => {
         if (!modalContentRef.current) {
             alert('无法导出，未找到内容。');
             return;
         }
-        htmlToImage.toJpeg(modalContentRef.current, { 
-            quality: 0.95, 
+
+        const input = modalContentRef.current;
+        html2canvas(input, {
+            useCORS: true, // 允许加载跨域图片
+            scale: 2, // 提高分辨率
             backgroundColor: '#18181b',
-            skipFonts: true,
-            cacheBust: true,
-        })
-            .then((dataUrl) => {
-                const link = document.createElement('a');
-                link.download = `feedback-${selectedSubmission?.key.slice(-12)}.jpg`;
-                link.href = dataUrl;
-                link.click();
-            })
-            .catch((err) => {
-                console.error('oops, something went wrong!', err);
-                alert('导出图片失败，请查看控制台获取更多信息。');
+        }).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: [canvas.width, canvas.height]
             });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            pdf.save(`feedback-${selectedSubmission?.key.slice(-12)}.pdf`);
+        }).catch(err => {
+            console.error('导出PDF失败:', err);
+            alert('导出PDF失败，请查看控制台获取更多信息。');
+        });
     };
 
     return (
@@ -535,7 +540,7 @@ const CustomerFeedbackViewer: FC<{
                                 )}
                             </div>
                             <div className="flex justify-end items-center gap-4 p-4 border-t border-neutral-700 mt-auto">
-                                <button onClick={handleExportAsJpg} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">导出为 JPG</button>
+                                <button onClick={handleExportAsPdf} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">导出为 PDF</button>
                                 <button onClick={() => setSelectedSubmission(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700">关闭</button>
                             </div>
                         </motion.div>
