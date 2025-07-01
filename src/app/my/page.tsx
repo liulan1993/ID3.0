@@ -229,7 +229,6 @@ export default function MyProfilePage() {
     const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
     const router = useRouter();
 
-    // --- 开始修改 ---
     const handleLogout = () => {
         localStorage.removeItem('authToken');
         localStorage.removeItem('userInfo');
@@ -237,6 +236,8 @@ export default function MyProfilePage() {
         router.push('/');
     };
 
+    // --- 开始修改 ---
+    // 简化数据获取逻辑，只调用一个统一的API
     const fetchAllData = async () => {
         setIsLoading(true);
         setError(null);
@@ -249,24 +250,35 @@ export default function MyProfilePage() {
         }
 
         try {
-            const response = await fetch('/api/my-data', { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch('/api/my-data', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
             if (!response.ok) {
                  const errData = await response.json();
-                 throw new Error(errData.error || '获取资料失败，请重新登录。');
+                 throw new Error(errData.error || '获取您的资料失败，请稍后重试。');
             }
+
             const data = await response.json();
-            if (data.error) throw new Error(data.error);
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            // 设置从统一API获取的所有数据
             setAllData({
-                submissions: data.submissions.sort((a: UserSubmission, b: UserSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
-                questionnaires: data.questionnaires.sort((a: QuestionnaireSubmission, b: QuestionnaireSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
-                feedback: data.feedback.sort((a: FeedbackSubmission, b: FeedbackSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
+                submissions: (data.submissions || []).sort((a: UserSubmission, b: UserSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
+                questionnaires: (data.questionnaires || []).sort((a: QuestionnaireSubmission, b: QuestionnaireSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
+                feedback: (data.feedback || []).sort((a: FeedbackSubmission, b: FeedbackSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
             });
+
         } catch (err) {
             setError(err instanceof Error ? err.message : '发生未知错误');
         } finally {
             setIsLoading(false);
         }
     };
+    // --- 结束修改 ---
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -284,7 +296,6 @@ export default function MyProfilePage() {
             router.push('/');
         }
     }, [router]);
-    // --- 结束修改 ---
 
     useEffect(() => {
         if (user) {
@@ -297,12 +308,14 @@ export default function MyProfilePage() {
         
         const token = localStorage.getItem('authToken');
         if (!token) {
-            alert('会话已过期，请重新登录。');
+            // 使用自定义提示框或UI元素替代 alert
+            console.error('会话已过期，请重新登录。');
             handleLogout();
             return;
         }
 
         try {
+            // 删除操作统一调用my-data API
             const response = await fetch('/api/my-data', {
                 method: 'DELETE',
                 headers: { 
@@ -317,6 +330,7 @@ export default function MyProfilePage() {
                 throw new Error(errData.error || '删除失败');
             }
             
+            // 从本地状态中移除已删除项
             setAllData(prevData => ({
                 submissions: prevData.submissions.filter(item => item.key !== key),
                 questionnaires: prevData.questionnaires.filter(item => item.key !== key),
@@ -324,7 +338,8 @@ export default function MyProfilePage() {
             }));
 
         } catch (err) {
-            alert(err instanceof Error ? err.message : '删除时发生错误');
+            // 使用自定义提示框或UI元素替代 alert
+            setError(err instanceof Error ? err.message : '删除时发生错误');
         }
     };
 

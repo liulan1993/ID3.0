@@ -19,13 +19,11 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // 辅助函数：扫描并获取指定模式的键
 async function getKeysByPattern(pattern: string): Promise<string[]> {
-    let cursor = '0';
     const allKeys: string[] = [];
-    do {
-        const [nextCursor, keys] = await kv.scan(cursor, { match: pattern });
-        allKeys.push(...keys);
-        cursor = nextCursor;
-    } while (cursor !== '0');
+    // 使用 scanIterator 避免在大量数据时出现问题
+    for await (const key of kv.scanIterator({ match: pattern })) {
+        allKeys.push(key);
+    }
     return allKeys;
 }
 
@@ -56,17 +54,11 @@ function findFileUrls(data: unknown): string[] {
 export async function GET(req: Request) {
     const authHeader = req.headers.get('Authorization');
     
-    // --- 新增调试日志 ---
-    console.log(`[my-data API] 收到请求头 Authorization: ${authHeader}`);
-
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return NextResponse.json({ error: '未提供授权凭证 (Authorization header missing or not Bearer)' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
-
-    // --- 新增调试日志 ---
-    console.log(`[my-data API] 提取到的 Token: "${token}"`);
 
     if (!token || token === 'null' || token === 'undefined') {
         return NextResponse.json({ error: '提供的令牌无效 (Token is null or undefined string)' }, { status: 401 });
@@ -80,11 +72,14 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: '令牌中不包含有效的用户信息' }, { status: 401 });
         }
 
+        // --- 开始修改 ---
+        // 修复了客户反馈的键匹配模式，确保与提交时一致
         const [submissionKeys, questionnaireKeys, feedbackKeys] = await Promise.all([
             getKeysByPattern(`user_submissions:${userEmail}:*`),
             getKeysByPattern(`user_questionnaires:${userEmail}:*`),
-            getKeysByPattern(`customer-feedback:${userEmail}:*`),
+            getKeysByPattern(`user_content_submissions:${userEmail}:*`), // <-- 已修正
         ]);
+        // --- 结束修改 ---
 
         const allKeys = [...submissionKeys, ...questionnaireKeys, ...feedbackKeys];
 
@@ -107,13 +102,16 @@ export async function GET(req: Request) {
                     const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
                     const item = { key, ...parsedData };
 
+                    // --- 开始修改 ---
+                    // 修复了数据归类的逻辑
                     if (key.startsWith('user_submissions:')) {
                         result.submissions.push(item);
                     } else if (key.startsWith('user_questionnaires:')) {
                         result.questionnaires.push(item);
-                    } else if (key.startsWith('customer-feedback:')) {
+                    } else if (key.startsWith('user_content_submissions:')) { // <-- 已修正
                         result.feedback.push(item);
                     }
+                    // --- 结束修改 ---
                 } catch (e) {
                     console.error(`解析数据失败，键: ${key}`, data, e);
                 }
@@ -125,7 +123,6 @@ export async function GET(req: Request) {
     } catch (error) {
         console.error("[my-data API] Token验证或数据获取失败:", error);
         if (error instanceof errors.JOSEError) {
-            // 这个日志会精确告诉我们JWT验证失败的原因
             console.error(`[my-data API] JOSE 错误代码: ${error.code}`);
             return NextResponse.json({ error: `身份验证失败: ${error.code}` }, { status: 401 });
         }
@@ -166,12 +163,15 @@ export async function DELETE(req: Request) {
         if (itemData) {
             const parsedData = typeof itemData === 'string' ? JSON.parse(itemData) : itemData;
             let fileUrls: string[] = [];
-
+            
+            // --- 开始修改 ---
+            // 修复了删除时查找文件URL的逻辑
             if (keyToDelete.startsWith('user_submissions:')) {
                 fileUrls = findFileUrls(parsedData.formData);
-            } else if (keyToDelete.startsWith('customer-feedback:')) {
+            } else if (keyToDelete.startsWith('user_content_submissions:')) { // <-- 已修正
                 fileUrls = parsedData.fileUrls || [];
             }
+            // --- 结束修改 ---
             
             if (fileUrls.length > 0) {
                 await del(fileUrls, { token: process.env.BLOB_READ_WRITE_TOKEN });
