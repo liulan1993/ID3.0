@@ -37,7 +37,6 @@ export interface QuestionnaireSubmission {
   answers: QuestionnaireAnswer[];
 }
 
-// 新增：用户资料提交类型
 export interface UserSubmission {
     key: string;
     userName: string;
@@ -393,7 +392,7 @@ const ArticleList: FC<{ articles: Article[]; isLoading: boolean; error: string |
             <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th scope="col" className="px-6 py-3">封面图</th><th scope="col" className="px-6 py-3">标题</th><th scope="col" className="px-6 py-3">作者</th><th scope="col" className="px-6 py-3">发布日期</th><th scope="col" className="px-6 py-3 text-center">操作</th></tr></thead>
-                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "[https://placehold.co/100x100/EEE/333?text=N/A](https://placehold.co/100x100/EEE/333?text=N/A)"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button>{!isReadonly && <button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button>}</td></tr>)))}</tbody>
+                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "https://placehold.co/100x100/EEE/333?text=N/A"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button>{!isReadonly && <button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button>}</td></tr>)))}</tbody>
                 </table>
             </div>
         </div>
@@ -1112,7 +1111,13 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const [isUserSubmissionsLoading, setIsUserSubmissionsLoading] = useState(true);
     const [userSubmissionsError, setUserSubmissionsError] = useState<string | null>(null);
 
-    useEffect(() => { const script = document.createElement('script'); script.src = "[https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js](https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js)"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
+    // --- 开始修改：获取管理员Token的辅助函数 ---
+    const getAdminToken = () => {
+        return document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1] || null;
+    };
+    // --- 结束修改 ---
+
+    useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
     const fetchArticles = async () => { 
         setIsArticlesLoading(true); setArticlesError(null); 
@@ -1159,7 +1164,15 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchUserSubmissions = async () => {
         setIsUserSubmissionsLoading(true); setUserSubmissionsError(null);
         try {
-            const response = await fetch('/api/user-submissions');
+            // --- 开始修改：为API请求添加认证头 ---
+            const token = getAdminToken();
+            if (!token) throw new Error('管理员凭证丢失，请重新登录。');
+
+            const response = await fetch('/api/user-submissions', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            // --- 结束修改 ---
+
             if (!response.ok) throw new Error('获取用户资料失败');
             const data = await response.json();
             setUserSubmissions(data);
@@ -1202,7 +1215,20 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const handleDeleteUserSubmissions = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除资料。"); return; }
         try {
-            const response = await fetch('/api/user-submissions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
+            // --- 开始修改：为API请求添加认证头 ---
+            const token = getAdminToken();
+            if (!token) throw new Error('管理员凭证丢失，请重新登录。');
+
+            const response = await fetch('/api/user-submissions', { 
+                method: 'DELETE', 
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }, 
+                body: JSON.stringify({ keys }), 
+            });
+            // --- 结束修改 ---
+
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
             fetchUserSubmissions();
@@ -1297,7 +1323,6 @@ export default function AdminPage() {
         setIsLoggedIn(false);
         setPermission(null);
         setUsername(null);
-        // 清除 cookie
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         window.location.href = '/admin';
     };
