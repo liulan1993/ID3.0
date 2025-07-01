@@ -96,39 +96,38 @@ const ImageSlide = ({
     );
 
     // --- 动画 2: 画框裁剪 (clip-path) ---
+    // 无条件调用所有 useTransform Hooks
     const initialFrame = { xStart: 10, yStart: 10, xEnd: 90, yEnd: 90 };
     const finalShrunkFrame = { xStart: 10, yStart: 40, xEnd: 90, yEnd: 85 };
 
-    let clipPath: MotionValue<string> | string;
+    // 入场动画变换
+    const introXStart = useTransform(scrollYProgress, [0, introEndProgress], [initialFrame.xStart, finalShrunkFrame.xStart]);
+    const introYStart = useTransform(scrollYProgress, [0, introEndProgress], [initialFrame.yStart, finalShrunkFrame.yStart]);
+    const introXEnd = useTransform(scrollYProgress, [0, introEndProgress], [initialFrame.xEnd, finalShrunkFrame.xEnd]);
+    const introYEnd = useTransform(scrollYProgress, [0, introEndProgress], [initialFrame.yEnd, finalShrunkFrame.yEnd]);
 
-    if (index === 0) { // 第一张图片: 在入场阶段动画
-        const xStart = useTransform(scrollYProgress, [0, introEndProgress], [initialFrame.xStart, finalShrunkFrame.xStart]);
-        const yStart = useTransform(scrollYProgress, [0, introEndProgress], [initialFrame.yStart, finalShrunkFrame.yStart]);
-        const xEnd = useTransform(scrollYProgress, [0, introEndProgress], [initialFrame.xEnd, finalShrunkFrame.xEnd]);
-        const yEnd = useTransform(scrollYProgress, [0, introEndProgress], [initialFrame.yEnd, finalShrunkFrame.yEnd]);
-        clipPath = useMotionTemplate`polygon(${xStart}% ${yStart}%, ${xEnd}% ${yStart}%, ${xEnd}% ${yEnd}%, ${xStart}% ${yEnd}%)`;
-    } else if (index === totalImages - 1) { // 最后一张图片: 在出场阶段动画
-        const xStart = useTransform(scrollYProgress, [outroStartProgress, 1], [finalShrunkFrame.xStart, initialFrame.xStart]);
-        const yStart = useTransform(scrollYProgress, [outroStartProgress, 1], [finalShrunkFrame.yStart, initialFrame.yStart]);
-        const xEnd = useTransform(scrollYProgress, [outroStartProgress, 1], [finalShrunkFrame.xEnd, initialFrame.xEnd]);
-        const yEnd = useTransform(scrollYProgress, [outroStartProgress, 1], [finalShrunkFrame.yEnd, initialFrame.yEnd]);
-        clipPath = useMotionTemplate`polygon(${xStart}% ${yStart}%, ${xEnd}% ${yStart}%, ${xEnd}% ${yEnd}%, ${xStart}% ${yEnd}%)`;
-    } else { // 中间的图片: 保持裁剪状态
-        clipPath = `polygon(${finalShrunkFrame.xStart}% ${finalShrunkFrame.yStart}%, ${finalShrunkFrame.xEnd}% ${finalShrunkFrame.yStart}%, ${finalShrunkFrame.xEnd}% ${finalShrunkFrame.yEnd}%, ${finalShrunkFrame.xStart}% ${finalShrunkFrame.yEnd}%)`;
-    }
+    // 出场动画变换
+    const outroXStart = useTransform(scrollYProgress, [outroStartProgress, 1], [finalShrunkFrame.xStart, initialFrame.xStart]);
+    const outroYStart = useTransform(scrollYProgress, [outroStartProgress, 1], [finalShrunkFrame.yStart, initialFrame.yStart]);
+    const outroXEnd = useTransform(scrollYProgress, [outroStartProgress, 1], [finalShrunkFrame.xEnd, initialFrame.xEnd]);
+    const outroYEnd = useTransform(scrollYProgress, [outroStartProgress, 1], [finalShrunkFrame.yEnd, initialFrame.yEnd]);
+
+    // 无条件创建运动模板
+    const introClipPath = useMotionTemplate`polygon(${introXStart}% ${introYStart}%, ${introXEnd}% ${introYStart}%, ${introXEnd}% ${introYEnd}%, ${introXStart}% ${introYEnd}%)`;
+    const outroClipPath = useMotionTemplate`polygon(${outroXStart}% ${outroYStart}%, ${outroXEnd}% ${outroYStart}%, ${outroXEnd}% ${outroYEnd}%, ${outroXStart}% ${outroYEnd}%)`;
+    const middleClipPath = `polygon(${finalShrunkFrame.xStart}% ${finalShrunkFrame.yStart}%, ${finalShrunkFrame.xEnd}% ${finalShrunkFrame.yStart}%, ${finalShrunkFrame.xEnd}% ${finalShrunkFrame.yEnd}%, ${finalShrunkFrame.xStart}% ${finalShrunkFrame.yEnd}%)`;
 
     // --- 动画 3: 背景缩放 ---
-    let backgroundSize: MotionValue<string> | string;
-     if (index === 0) {
-        backgroundSize = useTransform(scrollYProgress, [0, introEndProgress], ["100%", "170%"]);
-    } else if (index === totalImages - 1) {
-        backgroundSize = useTransform(scrollYProgress, [outroStartProgress, 1], ["170%", "100%"]);
-    } else {
-        backgroundSize = "170%";
-    }
+    // 无条件调用所有 useTransform Hooks
+    const introBackgroundSize = useTransform(scrollYProgress, [0, introEndProgress], ["100%", "170%"]);
+    const outroBackgroundSize = useTransform(scrollYProgress, [outroStartProgress, 1], ["170%", "100%"]);
 
     // --- 动画 4: 文字淡入淡出 ---
     const textOpacity = useTransform(currentImageIndex, [index - 0.5, index, index + 0.5], [0, 1, 0]);
+
+    // 根据条件 *分配* 结果，而不是调用 Hooks
+    const clipPath = index === 0 ? introClipPath : (index === totalImages - 1 ? outroClipPath : middleClipPath);
+    const backgroundSize = index === 0 ? introBackgroundSize : (index === totalImages - 1 ? outroBackgroundSize : "170%");
 
     return (
         <motion.div
