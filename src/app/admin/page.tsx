@@ -269,7 +269,7 @@ function LogoIcon() {
 
 
 // --- 文章编辑器组件 ---
-function ArticleEditor({ onArticlePublished, articleToEdit, permission, getAuthHeaders }: { onArticlePublished: () => void; articleToEdit: Article | null; permission: UserPermission, getAuthHeaders: () => Record<string, string> }) {
+function ArticleEditor({ onArticlePublished, articleToEdit, permission, getAuthHeaders }: { onArticlePublished: () => void; articleToEdit: Article | null; permission: UserPermission, getAuthHeaders: (isJson?: boolean) => Record<string, string> }) {
     const [markdownContent, setMarkdownContent] = useState('');
     const [authorEmail, setAuthorEmail] = useState('admin@example.com');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -298,13 +298,10 @@ function ArticleEditor({ onArticlePublished, articleToEdit, permission, getAuthH
     const handleFileUpload = async (file: File): Promise<string | null> => {
         setIsUploading(true);
         try {
-            const headers = getAuthHeaders();
-            delete headers['Content-Type']; 
-
             const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}&userEmail=${encodeURIComponent(authorEmail)}`, { 
                 method: 'POST', 
                 body: file, 
-                headers: headers 
+                headers: getAuthHeaders(false) // Pass false for file uploads
             });
 
             const newBlob = await response.json();
@@ -360,7 +357,7 @@ function ArticleEditor({ onArticlePublished, articleToEdit, permission, getAuthH
         const body = JSON.stringify(isEditMode ? { id: articleToEdit!.id, ...articleData } : articleData);
 
         try {
-            const response = await fetch(url, { method, headers: getAuthHeaders(), body });
+            const response = await fetch(url, { method, headers: getAuthHeaders(true), body });
             if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || '提交失败'); }
             onArticlePublished();
         } catch (err: unknown) {
@@ -959,7 +956,7 @@ function UserSubmissionsViewer({ submissions, isLoading, error, onDelete, onRefr
 
 
 // --- 系统设置组件 ---
-function SettingsView({ permission, getAuthHeaders }: { permission: UserPermission, getAuthHeaders: () => Record<string, string> }) {
+function SettingsView({ permission, getAuthHeaders }: { permission: UserPermission, getAuthHeaders: (isJson?: boolean) => Record<string, string> }) {
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -972,7 +969,7 @@ function SettingsView({ permission, getAuthHeaders }: { permission: UserPermissi
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch('/api/users', { headers: getAuthHeaders() });
+            const res = await fetch('/api/users', { headers: getAuthHeaders(true) });
             if (!res.ok) {
                 const data = await res.json();
                 throw new Error(data.message || '获取用户列表失败');
@@ -999,7 +996,7 @@ function SettingsView({ permission, getAuthHeaders }: { permission: UserPermissi
         try {
             const res = await fetch('/api/users', {
                 method: 'POST',
-                headers: getAuthHeaders(),
+                headers: getAuthHeaders(true),
                 body: JSON.stringify({ username: newUsername, password: newPassword, permission: newPermission }),
             });
             const data = await res.json();
@@ -1020,7 +1017,7 @@ function SettingsView({ permission, getAuthHeaders }: { permission: UserPermissi
         try {
             const res = await fetch('/api/users', {
                 method: 'DELETE',
-                headers: getAuthHeaders(),
+                headers: getAuthHeaders(true),
                 body: JSON.stringify({ username }),
             });
             const data = await res.json();
@@ -1115,7 +1112,7 @@ function SettingsView({ permission, getAuthHeaders }: { permission: UserPermissi
 
 
 // --- 主页面组件 ---
-function AdminDashboard({ onLogout, permission, username }: { onLogout: () => void; permission: UserPermission; username: string; }) {
+function AdminDashboard({ onLogout, permission, username, token }: { onLogout: () => void; permission: UserPermission; username: string; token: string; }) {
     const [open, setOpen] = useState(true);
     const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback' | 'questionnaire' | 'userSubmissions' | 'settings'>('list');
     
@@ -1153,15 +1150,15 @@ function AdminDashboard({ onLogout, permission, username }: { onLogout: () => vo
         return () => { document.body.removeChild(script); }; 
     }, []);
 
-    const getAuthHeaders = (): Record<string, string> => {
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-        };
-        const token = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
+    const getAuthHeaders = (isJson = true): Record<string, string> => {
+        const headers: Record<string, string> = {};
+        if (isJson) {
+            headers['Content-Type'] = 'application/json';
+        }
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         } else {
-            console.error("Auth token not found.");
+            console.error("Auth token not found in props.");
             onLogout();
         }
         return headers;
@@ -1363,8 +1360,10 @@ export default function AdminPage() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [permission, setPermission] = useState<UserPermission | null>(null);
     const [username, setUsername] = useState<string | null>(null);
+    const [token, setToken] = useState<string | null>(null);
 
     const handleLogout = () => {
+        setToken(null);
         setIsLoggedIn(false);
         setPermission(null);
         setUsername(null);
@@ -1372,11 +1371,12 @@ export default function AdminPage() {
     };
 
     useEffect(() => {
-        const token = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
-        if (token) {
+        const cookieToken = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
+        if (cookieToken) {
             try {
-                const decoded: { permission: UserPermission, username: string, exp: number } = jwtDecode(token);
+                const decoded: { permission: UserPermission, username: string, exp: number } = jwtDecode(cookieToken);
                 if (decoded.exp * 1000 > Date.now()) {
+                    setToken(cookieToken);
                     setPermission(decoded.permission);
                     setUsername(decoded.username);
                     setIsLoggedIn(true);
@@ -1392,14 +1392,15 @@ export default function AdminPage() {
 
     const handleLoginSuccess = (data: LoginSuccessData) => {
         document.cookie = `auth_token=${data.token}; path=/; max-age=86400; SameSite=Lax`;
+        setToken(data.token);
         setUsername(data.username);
         setPermission(data.permission);
         setIsLoggedIn(true);
     };
 
-    if (!isLoggedIn || !permission || !username) {
+    if (!isLoggedIn || !permission || !username || !token) {
         return <LoginForm onLoginSuccess={handleLoginSuccess} />;
     }
 
-    return <AdminDashboard onLogout={handleLogout} permission={permission} username={username} />;
+    return <AdminDashboard onLogout={handleLogout} permission={permission} username={username} token={token} />;
 }
