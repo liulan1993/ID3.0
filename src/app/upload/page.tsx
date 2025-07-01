@@ -107,6 +107,7 @@ type Field = BaseFieldProps & {
     Component: React.ElementType;
     fieldSet?: Field[];
     columns?: Column[];
+    options?: Option[]; // 明确添加 options 类型
     [key: string]: unknown;
 };
 type TableRow = Record<string, string>;
@@ -269,22 +270,37 @@ const UploadModal: FC<UploadModalProps> = ({ isOpen, onClose, selectedServiceIds
             // 2. 格式化并提交最终数据
             const formatDataWithQuestions = (data: Record<string, unknown>, prefix = ''): Record<string, unknown> => {
                 const result: Record<string, unknown> = {};
+
+                const getLabelForValue = (options: Option[], value: string) => {
+                    const option = options.find(opt => opt.value === value);
+                    return option ? option.label : value;
+                };
+
                 for (const key in data) {
-                    const answer = data[key];
+                    let currentAnswer = data[key];
                     const fullKey = prefix ? `${prefix}.${key}` : key;
-                    const fieldDefinition = allFieldsMap.get(fullKey);
-                    const question = (fieldDefinition as Field)?.label || (fieldDefinition as Field)?.title || (fieldDefinition as Column)?.header || key;
+                    const fieldDefinition = allFieldsMap.get(fullKey) as Field | undefined;
+                    const question = fieldDefinition?.label || fieldDefinition?.title || (fieldDefinition as Column)?.header || key;
+
+                    if (fieldDefinition && 'options' in fieldDefinition && Array.isArray(fieldDefinition.options)) {
+                        const options = fieldDefinition.options;
+                        if (Array.isArray(currentAnswer)) {
+                            currentAnswer = currentAnswer.map(val => typeof val === 'string' ? getLabelForValue(options, val) : val);
+                        } else if (typeof currentAnswer === 'string' && currentAnswer) {
+                            currentAnswer = getLabelForValue(options, currentAnswer);
+                        }
+                    }
                     
-                    if (Array.isArray(answer) && answer.length > 0 && typeof answer[0] === 'object' && answer[0] !== null && 'url' in answer[0]) {
-                        result[key] = { question, answer };
-                    } else if (Array.isArray(answer) && answer.length > 0 && typeof answer[0] === 'object' && answer[0] !== null) {
-                         const rows = answer as Record<string, unknown>[];
+                    if (Array.isArray(currentAnswer) && currentAnswer.length > 0 && typeof currentAnswer[0] === 'object' && currentAnswer[0] !== null && 'url' in currentAnswer[0]) {
+                        result[key] = { question, answer: currentAnswer };
+                    } else if (Array.isArray(currentAnswer) && currentAnswer.length > 0 && typeof currentAnswer[0] === 'object' && currentAnswer[0] !== null) {
+                         const rows = currentAnswer as Record<string, unknown>[];
                          result[key] = {
                             question,
                             answer: rows.map(row => formatDataWithQuestions(row, key))
                          };
                     } else {
-                        result[key] = { question, answer };
+                        result[key] = { question, answer: currentAnswer };
                     }
                 }
                 return result;
