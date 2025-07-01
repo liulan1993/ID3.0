@@ -15,7 +15,6 @@ interface AnimatedTabsProps {
   tabs?: Tab[];
   defaultTab?: string;
   className?: string;
-  tabContainerClassName?: string;
 }
 
 const defaultTabs: Tab[] = [
@@ -109,7 +108,6 @@ const AnimatedTabs = ({
   tabs = defaultTabs,
   defaultTab,
   className,
-  tabContainerClassName,
 }: AnimatedTabsProps) => {
   const [activeTab, setActiveTab] = useState<string>(defaultTab || tabs[0]?.id);
 
@@ -117,7 +115,7 @@ const AnimatedTabs = ({
 
   return (
     <div className={cn("w-full max-w-lg flex flex-col gap-y-2", className)}>
-      <div className={cn("flex gap-2 flex-wrap bg-[#11111198] bg-opacity-50 backdrop-blur-sm p-1 rounded-xl", tabContainerClassName)}>
+      <div className="flex gap-2 flex-wrap bg-[#11111198] bg-opacity-50 backdrop-blur-sm p-1 rounded-xl">
         {tabs.map((tab) => (
           <button
             key={tab.id}
