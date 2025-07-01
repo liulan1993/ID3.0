@@ -30,10 +30,10 @@ const defaultTabs: Tab[] = [
         />
         <div className="flex flex-col gap-y-2">
           <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            公司注册“创始包”
+            公司注册创始包
           </h2>
           <p className="text-sm sm:text-base font-medium text-gray-200 mt-0">
-            提供一站式的公司注册“创始包”，涵盖战略架构、银行开户与主动式秘书服务，为您稳固事业的第一步。
+            提供一站式的公司注册创始包，涵盖战略架构、银行开户与主动式秘书服务，为您稳固事业的第一步。
           </p>
         </div>
       </div>
@@ -54,7 +54,7 @@ const defaultTabs: Tab[] = [
             创始人准证方案
           </h2>
           <p className="text-sm sm:text-base font-medium text-gray-200 mt-0">
-            为创始人、高管及家人量身定制整体准证方案（EP、DP等），通过深度评估与战略规划，极大化成功率，提供核心身份保障。
+            专为创始人及高管家庭量身定制EP/DP等准证。我们通过深度评估和战略规划，极大提升获批率，保障身份安全。
           </p>
         </div>
       </div>
@@ -96,7 +96,28 @@ const defaultTabs: Tab[] = [
             人力资源解决方案
           </h2>
           <p className="text-sm sm:text-base font-medium text-gray-200 mt-0">
-            提供从核心人才招聘、名义雇主（EOR）到跨境薪酬合规的一站式人力资源解决方案，助您在新加坡高效、合规地组建并管理顶尖团队。
+            助您在新加坡高效、合规地组建管理团队。我们提供从人才招聘、EOR到薪酬合规的一站式解决方案。
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "tab5",
+    label: "技术驱动",
+    content: (
+      <div className="grid grid-cols-1 gap-4 w-full h-full">
+        <img
+          src="https://zh.apex-elite-service.com/wenjian/4.jpg"
+          alt="Tab 4"
+          className="rounded-lg w-full aspect-video object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+        />
+        <div className="flex flex-col gap-y-2">
+          <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            专业前后端开发
+          </h2>
+          <p className="text-sm sm:text-base font-medium text-gray-200 mt-0">
+            我们拥有专业的技术团队，提供稳定高效的前后端开发服务，实现您对产品的所有构想，确保应用功能完善，运行流畅。
           </p>
         </div>
       </div>
