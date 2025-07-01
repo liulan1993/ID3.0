@@ -1312,6 +1312,7 @@ export default function AdminPage() {
         }
     }, []);
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const handleLoginSuccess = (_data: { username: string, permission: UserPermission }) => {
         window.location.reload();
     };
