@@ -26,13 +26,15 @@ function StackedCircularFooter() {
             </div>
           </div>
 
-          <nav className="mb-8 flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-2 text-sm sm:text-base">
-            <Link href="/" className="text-gray-400 hover:text-white">Apex</Link>
-            <Link href="/" className="text-gray-400 hover:text-white">留学</Link>
-            <Link href="/" className="text-gray-400 hover:text-white">医疗</Link>
-            <Link href="/" className="text-gray-400 hover:text-white">企业服务</Link>
-            <Link href="/" className="text-gray-400 hover:text-white">敬请期待</Link>
+          {/* --- 修改开始 --- */}
+          <nav className="mb-8 flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-2">
+            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">Apex</Link>
+            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">留学</Link>
+            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">医疗</Link>
+            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">企业服务</Link>
+            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">敬请期待</Link>
           </nav>
+          {/* --- 修改结束 --- */}
           
           <div className="text-center">
             <p className="text-xs sm:text-sm text-gray-500">

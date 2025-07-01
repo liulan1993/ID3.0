@@ -101,7 +101,9 @@ const Testimonials = () => {
         {testimonialsData.map((testimonial, index) => (
           <button
             key={index}
-            className={`m-1 sm:m-2 px-4 py-2 sm:px-6 rounded-full text-sm sm:text-base font-medium transition-all duration-300 focus-visible:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-sky-500 ${
+            /* --- 修改开始 --- */
+            className={`m-1 sm:m-2 px-4 py-2 sm:px-6 rounded-full text-base md:text-2xl font-medium transition-all duration-300 focus-visible:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-sky-500 ${
+            /* --- 修改结束 --- */
               active === index
                 ? "bg-white text-black shadow-md"
                 : "bg-transparent text-white hover:bg-white hover:text-black"
