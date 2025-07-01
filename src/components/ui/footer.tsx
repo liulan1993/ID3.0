@@ -37,21 +37,6 @@ function StackedCircularFooter() {
             <Link href="/" className="text-gray-400 hover:text-white">敬请期待</Link>
           </nav>
           
-          <div className="mb-8 w-full max-w-md px-4">
-            <form className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
-              <div className="flex-grow">
-                <Label htmlFor="email" className="sr-only">Email</Label>
-                <Input 
-                  id="email" 
-                  placeholder="输入您的邮箱" 
-                  type="email" 
-                  className="rounded-full bg-black/50 border-gray-600 text-white placeholder-gray-400 focus:ring-white" 
-                />
-              </div>
-              <Button type="submit" className="rounded-full bg-white text-black hover:bg-gray-200 w-full sm:w-auto">提交</Button>
-            </form>
-          </div>
-          
           <div className="text-center">
             <p className="text-xs sm:text-sm text-gray-500">
               © 2024 Your Company. All rights reserved.
