@@ -9,21 +9,11 @@ import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Loader, ServerCrash, FileDown, X, FileText, ClipboardList, MessageSquare, Trash2 } from 'lucide-react';
 import { PutBlobResult } from '@vercel/blob';
-import { jwtDecode } from 'jwt-decode'; // --- 新增导入 ---
 
 // --- 类型定义 ---
 interface User {
   name: string;
   email: string;
-}
-
-// --- 新增JWT载荷类型 ---
-interface JwtPayload {
-    name: string;
-    email: string;
-    permission: string;
-    iat: number;
-    exp: number;
 }
 
 interface UserSubmission {
@@ -240,17 +230,19 @@ export default function MyProfilePage() {
     const router = useRouter();
 
     // --- 开始修改 ---
-    const getTokenFromCookie = (): string | null => {
-        const token = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
-        return token || null;
+    const handleLogout = () => {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userInfo');
+        setUser(null);
+        router.push('/');
     };
 
     const fetchAllData = async () => {
         setIsLoading(true);
         setError(null);
-        const token = getTokenFromCookie();
+        const token = localStorage.getItem('authToken');
 
-        if (!token) {
+        if (!token || token === 'null' || token === 'undefined') {
             setError('用户凭证无效或不存在。');
             setIsLoading(false);
             return;
@@ -276,21 +268,16 @@ export default function MyProfilePage() {
         }
     };
 
-    const handleLogout = () => {
-        document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        setUser(null);
-        router.push('/');
-    };
-
     useEffect(() => {
-        const token = getTokenFromCookie();
+        const token = localStorage.getItem('authToken');
+        const userInfo = localStorage.getItem('userInfo');
         
-        if (token) {
+        if (token && userInfo) {
             try {
-                const decoded: JwtPayload = jwtDecode(token);
-                setUser({ name: decoded.name, email: decoded.email });
+                const parsedUser = JSON.parse(userInfo);
+                setUser(parsedUser);
             } catch (e) {
-                console.error("无效的Token:", e);
+                console.error("解析用户信息失败:", e);
                 handleLogout();
             }
         } else {
@@ -308,14 +295,12 @@ export default function MyProfilePage() {
     const handleDelete = async (key: string) => {
         if (!window.confirm("确定要删除此项记录吗？此操作不可撤销。")) return;
         
-        // --- 开始修改 ---
-        const token = getTokenFromCookie();
+        const token = localStorage.getItem('authToken');
         if (!token) {
             alert('会话已过期，请重新登录。');
             handleLogout();
             return;
         }
-        // --- 结束修改 ---
 
         try {
             const response = await fetch('/api/my-data', {
