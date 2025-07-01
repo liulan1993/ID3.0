@@ -1116,7 +1116,8 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchArticles = async () => { 
         setIsArticlesLoading(true); setArticlesError(null); 
         try { 
-            const response = await fetch('/api/articles'); 
+            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
+            const response = await fetch('/api/articles', { headers: { 'Authorization': `Bearer ${authToken}` } }); 
             if (!response.ok) throw new Error('获取文章数据失败'); 
             const data = await response.json(); 
             const parsedArticles = data.map((item: unknown) => typeof item === 'string' ? JSON.parse(item) : item).filter(Boolean); 
@@ -1128,7 +1129,8 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchChatLogs = async () => {
         setIsChatLogsLoading(true); setChatLogsError(null);
         try {
-            const response = await fetch('/api/chat-logs');
+            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
+            const response = await fetch('/api/chat-logs', { headers: { 'Authorization': `Bearer ${authToken}` } });
             if (!response.ok) throw new Error('获取聊天记录失败');
             const data = await response.json();
             setChatLogs(data);
@@ -1138,7 +1140,8 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchCustomerSubmissions = async () => {
         setIsSubmissionsLoading(true); setSubmissionsError(null);
         try {
-            const response = await fetch('/api/customer-feedback');
+            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
+            const response = await fetch('/api/customer-feedback', { headers: { 'Authorization': `Bearer ${authToken}` } });
             if (!response.ok) throw new Error('获取客户反馈数据失败');
             const data = await response.json();
             setCustomerSubmissions(data);
@@ -1148,7 +1151,8 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchQuestionnaires = async () => {
         setIsQuestionnairesLoading(true); setQuestionnairesError(null);
         try {
-            const response = await fetch('/api/questionnaires');
+            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
+            const response = await fetch('/api/questionnaires', { headers: { 'Authorization': `Bearer ${authToken}` } });
             if (!response.ok) throw new Error('获取问卷数据失败');
             const data = await response.json();
             setQuestionnaireSubmissions(data);
@@ -1166,7 +1170,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
 
             if (!response.ok) {
                 const errData = await response.json();
-                throw new Error(errData.message || '获取用户资料失败');
+                throw new Error(errData.error || '获取用户资料失败');
             }
             const data = await response.json();
             setUserSubmissions(data);
@@ -1179,17 +1183,18 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
         if (view === 'customerFeedback') fetchCustomerSubmissions();
         if (view === 'questionnaire') fetchQuestionnaires();
         if (view === 'userSubmissions') fetchUserSubmissions();
-    }, [view]);
+    }, [view, authToken]);
 
     const handleEditArticle = (article: Article) => { setEditingArticle(article); setView('editor'); };
     const handleNewArticle = () => { if (permission === 'readonly') { alert("您没有权限写新文章。"); return; } setEditingArticle(null); setView('editor'); };
-    const handleDeleteArticle = async (articleId: string) => { if (permission === 'readonly') { alert("您没有权限删除文章。"); return; } if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
+    const handleDeleteArticle = async (articleId: string) => { if (permission === 'readonly') { alert("您没有权限删除文章。"); return; } if (!window.confirm(`确定删除文章？`)) return; try { if (!authToken) throw new Error('管理员凭证丢失，请重新登录。'); const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
     const handlePublishSuccess = () => { alert('操作成功！'); setView('list'); fetchArticles(); };
     
     const handleDeleteCustomerFeedback = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除反馈。"); return; }
         try {
-            const response = await fetch('/api/customer-feedback', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
+            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
+            const response = await fetch('/api/customer-feedback', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }, body: JSON.stringify({ keys }), });
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
             fetchCustomerSubmissions();
@@ -1199,7 +1204,8 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const handleDeleteQuestionnaires = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除问卷。"); return; }
         try {
-            const response = await fetch('/api/questionnaires', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
+            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
+            const response = await fetch('/api/questionnaires', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }, body: JSON.stringify({ keys }), });
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
             fetchQuestionnaires();
@@ -1288,7 +1294,6 @@ export default function AdminPage() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [permission, setPermission] = useState<UserPermission | null>(null);
     const [username, setUsername] = useState<string | null>(null);
-    // --- 开始修改：新增 state 用于存储 Token ---
     const [authToken, setAuthToken] = useState<string | null>(null);
 
     useEffect(() => {
@@ -1298,7 +1303,7 @@ export default function AdminPage() {
                 const decoded: { permission: UserPermission, username: string } = jwtDecode(token);
                 setPermission(decoded.permission);
                 setUsername(decoded.username);
-                setAuthToken(token); // --- 新增：将 Token 存入 state ---
+                setAuthToken(token);
                 setIsLoggedIn(true);
             } catch (e) {
                 console.error("Invalid token", e);
@@ -1308,7 +1313,6 @@ export default function AdminPage() {
     }, []);
 
     const handleLoginSuccess = (data: { username: string, permission: UserPermission }) => {
-        // 登录成功后，重新加载页面以确保 cookie 被正确读取
         window.location.reload();
     };
 
@@ -1316,7 +1320,7 @@ export default function AdminPage() {
         setIsLoggedIn(false);
         setPermission(null);
         setUsername(null);
-        setAuthToken(null); // --- 新增：清除 Token state ---
+        setAuthToken(null);
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         window.location.href = '/admin';
     };
@@ -1327,6 +1331,5 @@ export default function AdminPage() {
         return <LoginForm onLoginSuccess={handleLoginSuccess} />;
     }
 
-    // --- 开始修改：将 Token 作为 prop 传递下去 ---
     return <AdminDashboard onLogout={handleLogout} permission={permission} username={username} authToken={authToken} />;
 }
