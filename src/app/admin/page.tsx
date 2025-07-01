@@ -37,6 +37,7 @@ export interface QuestionnaireSubmission {
   answers: QuestionnaireAnswer[];
 }
 
+// 新增：用户资料提交类型
 export interface UserSubmission {
     key: string;
     userName: string;
@@ -392,7 +393,7 @@ const ArticleList: FC<{ articles: Article[]; isLoading: boolean; error: string |
             <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th scope="col" className="px-6 py-3">封面图</th><th scope="col" className="px-6 py-3">标题</th><th scope="col" className="px-6 py-3">作者</th><th scope="col" className="px-6 py-3">发布日期</th><th scope="col" className="px-6 py-3 text-center">操作</th></tr></thead>
-                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "https://placehold.co/100x100/EEE/333?text=N/A"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button>{!isReadonly && <button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button>}</td></tr>)))}</tbody>
+                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "[https://placehold.co/100x100/EEE/333?text=N/A](https://placehold.co/100x100/EEE/333?text=N/A)"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button>{!isReadonly && <button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button>}</td></tr>)))}</tbody>
                 </table>
             </div>
         </div>
@@ -1081,7 +1082,7 @@ const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
 
 
 // --- 主页面组件 ---
-const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; username: string; authToken: string | null; }> = ({ onLogout, permission, username, authToken }) => {
+const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; username: string }> = ({ onLogout, permission, username }) => {
     const [open, setOpen] = useState(true);
     const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback' | 'questionnaire' | 'userSubmissions' | 'settings'>('list');
     
@@ -1111,13 +1112,12 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const [isUserSubmissionsLoading, setIsUserSubmissionsLoading] = useState(true);
     const [userSubmissionsError, setUserSubmissionsError] = useState<string | null>(null);
 
-    useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
+    useEffect(() => { const script = document.createElement('script'); script.src = "[https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js](https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js)"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
     const fetchArticles = async () => { 
         setIsArticlesLoading(true); setArticlesError(null); 
         try { 
-            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
-            const response = await fetch('/api/articles', { headers: { 'Authorization': `Bearer ${authToken}` } }); 
+            const response = await fetch('/api/articles'); 
             if (!response.ok) throw new Error('获取文章数据失败'); 
             const data = await response.json(); 
             const parsedArticles = data.map((item: unknown) => typeof item === 'string' ? JSON.parse(item) : item).filter(Boolean); 
@@ -1129,8 +1129,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchChatLogs = async () => {
         setIsChatLogsLoading(true); setChatLogsError(null);
         try {
-            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
-            const response = await fetch('/api/chat-logs', { headers: { 'Authorization': `Bearer ${authToken}` } });
+            const response = await fetch('/api/chat-logs');
             if (!response.ok) throw new Error('获取聊天记录失败');
             const data = await response.json();
             setChatLogs(data);
@@ -1140,8 +1139,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchCustomerSubmissions = async () => {
         setIsSubmissionsLoading(true); setSubmissionsError(null);
         try {
-            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
-            const response = await fetch('/api/customer-feedback', { headers: { 'Authorization': `Bearer ${authToken}` } });
+            const response = await fetch('/api/customer-feedback');
             if (!response.ok) throw new Error('获取客户反馈数据失败');
             const data = await response.json();
             setCustomerSubmissions(data);
@@ -1151,8 +1149,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchQuestionnaires = async () => {
         setIsQuestionnairesLoading(true); setQuestionnairesError(null);
         try {
-            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
-            const response = await fetch('/api/questionnaires', { headers: { 'Authorization': `Bearer ${authToken}` } });
+            const response = await fetch('/api/questionnaires');
             if (!response.ok) throw new Error('获取问卷数据失败');
             const data = await response.json();
             setQuestionnaireSubmissions(data);
@@ -1162,16 +1159,8 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchUserSubmissions = async () => {
         setIsUserSubmissionsLoading(true); setUserSubmissionsError(null);
         try {
-            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
-
-            const response = await fetch('/api/user-submissions', {
-                headers: { 'Authorization': `Bearer ${authToken}` }
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.error || '获取用户资料失败');
-            }
+            const response = await fetch('/api/user-submissions');
+            if (!response.ok) throw new Error('获取用户资料失败');
             const data = await response.json();
             setUserSubmissions(data);
         } catch (err: unknown) { setUserSubmissionsError(err instanceof Error ? err.message : '未知错误'); } finally { setIsUserSubmissionsLoading(false); }
@@ -1183,18 +1172,17 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
         if (view === 'customerFeedback') fetchCustomerSubmissions();
         if (view === 'questionnaire') fetchQuestionnaires();
         if (view === 'userSubmissions') fetchUserSubmissions();
-    }, [view, authToken]);
+    }, [view]);
 
     const handleEditArticle = (article: Article) => { setEditingArticle(article); setView('editor'); };
     const handleNewArticle = () => { if (permission === 'readonly') { alert("您没有权限写新文章。"); return; } setEditingArticle(null); setView('editor'); };
-    const handleDeleteArticle = async (articleId: string) => { if (permission === 'readonly') { alert("您没有权限删除文章。"); return; } if (!window.confirm(`确定删除文章？`)) return; try { if (!authToken) throw new Error('管理员凭证丢失，请重新登录。'); const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
+    const handleDeleteArticle = async (articleId: string) => { if (permission === 'readonly') { alert("您没有权限删除文章。"); return; } if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
     const handlePublishSuccess = () => { alert('操作成功！'); setView('list'); fetchArticles(); };
     
     const handleDeleteCustomerFeedback = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除反馈。"); return; }
         try {
-            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
-            const response = await fetch('/api/customer-feedback', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }, body: JSON.stringify({ keys }), });
+            const response = await fetch('/api/customer-feedback', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
             fetchCustomerSubmissions();
@@ -1204,8 +1192,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const handleDeleteQuestionnaires = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除问卷。"); return; }
         try {
-            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
-            const response = await fetch('/api/questionnaires', { method: 'DELETE', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` }, body: JSON.stringify({ keys }), });
+            const response = await fetch('/api/questionnaires', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
             fetchQuestionnaires();
@@ -1215,17 +1202,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const handleDeleteUserSubmissions = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除资料。"); return; }
         try {
-            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
-
-            const response = await fetch('/api/user-submissions', { 
-                method: 'DELETE', 
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`
-                }, 
-                body: JSON.stringify({ keys }), 
-            });
-
+            const response = await fetch('/api/user-submissions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
             fetchUserSubmissions();
@@ -1294,7 +1271,6 @@ export default function AdminPage() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [permission, setPermission] = useState<UserPermission | null>(null);
     const [username, setUsername] = useState<string | null>(null);
-    const [authToken, setAuthToken] = useState<string | null>(null);
 
     useEffect(() => {
         const token = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
@@ -1303,7 +1279,6 @@ export default function AdminPage() {
                 const decoded: { permission: UserPermission, username: string } = jwtDecode(token);
                 setPermission(decoded.permission);
                 setUsername(decoded.username);
-                setAuthToken(token);
                 setIsLoggedIn(true);
             } catch (e) {
                 console.error("Invalid token", e);
@@ -1312,16 +1287,17 @@ export default function AdminPage() {
         }
     }, []);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const handleLoginSuccess = (_data: { username: string, permission: UserPermission }) => {
-        window.location.reload();
+    const handleLoginSuccess = (data: { username: string, permission: UserPermission }) => {
+        setUsername(data.username);
+        setPermission(data.permission);
+        setIsLoggedIn(true);
     };
 
     const handleLogout = () => {
         setIsLoggedIn(false);
         setPermission(null);
         setUsername(null);
-        setAuthToken(null);
+        // 清除 cookie
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         window.location.href = '/admin';
     };
@@ -1332,5 +1308,5 @@ export default function AdminPage() {
         return <LoginForm onLoginSuccess={handleLoginSuccess} />;
     }
 
-    return <AdminDashboard onLogout={handleLogout} permission={permission} username={username} authToken={authToken} />;
+    return <AdminDashboard onLogout={handleLogout} permission={permission} username={username} />;
 }
