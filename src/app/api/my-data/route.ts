@@ -3,7 +3,7 @@
 import { createClient } from '@vercel/kv';
 import { del } from '@vercel/blob';
 import { NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { jwtVerify, errors } from 'jose';
 
 // 检查环境变量
 if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN || !process.env.JWT_SECRET || !process.env.BLOB_READ_WRITE_TOKEN) {
@@ -56,17 +56,20 @@ function findFileUrls(data: unknown): string[] {
 export async function GET(req: Request) {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return NextResponse.json({ error: '未授权' }, { status: 401 });
+        return NextResponse.json({ error: '未提供授权凭证' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
+    if (!token || token === 'null') {
+        return NextResponse.json({ error: '提供的令牌无效' }, { status: 401 });
+    }
 
     try {
         const { payload } = await jwtVerify(token, JWT_SECRET);
         const userEmail = payload.email as string;
 
         if (!userEmail) {
-            return NextResponse.json({ error: '无效的令牌' }, { status: 401 });
+            return NextResponse.json({ error: '令牌中不包含有效的用户信息' }, { status: 401 });
         }
 
         const [submissionKeys, questionnaireKeys, feedbackKeys] = await Promise.all([
@@ -105,17 +108,21 @@ export async function GET(req: Request) {
                     }
                 } catch (e) {
                     console.error(`解析数据失败，键: ${key}`, data, e);
-                    // 跳过此条错误记录，继续处理其他记录
                 }
             }
         });
 
         return NextResponse.json(result);
 
+    // --- 开始修改 ---
     } catch (error) {
         console.error("Token验证或数据获取失败:", error);
-        return NextResponse.json({ error: '未授权或服务器错误' }, { status: 401 });
+        if (error instanceof errors.JOSEError) {
+            return NextResponse.json({ error: `身份验证失败: ${error.code}` }, { status: 401 });
+        }
+        return NextResponse.json({ error: '未授权或服务器内部错误' }, { status: 500 });
     }
+    // --- 结束修改 ---
 }
 
 /**
@@ -124,10 +131,14 @@ export async function GET(req: Request) {
 export async function DELETE(req: Request) {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return NextResponse.json({ error: '未授权' }, { status: 401 });
+        return NextResponse.json({ error: '未提供授权凭证' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
+    if (!token || token === 'null') {
+        return NextResponse.json({ error: '提供的令牌无效' }, { status: 401 });
+    }
+    
     const { keyToDelete } = await req.json();
 
     if (!keyToDelete || typeof keyToDelete !== 'string') {
@@ -139,7 +150,7 @@ export async function DELETE(req: Request) {
         const userEmail = payload.email as string;
 
         if (!keyToDelete.includes(userEmail)) {
-            return NextResponse.json({ error: '禁止操作' }, { status: 403 });
+            return NextResponse.json({ error: '禁止操作：无权删除此资源' }, { status: 403 });
         }
 
         const itemData = await kv.get(keyToDelete);
@@ -163,8 +174,13 @@ export async function DELETE(req: Request) {
 
         return NextResponse.json({ message: '删除成功' });
 
+    // --- 开始修改 ---
     } catch (error) {
         console.error("删除失败:", error);
-        return NextResponse.json({ error: '删除操作失败' }, { status: 500 });
+        if (error instanceof errors.JOSEError) {
+            return NextResponse.json({ error: `身份验证失败: ${error.code}` }, { status: 401 });
+        }
+        return NextResponse.json({ error: '删除操作时发生服务器内部错误' }, { status: 500 });
     }
+    // --- 结束修改 ---
 }

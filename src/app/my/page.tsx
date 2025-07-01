@@ -233,6 +233,17 @@ export default function MyProfilePage() {
         setIsLoading(true);
         setError(null);
         const token = localStorage.getItem('authToken');
+
+        // --- 开始修改 ---
+        if (!token || token === 'null' || token === 'undefined') {
+            setError('用户凭证无效，请重新登录。');
+            setIsLoading(false);
+            // 延迟登出，让用户看到提示
+            setTimeout(() => handleLogout(), 2000);
+            return;
+        }
+        // --- 结束修改 ---
+
         try {
             const response = await fetch('/api/my-data', { headers: { 'Authorization': `Bearer ${token}` } });
             if (!response.ok) {
@@ -263,7 +274,7 @@ export default function MyProfilePage() {
                 setUser(parsedUser);
             } catch (e) {
                 console.error("解析用户信息失败:", e);
-                handleLogout(); // 直接调用登出函数来清理并跳转
+                handleLogout();
             }
         } else {
             router.push('/');
