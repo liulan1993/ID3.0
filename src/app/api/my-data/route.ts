@@ -92,15 +92,20 @@ export async function GET(req: Request) {
         allData.forEach((data, index) => {
             if (data) {
                 const key = allKeys[index];
-                const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
-                const item = { key, ...parsedData };
+                try {
+                    const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+                    const item = { key, ...parsedData };
 
-                if (key.startsWith('user_submissions:')) {
-                    result.submissions.push(item);
-                } else if (key.startsWith('user_questionnaires:')) {
-                    result.questionnaires.push(item);
-                } else if (key.startsWith('customer-feedback:')) {
-                    result.feedback.push(item);
+                    if (key.startsWith('user_submissions:')) {
+                        result.submissions.push(item);
+                    } else if (key.startsWith('user_questionnaires:')) {
+                        result.questionnaires.push(item);
+                    } else if (key.startsWith('customer-feedback:')) {
+                        result.feedback.push(item);
+                    }
+                } catch (e) {
+                    console.error(`解析数据失败，键: ${key}`, data, e);
+                    // 跳过此条错误记录，继续处理其他记录
                 }
             }
         });
@@ -133,7 +138,6 @@ export async function DELETE(req: Request) {
         const { payload } = await jwtVerify(token, JWT_SECRET);
         const userEmail = payload.email as string;
 
-        // 安全检查: 确保用户只能删除自己的数据
         if (!keyToDelete.includes(userEmail)) {
             return NextResponse.json({ error: '禁止操作' }, { status: 403 });
         }
@@ -150,13 +154,11 @@ export async function DELETE(req: Request) {
                 fileUrls = parsedData.fileUrls || [];
             }
             
-            // 从 Blob 删除关联文件
             if (fileUrls.length > 0) {
                 await del(fileUrls, { token: process.env.BLOB_READ_WRITE_TOKEN });
             }
         }
 
-        // 从 KV 删除记录
         await kv.del(keyToDelete);
 
         return NextResponse.json({ message: '删除成功' });

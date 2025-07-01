@@ -237,6 +237,7 @@ export default function MyProfilePage() {
             const response = await fetch('/api/my-data', { headers: { 'Authorization': `Bearer ${token}` } });
             if (!response.ok) throw new Error('获取资料失败，请重新登录。');
             const data = await response.json();
+            if (data.error) throw new Error(data.error); // Handle API-level errors
             setAllData({
                 submissions: data.submissions.sort((a: UserSubmission, b: UserSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
                 questionnaires: data.questionnaires.sort((a: QuestionnaireSubmission, b: QuestionnaireSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
@@ -305,7 +306,7 @@ export default function MyProfilePage() {
             }));
 
         } catch (err) {
-            alert(err instanceof Error ? err.message : '删除时发生未知错误');
+            alert(err instanceof Error ? err.message : '删除时发生错误');
         }
     };
 
