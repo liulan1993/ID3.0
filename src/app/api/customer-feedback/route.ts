@@ -29,7 +29,10 @@ interface CustomerSubmission {
 export async function GET() {
     try {
         const keys: string[] = [];
-        for await (const key of kv.scanIterator({ match: 'user_content_submissions:*' })) {
+        // --- 开始修改 ---
+        // 修复了KV扫描的key，确保与提交时使用的key前缀一致
+        for await (const key of kv.scanIterator({ match: 'user_customer_submissions:*' })) {
+        // --- 结束修改 ---
             keys.push(key);
         }
 
