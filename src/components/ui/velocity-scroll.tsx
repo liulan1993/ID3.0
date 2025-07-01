@@ -17,13 +17,13 @@ const Title = () => (
       <h1 className="text-4xl font-bold sm:text-5xl md:text-7xl">
         <span className="text-muted-foreground">
           {/* --- 错误已通过字符串字面量修正 --- */}
-          {"Life is short."} <br />
-          {"Don't waste it."} <br />
-          {"It's time to "}
+          {"关键的第一步."} <br />
+          {"价值远超流程本身."} <br />
+          {"在一切开始之前."}
           {/* ------------------------------------ */}
         </span>
         <span className={cn("inline-block -skew-x-[18deg] font-black", "text-foreground")}>
-          {"SHIFT."}
+          {"Apex."}
         </span>
       </h1>
     </div>
@@ -46,7 +46,7 @@ const VelocityScroll = () => {
 
   const translateX = useTransform(scrollYProgress, [0.2, 0.8], [0, -4500]); 
   
-  const text = "Apex是一家总部位于新加坡的综合性专业服务机构。我们深刻理解全球高净值人士与出海企业所面临的机遇。";
+  const text = "Apex视设立新加坡公司为全球战略，非流程代办。我们以顶层视角构建稳固合规的商业基石，为未来护航。";
   const textContent = ` ${text} `.repeat(5);
 
   return (

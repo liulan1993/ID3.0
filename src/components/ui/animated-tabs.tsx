@@ -20,20 +20,20 @@ interface AnimatedTabsProps {
 const defaultTabs: Tab[] = [
   {
     id: "tab1",
-    label: "教育留学板块",
+    label: "公司注册",
     content: (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
         <img
-          src="https://images.unsplash.com/photo-1493552152660-f915ab47ae9d?q=80&w=3087&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          src="https://zh.apex-elite-service.com/wenjian/1-1.jpg"
           alt="Tab 1"
           className="rounded-lg w-full h-40 md:h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
         />
         <div className="flex flex-col gap-y-2">
           <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            个性化留学规划
+            公司注册“创始包”
           </h2>
           <p className="text-sm text-gray-200 mt-0">
-            我们提供从选校、文书到签证的全方位指导，助力学生进入世界顶尖名校。
+            提供一站式的公司注册“创始包”，涵盖战略架构、银行开户与主动式秘书服务，为您稳固事业的第一步。
           </p>
         </div>
       </div>
@@ -41,20 +41,20 @@ const defaultTabs: Tab[] = [
   },
   {
     id: "tab2",
-    label: "医疗服务",
+    label: "准证申请",
     content: (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
         <img
-          src="https://images.unsplash.com/photo-1506543730435-e2c1d4553a84?q=80&w=2362&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+          src="https://zh.apex-elite-service.com/wenjian/2-1.jpg"
           alt="Tab 2"
           className="rounded-lg w-full h-40 md:h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
         />
         <div className="flex flex-col gap-y-2">
           <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            全球医疗资源
+            创始人准证方案
           </h2>
           <p className="text-sm text-gray-200 mt-0">
-            对接全球顶级医疗机构，提供远程会诊、海外就医等高端健康管理服务。
+            为创始人、高管及家人量身定制整体准证方案（EP、DP等），通过深度评估与战略规划，极大化成功率，提供核心身份保障。
           </p>
         </div>
       </div>
@@ -62,20 +62,41 @@ const defaultTabs: Tab[] = [
   },
   {
     id: "tab3",
-    label: "企业服务",
+    label: "财税合规",
     content: (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
         <img
-          src="https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=3432&auto=format&fit=crop&ixlib=rb-4.0.3"
+          src="https://zh.apex-elite-service.com/wenjian/3.jpg"
           alt="Tab 3"
           className="rounded-lg w-full h-40 md:h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
         />
         <div className="flex flex-col gap-y-2">
           <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
-            企业出海解决方案
+            财税合规与规划
           </h2>
           <p className="text-sm text-gray-200 mt-0">
-            为企业提供市场准入、法律合规、税务筹划等一站式海外拓展服务。
+            提供专业的年度财税申报、财税合规与规划服务，我们不仅确保您的企业稳健合规，更助力您充分享受新加坡的政策优势。
+          </p>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "tab4",
+    label: "人力资源",
+    content: (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full h-full">
+        <img
+          src="https://zh.apex-elite-service.com/wenjian/4.jpg"
+          alt="Tab 4"
+          className="rounded-lg w-full h-40 md:h-60 object-cover mt-0 !m-0 shadow-[0_0_20px_rgba(0,0,0,0.2)] border-none"
+        />
+        <div className="flex flex-col gap-y-2">
+          <h2 className="text-xl md:text-2xl font-bold mb-0 text-white mt-0 !m-0">
+            人力资源解决方案
+          </h2>
+          <p className="text-sm text-gray-200 mt-0">
+            提供从核心人才招聘、名义雇主（EOR）到跨境薪酬合规的一站式人力资源解决方案，助您在新加坡高效、合规地组建并管理顶尖团队。
           </p>
         </div>
       </div>
