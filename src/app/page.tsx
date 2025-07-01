@@ -13,6 +13,7 @@ import Testimonials from '@/components/ui/testimonials';
 import VelocityScroll from '@/components/ui/velocity-scroll';
 import StackedCircularFooter from '@/components/ui/footer';
 import AuthFormComponent from '@/components/ui/auth-form'; 
+import Zhengchuansiye from '@/components/ui/zhengchuansiye'; // 引入 zhengchuansiye 组件
 // ------------------------------------
 
 // --- 新增: 定义共享类型 ---
@@ -148,6 +149,8 @@ export default function Page() {
                             </div>
                             
                             <VelocityScroll />
+
+                            <Zhengchuansiye />
 
                             <StackedCircularFooter />
                         </div>
