@@ -220,10 +220,18 @@ export default function ApplyPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                setApplications(data.submissions || []);
+                // 修复：处理API可能直接返回数组或返回一个包含数组的对象的两种情况。
+                // 检查`data`本身是否为数组，如果是，则直接使用。
+                // 如果不是，则尝试从`data.submissions`获取，如果还没有，则默认为空数组。
+                const newApplications = Array.isArray(data) ? data : (data && Array.isArray(data.submissions) ? data.submissions : []);
+                setApplications(newApplications);
+            } else {
+                // 如果响应不成功，清空列表以反映错误状态
+                setApplications([]);
             }
         } catch (err) {
             console.error("获取申请状态失败:", err);
+            setApplications([]); // 发生抓取错误时也清空列表
         } finally {
             setIsLoading(false);
         }
@@ -279,11 +287,8 @@ export default function ApplyPage() {
                 throw new Error(errorData.message || '申请提交失败，请稍后重试。');
             }
             
-            // 关键改动：提交成功后，不再手动向前端列表添加内容。
-            // 而是直接调用 fetchStatus() 重新从服务器获取完整的最新列表。
-            // 这确保了前端显示与后端数据源严格一致，避免了因后台状态变更导致的前端显示问题。
             await fetchStatus();
-            setSelectedService(null); // 提交成功后清空选项
+            setSelectedService(null);
 
         } catch (err) {
             setError(err instanceof Error ? err.message : '发生未知网络错误。');
