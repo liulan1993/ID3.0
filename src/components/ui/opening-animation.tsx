@@ -277,7 +277,7 @@ const OpeningAnimation = ({ onAnimationFinish }: { onAnimationFinish: () => void
                 <div className="w-full max-w-2xl px-4">
                     <TextShineEffect 
                         text="Apex" 
-                        subtitle="轻触，开启非凡"
+                        subtitle="轻触 ，开启非凡"
                         scanDuration={4} 
                         onClick={handleEnter} 
                     />

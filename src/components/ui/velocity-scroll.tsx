@@ -19,7 +19,7 @@ const Title = () => (
           {/* --- 错误已通过字符串字面量修正 --- */}
           {"关键的第一步."} <br />
           {"价值远超流程本身."} <br />
-          {"在一切开始之前."}
+          {"在一切开始之前 "}
           {/* ------------------------------------ */}
         </span>
         <span className={cn("inline-block -skew-x-[18deg] font-black", "text-foreground")}>
@@ -55,7 +55,7 @@ const VelocityScroll = () => {
       className={cn("relative h-[400vh] md:h-[600vh] lg:h-[800vh] text-white")}
     >
       <div className="sticky top-0 left-0 right-0 h-screen overflow-hidden">
-        <div className="absolute inset-0 flex flex-col md:flex-row w-full items-center justify-center md:justify-between gap-8 md:gap-0 px-4 sm:px-8 md:px-16 lg:px-24">
+        <div className="absolute inset-0 flex flex-col md:flex-row w-full items-center justify-center gap-8 md:gap-16 px-4 sm:px-8 md:px-16 lg:px-24">
             <Title />
             <AnimatedTabs />
         </div>
