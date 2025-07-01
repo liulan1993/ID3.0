@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
-import { motion, AnimatePresence, useScroll, useTransform, type Variants, type HTMLMotionProps } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import Image from 'next/image';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { type ClassValue, clsx } from 'clsx';
