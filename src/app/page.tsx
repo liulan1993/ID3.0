@@ -11,6 +11,7 @@ import MainScene from '@/components/ui/main-scene';
 import HomePageTitle from '@/components/ui/home-page-title';
 import Testimonials from '@/components/ui/testimonials';
 import VelocityScroll from '@/components/ui/velocity-scroll';
+import ScrollContent from '@/components/ui/ScrollContent'; // <-- 新增导入
 import StackedCircularFooter from '@/components/ui/footer';
 import AuthFormComponent from '@/components/ui/auth-form'; 
 // ------------------------------------
@@ -148,6 +149,8 @@ export default function Page() {
                             </div>
                             
                             <VelocityScroll />
+
+                            <ScrollContent /> {/* <-- 新增组件 */}
 
                             <StackedCircularFooter />
                         </div>
