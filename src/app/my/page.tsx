@@ -305,11 +305,11 @@ export default function MyProfilePage() {
             }));
 
         } catch (err) {
-            alert(err instanceof Error ? err.message : '删除时发生错误');
+            alert(err instanceof Error ? err.message : '删除时发生未知错误');
         }
     };
 
-    const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+    const tabs: { id: Tab; label: string; icon: React.ComponentType<{ size?: number | string }> }[] = [
         { id: 'submissions', label: '表单资料', icon: FileText },
         { id: 'questionnaires', label: '问卷调查', icon: ClipboardList },
         { id: 'feedback', label: '客户反馈', icon: MessageSquare },
