@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
       if (decodedToken.permission !== 'full') {
         return NextResponse.json({ message: '权限不足' }, { status: 403 });
       }
-    } catch (error) {
+    } catch (e) {
+      // 修复：捕获错误但不在控制台打印，以避免 'e' 未被使用的 lint 错误
       return NextResponse.json({ message: '无效的凭证' }, { status: 401 });
     }
 
@@ -53,9 +54,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, updatedSubmission }, { status: 200 });
 
-  } catch (error) {
-    console.error('Update Application Status API error:', error);
-    const errorMessage = error instanceof Error ? error.message : '服务器内部错误';
+  } catch (e) {
+    // 修复：使用捕获到的错误变量 'e'
+    console.error('Update Application Status API error:', e);
+    const errorMessage = e instanceof Error ? e.message : '服务器内部错误';
     return NextResponse.json({ message: errorMessage }, { status: 500 });
   }
 }

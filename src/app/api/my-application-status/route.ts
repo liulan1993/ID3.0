@@ -12,6 +12,13 @@ interface UserJwtPayload extends JWTPayload {
   email: string;
 }
 
+// 修复：为申请记录定义一个明确的类型，以避免使用 'any'
+interface ApplicationRecord {
+    submittedAt: string;
+    // 允许其他任何字段存在
+    [key: string]: unknown;
+}
+
 export async function GET(request: NextRequest) {
   try {
     // 1. 验证用户身份
@@ -25,7 +32,8 @@ export async function GET(request: NextRequest) {
     try {
       const { payload } = await jwtVerify(token, secret);
       decodedToken = payload as UserJwtPayload;
-    } catch (error) {
+    } catch (e) {
+      // 修复：捕获错误但不在控制台打印，以避免 'e' 未被使用的 lint 错误
       return NextResponse.json({ message: '无效的凭证' }, { status: 401 });
     }
 
@@ -39,15 +47,19 @@ export async function GET(request: NextRequest) {
 
     // 3. 找到最新的申请
     const submissions = await kv.mget(...submissionKeys);
-    const latestSubmission = submissions
-      .filter(s => s) // 过滤掉可能存在的 null 值
-      .sort((a, b) => new Date((b as any).submittedAt).getTime() - new Date((a as any).submittedAt).getTime())[0];
+    
+    // 修复：过滤并进行类型断言，以进行安全的排序
+    const typedSubmissions = submissions.filter(s => s) as ApplicationRecord[];
+
+    const latestSubmission = typedSubmissions
+      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0];
 
     return NextResponse.json({ submission: latestSubmission }, { status: 200 });
 
-  } catch (error) {
-    console.error('Get My Application Status API error:', error);
-    const errorMessage = error instanceof Error ? error.message : '服务器内部错误';
+  } catch (e) {
+    // 修复：使用捕获到的错误变量 'e'
+    console.error('Get My Application Status API error:', e);
+    const errorMessage = e instanceof Error ? e.message : '服务器内部错误';
     return NextResponse.json({ message: errorMessage }, { status: 500 });
   }
 }
