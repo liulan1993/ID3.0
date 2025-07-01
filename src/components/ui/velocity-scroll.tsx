@@ -17,9 +17,9 @@ const Title = () => (
       <h1 className="text-4xl font-bold sm:text-5xl md:text-7xl">
         <span className="text-muted-foreground">
           {/* --- 错误已通过字符串字面量修正 --- */}
-          {"关键的第一步."} <br />
-          {"价值远超流程本身."} <br />
-          {"在一切开始之前 "}
+          {"企业服务"} <br />
+          {"Corporate Services"} <br />
+          {"在一切的开始  "} 
           {/* ------------------------------------ */}
         </span>
         {/* 指令 1: 修改这个代码中Apex，在手机端的字体也要是亮白色。 */}

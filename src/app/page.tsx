@@ -13,7 +13,8 @@ import Testimonials from '@/components/ui/testimonials';
 import VelocityScroll from '@/components/ui/velocity-scroll';
 import StackedCircularFooter from '@/components/ui/footer';
 import AuthFormComponent from '@/components/ui/auth-form'; 
-import JinSeXianTiao from '@/components/ui/jinsexiantiao'; // <-- 引用保持不变
+import JinSeXianTiao from '@/components/ui/jinsexiantiao';
+import SmoothScrollHero from '@/components/ui/smooth-scroll-hero'; // <-- 新增的引用
 // ------------------------------------
 
 // --- 定义共享类型 ---
@@ -142,11 +143,10 @@ export default function Page() {
                             
                             <VelocityScroll />
 
-                            {/* --- 更新的组件调用 --- */}
-                            <JinSeXianTiao 
-                                title="Flowing Creativity"
-                                description="Explore the seamless flow of creativity and innovation. Our platform brings your ideas to life with stunning visual effects and intuitive design."
-                            />
+                            <JinSeXianTiao />
+
+                            {/* --- 新增的组件调用 --- */}
+                            <SmoothScrollHero />
                             {/* -------------------- */}
 
                             <StackedCircularFooter />
