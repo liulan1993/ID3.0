@@ -37,7 +37,6 @@ export interface QuestionnaireSubmission {
   answers: QuestionnaireAnswer[];
 }
 
-// 新增：用户资料提交类型
 export interface UserSubmission {
     key: string;
     userName: string;
@@ -47,9 +46,15 @@ export interface UserSubmission {
     submittedAt: string;
 }
 
+interface LoginSuccessData {
+    token: string;
+    username: string;
+    permission: UserPermission;
+}
+
 
 // --- 登录表单组件 ---
-const LoginForm: FC<{ onLoginSuccess: (data: { username: string, permission: UserPermission }) => void }> = ({ onLoginSuccess }) => {
+function LoginForm({ onLoginSuccess }: { onLoginSuccess: (data: LoginSuccessData) => void }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -148,13 +153,13 @@ const LoginForm: FC<{ onLoginSuccess: (data: { username: string, permission: Use
             </div>
         </div>
     );
-};
+}
 
 
 // --- 工具函数 ---
-const cn = (...inputs: (string | boolean | null | undefined)[]): string => {
+function cn(...inputs: (string | boolean | null | undefined)[]): string {
   return inputs.filter(Boolean).join(' ');
-};
+}
 
 // --- 类型定义 ---
 interface LinkItem {
@@ -197,41 +202,47 @@ interface SidebarContextProps {
 
 // --- 内置侧边栏组件定义 ---
 const SidebarContext = React.createContext<SidebarContextProps | undefined>(undefined);
-const useSidebar = () => {
+
+function useSidebar() {
   const context = React.useContext(SidebarContext);
   if (!context) throw new Error("useSidebar must be used within a SidebarProvider");
   return context;
-};
-const SidebarProvider: FC<PropsWithChildren<{ open?: boolean; setOpen?: React.Dispatch<React.SetStateAction<boolean>>; animate?: boolean; }>> = ({ children, open: openProp, setOpen: setOpenProp, animate = true }) => {
+}
+
+function SidebarProvider({ children, open: openProp, setOpen: setOpenProp, animate = true }: PropsWithChildren<{ open?: boolean; setOpen?: React.Dispatch<React.SetStateAction<boolean>>; animate?: boolean; }>) {
   const [openState, setOpenState] = useState(true);
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
   return (<SidebarContext.Provider value={{ open, setOpen, animate }}>{children}</SidebarContext.Provider>);
-};
-const Sidebar: FC<PropsWithChildren<{ open?: boolean; setOpen?: React.Dispatch<React.SetStateAction<boolean>>; animate?: boolean; }>> = ({ children, open, setOpen, animate }) => (<SidebarProvider open={open} setOpen={setOpen} animate={animate}>{children}</SidebarProvider>);
+}
 
-const SidebarBody: FC<PropsWithChildren<ComponentProps<typeof motion.div>>> = (props) => {
+function Sidebar({ children, open, setOpen, animate }: PropsWithChildren<{ open?: boolean; setOpen?: React.Dispatch<React.SetStateAction<boolean>>; animate?: boolean; }>) {
+    return (<SidebarProvider open={open} setOpen={setOpen} animate={animate}>{children}</SidebarProvider>);
+}
+
+function SidebarBody(props: PropsWithChildren<ComponentProps<typeof motion.div>>) {
     return (
         <>
             <DesktopSidebar {...props} />
             <MobileSidebar {...(props as ComponentProps<"div">)} />
         </>
     );
-};
+}
 
-const DesktopSidebar: FC<PropsWithChildren<ComponentProps<typeof motion.div>>> = ({ className, children, ...props }) => {
+function DesktopSidebar({ className, children, ...props }: PropsWithChildren<ComponentProps<typeof motion.div>>) {
   return (
     <motion.div className={cn("h-full px-4 py-4 hidden md:flex md:flex-col bg-neutral-100 dark:bg-neutral-800 w-[300px] flex-shrink-0", className)} {...props}>
       {children}
     </motion.div>
   );
-};
+}
 
-const MobileSidebar: FC<PropsWithChildren<ComponentProps<"div">>> = ({ className, children }) => {
+function MobileSidebar({ className, children }: PropsWithChildren<ComponentProps<"div">>) {
   const { open, setOpen } = useSidebar();
   return (<><div className={cn("h-10 px-4 py-4 flex flex-row md:hidden items-center justify-end bg-neutral-100 dark:bg-neutral-800 w-full")}><Menu className="text-neutral-800 dark:text-neutral-200 cursor-pointer" onClick={() => setOpen(!open)} /><AnimatePresence>{open && (<motion.div initial={{ x: "-100%", opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: "-100%", opacity: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }} className={cn("fixed h-full w-full inset-0 bg-white dark:bg-neutral-900 p-10 z-[100] flex flex-col justify-between", className)}><div className="absolute right-10 top-10 z-50 text-neutral-800 dark:text-neutral-200 cursor-pointer" onClick={() => setOpen(!open)}><X /></div>{children}</motion.div>)}</AnimatePresence></div></>);
-};
-const SidebarLink: FC<{ link: LinkItem; className?: string; }> = ({ link, className }) => {
+}
+
+function SidebarLink({ link, className }: { link: LinkItem; className?: string; }) {
   const Component = link.action ? 'button' : 'a';
   const commonProps = {
     className: cn("flex items-center justify-start gap-4 group/sidebar py-2 w-full text-left", className),
@@ -246,13 +257,19 @@ const SidebarLink: FC<{ link: LinkItem; className?: string; }> = ({ link, classN
       </span>
     </Component>
   );
-};
-const Logo: FC = () => (<div className="font-normal flex space-x-2 items-center text-sm text-black dark:text-white py-1 relative z-20"><div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" /><span className="font-medium text-black dark:text-white whitespace-pre">后台管理</span></div>);
-const LogoIcon: FC = () => (<div className="font-normal flex space-x-2 items-center text-sm text-black dark:text-white py-1 relative z-20"><div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" /></div>);
+}
+
+function Logo() {
+    return (<div className="font-normal flex space-x-2 items-center text-sm text-black dark:text-white py-1 relative z-20"><div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" /><span className="font-medium text-black dark:text-white whitespace-pre">后台管理</span></div>);
+}
+
+function LogoIcon() {
+    return (<div className="font-normal flex space-x-2 items-center text-sm text-black dark:text-white py-1 relative z-20"><div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" /></div>);
+}
 
 
 // --- 文章编辑器组件 ---
-const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article | null; permission: UserPermission, getAuthHeaders: () => Record<string, string> }> = ({ onArticlePublished, articleToEdit, permission, getAuthHeaders }) => {
+function ArticleEditor({ onArticlePublished, articleToEdit, permission, getAuthHeaders }: { onArticlePublished: () => void; articleToEdit: Article | null; permission: UserPermission, getAuthHeaders: () => Record<string, string> }) {
     const [markdownContent, setMarkdownContent] = useState('');
     const [authorEmail, setAuthorEmail] = useState('admin@example.com');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -281,9 +298,8 @@ const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article
     const handleFileUpload = async (file: File): Promise<string | null> => {
         setIsUploading(true);
         try {
-            // --- FIX: Use getAuthHeaders but remove Content-Type for file uploads ---
             const headers = getAuthHeaders();
-            delete headers['Content-Type']; // Let the browser set the correct multipart/form-data header
+            delete headers['Content-Type']; 
 
             const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}&userEmail=${encodeURIComponent(authorEmail)}`, { 
                 method: 'POST', 
@@ -381,11 +397,11 @@ const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article
             </div>
         </div>
     );
-};
+}
 
 
 // --- 文章管理列表组件 ---
-const ArticleList: FC<{ articles: Article[]; isLoading: boolean; error: string | null; onEdit: (article: Article) => void; onDelete: (articleId: string) => void; permission: UserPermission }> = ({ articles, isLoading, error, onEdit, onDelete, permission }) => {
+function ArticleList({ articles, isLoading, error, onEdit, onDelete, permission }: { articles: Article[]; isLoading: boolean; error: string | null; onEdit: (article: Article) => void; onDelete: (articleId: string) => void; permission: UserPermission }) {
     const [filteredArticles, setFilteredArticles] = useState<Article[]>([]);
     const [keyword, setKeyword] = useState('');
     const [author, setAuthor] = useState('');
@@ -407,10 +423,10 @@ const ArticleList: FC<{ articles: Article[]; isLoading: boolean; error: string |
             </div>
         </div>
     );
-};
+}
 
 // --- 客户问题一览组件 ---
-const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | null; onRefresh: () => void; onDelete: (keys: string[]) => void; permission: UserPermission }> = ({ logs, isLoading, error, onRefresh, onDelete, permission }) => {
+function ChatLogViewer({ logs, isLoading, error, onRefresh, onDelete, permission }: { logs: ChatLog[]; isLoading: boolean; error: string | null; onRefresh: () => void; onDelete: (keys: string[]) => void; permission: UserPermission }) {
     const [filteredLogs, setFilteredLogs] = useState<ChatLog[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
     const [startDate, setStartDate] = useState('');
@@ -451,10 +467,10 @@ const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | n
             </div>
         </div>
     );
-};
+}
 
 // --- 客户反馈查看器组件 ---
-const CustomerFeedbackViewer: FC<{ submissions: CustomerSubmission[]; isLoading: boolean; error: string | null; onDelete: (keys: string[]) => void; onRefresh: () => void; permission: UserPermission }> = ({ submissions, isLoading, error, onDelete, onRefresh, permission }) => {
+function CustomerFeedbackViewer({ submissions, isLoading, error, onDelete, onRefresh, permission }: { submissions: CustomerSubmission[]; isLoading: boolean; error: string | null; onDelete: (keys: string[]) => void; onRefresh: () => void; permission: UserPermission }) {
     const [filteredSubmissions, setFilteredSubmissions] = useState<CustomerSubmission[]>([]);
     const [selectedSubmission, setSelectedSubmission] = useState<CustomerSubmission | null>(null);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -533,17 +549,10 @@ const CustomerFeedbackViewer: FC<{ submissions: CustomerSubmission[]; isLoading:
             {selectedSubmission && (<AnimatePresence><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"><motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-neutral-900 border border-neutral-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col"><div ref={modalContentRef} className="p-6 overflow-y-auto"><h2 className="text-xl font-bold text-cyan-400 mb-2">{selectedSubmission.userName} <span className="text-sm font-normal text-gray-400">({selectedSubmission.userEmail})</span></h2><p className="text-xs text-gray-500 mb-4">提交于: {new Date(selectedSubmission.submittedAt).toLocaleString()}</p><div className="prose prose-invert max-w-none prose-img:rounded-lg"><ReactMarkdown>{selectedSubmission.content}</ReactMarkdown></div>{selectedSubmission.fileUrls && selectedSubmission.fileUrls.length > 0 && (<div className="mt-6"><h3 className="font-bold text-lg mb-2 text-gray-300">附件图片:</h3><div className="grid grid-cols-2 md:grid-cols-3 gap-4">{selectedSubmission.fileUrls.map((url, index) => (<a key={`${url}-${index}`} href={url} target="_blank" rel="noopener noreferrer"><img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="附件图片" className="w-full h-auto object-cover rounded-lg shadow-md transition-transform duration-300 hover:scale-105" /></a>))}</div></div>)}</div><div className="flex justify-end items-center gap-4 p-4 border-t border-neutral-700 mt-auto"><button onClick={handleExportAsPng} className="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">下载截图</button><button onClick={() => setSelectedSubmission(null)} className="px-4 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700">关闭</button></div></motion.div></motion.div></AnimatePresence>)}
         </div>
     );
-};
+}
 
 // --- 问卷调查查看器组件 ---
-const QuestionnaireViewer: FC<{ 
-    submissions: QuestionnaireSubmission[]; 
-    isLoading: boolean; 
-    error: string | null; 
-    onDelete: (keys: string[]) => void; 
-    onRefresh: () => void; 
-    permission: UserPermission 
-}> = ({ submissions, isLoading, error, onDelete, onRefresh, permission }) => {
+function QuestionnaireViewer({ submissions, isLoading, error, onDelete, onRefresh, permission }: { submissions: QuestionnaireSubmission[]; isLoading: boolean; error: string | null; onDelete: (keys: string[]) => void; onRefresh: () => void; permission: UserPermission }) {
     const [filteredSubmissions, setFilteredSubmissions] = useState<QuestionnaireSubmission[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
     const [startDate, setStartDate] = useState('');
@@ -716,17 +725,10 @@ const QuestionnaireViewer: FC<{
             )}
         </div>
     );
-};
+}
 
-// --- 新增：用户资料查看器组件 ---
-const UserSubmissionsViewer: FC<{
-    submissions: UserSubmission[];
-    isLoading: boolean;
-    error: string | null;
-    onDelete: (keys: string[]) => void;
-    onRefresh: () => void;
-    permission: UserPermission;
-}> = ({ submissions, isLoading, error, onDelete, onRefresh, permission }) => {
+// --- 用户资料查看器组件 ---
+function UserSubmissionsViewer({ submissions, isLoading, error, onDelete, onRefresh, permission }: { submissions: UserSubmission[]; isLoading: boolean; error: string | null; onDelete: (keys: string[]) => void; onRefresh: () => void; permission: UserPermission; }) {
     const [filteredSubmissions, setFilteredSubmissions] = useState<UserSubmission[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
     const [startDate, setStartDate] = useState('');
@@ -953,11 +955,11 @@ const UserSubmissionsViewer: FC<{
             )}
         </div>
     );
-};
+}
 
 
 // --- 系统设置组件 ---
-const SettingsView: FC<{ permission: UserPermission, getAuthHeaders: () => Record<string, string> }> = ({ permission, getAuthHeaders }) => {
+function SettingsView({ permission, getAuthHeaders }: { permission: UserPermission, getAuthHeaders: () => Record<string, string> }) {
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -1109,11 +1111,11 @@ const SettingsView: FC<{ permission: UserPermission, getAuthHeaders: () => Recor
             </div>
         </div>
     );
-};
+}
 
 
 // --- 主页面组件 ---
-const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; username: string }> = ({ onLogout, permission, username }) => {
+function AdminDashboard({ onLogout, permission, username }: { onLogout: () => void; permission: UserPermission; username: string; }) {
     const [open, setOpen] = useState(true);
     const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback' | 'questionnaire' | 'userSubmissions' | 'settings'>('list');
     
@@ -1143,7 +1145,6 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const [isUserSubmissionsLoading, setIsUserSubmissionsLoading] = useState(true);
     const [userSubmissionsError, setUserSubmissionsError] = useState<string | null>(null);
 
-    // --- FIX: Correctly load XLSX script ---
     useEffect(() => { 
         const script = document.createElement('script'); 
         script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; 
@@ -1152,7 +1153,6 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
         return () => { document.body.removeChild(script); }; 
     }, []);
 
-    // --- FIX: Add auth token to API requests ---
     const getAuthHeaders = (): Record<string, string> => {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
@@ -1356,7 +1356,7 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
             </main>
         </div>
     );
-};
+}
 
 
 export default function AdminPage() {
@@ -1368,7 +1368,6 @@ export default function AdminPage() {
         setIsLoggedIn(false);
         setPermission(null);
         setUsername(null);
-        // 清除 cookie
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
     };
 
@@ -1377,13 +1376,11 @@ export default function AdminPage() {
         if (token) {
             try {
                 const decoded: { permission: UserPermission, username: string, exp: number } = jwtDecode(token);
-                // 检查token是否过期
                 if (decoded.exp * 1000 > Date.now()) {
                     setPermission(decoded.permission);
                     setUsername(decoded.username);
                     setIsLoggedIn(true);
                 } else {
-                    // Token过期，执行登出
                     handleLogout();
                 }
             } catch (e) {
@@ -1393,7 +1390,8 @@ export default function AdminPage() {
         }
     }, []);
 
-    const handleLoginSuccess = (data: { username: string, permission: UserPermission }) => {
+    const handleLoginSuccess = (data: LoginSuccessData) => {
+        document.cookie = `auth_token=${data.token}; path=/; max-age=86400; SameSite=Lax`;
         setUsername(data.username);
         setPermission(data.permission);
         setIsLoggedIn(true);
