@@ -279,8 +279,8 @@ const UploadModal: FC<UploadModalProps> = ({ isOpen, onClose, selectedServiceIds
                 for (const key in data) {
                     let currentAnswer = data[key];
                     const fullKey = prefix ? `${prefix}.${key}` : key;
-                    const fieldDefinition = allFieldsMap.get(fullKey) as Field | undefined;
-                    const question = fieldDefinition?.label || fieldDefinition?.title || (fieldDefinition as Column)?.header || key;
+                    const fieldDefinition = allFieldsMap.get(fullKey);
+                    const question = (fieldDefinition as any)?.label || (fieldDefinition as any)?.title || (fieldDefinition as any)?.header || key;
 
                     if (fieldDefinition && 'options' in fieldDefinition && Array.isArray(fieldDefinition.options)) {
                         const options = fieldDefinition.options;
