@@ -231,7 +231,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                     <div className='flex flex-col gap-2 text-left'>
                                         <p className="font-semibold text-center text-base md:text-lg text-neutral-300 py-2">欢迎, {user.name}!</p>
                                         <div className="border-t border-slate-700"></div>
-                                        <Link href="/profile" className="text-neutral-300 text-base md:text-lg p-2 hover:bg-slate-800 rounded" onClick={() => setOpen(false)}>我的资料</Link>
+                                        <Link href="/my" className="text-neutral-300 text-base md:text-lg p-2 hover:bg-slate-800 rounded" onClick={() => setOpen(false)}>我的资料</Link>
                                         <Link href="/application-status" className="text-neutral-300 text-base md:text-lg p-2 hover:bg-slate-800 rounded" onClick={() => setOpen(false)}>申请进度</Link>
                                         <div className="border-t border-slate-700"></div>
                                         <Button variant="outline" onClick={() => { onLogoutClick(); setOpen(false); }} className="w-full mt-2">
