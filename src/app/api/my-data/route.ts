@@ -55,13 +55,21 @@ function findFileUrls(data: unknown): string[] {
  */
 export async function GET(req: Request) {
     const authHeader = req.headers.get('Authorization');
+    
+    // --- 新增调试日志 ---
+    console.log(`[my-data API] 收到请求头 Authorization: ${authHeader}`);
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return NextResponse.json({ error: '未提供授权凭证' }, { status: 401 });
+        return NextResponse.json({ error: '未提供授权凭证 (Authorization header missing or not Bearer)' }, { status: 401 });
     }
 
     const token = authHeader.split(' ')[1];
-    if (!token || token === 'null') {
-        return NextResponse.json({ error: '提供的令牌无效' }, { status: 401 });
+
+    // --- 新增调试日志 ---
+    console.log(`[my-data API] 提取到的 Token: "${token}"`);
+
+    if (!token || token === 'null' || token === 'undefined') {
+        return NextResponse.json({ error: '提供的令牌无效 (Token is null or undefined string)' }, { status: 401 });
     }
 
     try {
@@ -114,15 +122,15 @@ export async function GET(req: Request) {
 
         return NextResponse.json(result);
 
-    // --- 开始修改 ---
     } catch (error) {
-        console.error("Token验证或数据获取失败:", error);
+        console.error("[my-data API] Token验证或数据获取失败:", error);
         if (error instanceof errors.JOSEError) {
+            // 这个日志会精确告诉我们JWT验证失败的原因
+            console.error(`[my-data API] JOSE 错误代码: ${error.code}`);
             return NextResponse.json({ error: `身份验证失败: ${error.code}` }, { status: 401 });
         }
         return NextResponse.json({ error: '未授权或服务器内部错误' }, { status: 500 });
     }
-    // --- 结束修改 ---
 }
 
 /**
@@ -135,7 +143,7 @@ export async function DELETE(req: Request) {
     }
 
     const token = authHeader.split(' ')[1];
-    if (!token || token === 'null') {
+    if (!token || token === 'null' || token === 'undefined') {
         return NextResponse.json({ error: '提供的令牌无效' }, { status: 401 });
     }
     
@@ -174,7 +182,6 @@ export async function DELETE(req: Request) {
 
         return NextResponse.json({ message: '删除成功' });
 
-    // --- 开始修改 ---
     } catch (error) {
         console.error("删除失败:", error);
         if (error instanceof errors.JOSEError) {
@@ -182,5 +189,4 @@ export async function DELETE(req: Request) {
         }
         return NextResponse.json({ error: '删除操作时发生服务器内部错误' }, { status: 500 });
     }
-    // --- 结束修改 ---
 }
