@@ -16,20 +16,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: '账号和密码不能为空' }, { status: 400 });
     }
 
-    const userKey = `user:${username}`;
+    // --- 开始修改：兼容普通用户和管理员登录 ---
+    // 假设普通用户使用邮箱登录，管理员使用用户名
+    const isEmail = username.includes('@');
+    const userKey = isEmail ? `user_email:${username}` : `user:${username}`;
     const user = await kv.get(userKey);
+    // --- 结束修改 ---
 
     if (!user || typeof user !== 'object') {
       return NextResponse.json({ message: '账号或密码错误' }, { status: 401 });
     }
 
-    const userData = user as { passwordHash: string; permission: 'full' | 'readonly' };
+    // --- 开始修改：统一用户数据结构 ---
+    const userData = user as { 
+        passwordHash: string; 
+        permission?: 'full' | 'readonly'; // 管理员有
+        name?: string; // 普通用户有
+        email?: string; // 普通用户有
+    };
+    // --- 结束修改 ---
     
     const passwordMatch = await bcrypt.compare(password, userData.passwordHash);
 
     if (passwordMatch) {
       const expirationTime = '24h';
-      const payload = { username, permission: userData.permission };
+      
+      // --- 开始修改：统一JWT载荷 ---
+      const payload = { 
+        username: isEmail ? userData.name : username, // JWT中统一使用name
+        email: isEmail ? userData.email : `${username}@admin.local`, // 赋予管理员一个虚拟邮箱
+        permission: userData.permission || 'user' // 普通用户赋予'user'权限
+      };
+      // --- 结束修改 ---
 
       const token = await new SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256' })
@@ -37,12 +55,17 @@ export async function POST(request: NextRequest) {
         .setExpirationTime(expirationTime)
         .sign(secret);
 
-      // 修复：在 JSON 响应中直接返回用户名和权限
-      const response = NextResponse.json({ 
-        success: true, 
-        username: username, 
-        permission: userData.permission 
-      }, { status: 200 });
+      // --- 开始修改：在JSON响应中返回所有需要的信息，包括token ---
+      const responsePayload = {
+          success: true,
+          username: payload.username,
+          email: payload.email,
+          permission: payload.permission,
+          token: token // 将Token添加到JSON响应中
+      };
+      
+      const response = NextResponse.json(responsePayload, { status: 200 });
+      // --- 结束修改 ---
 
       response.cookies.set('auth_token', token, {
         httpOnly: true,
