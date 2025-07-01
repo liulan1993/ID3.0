@@ -1081,7 +1081,7 @@ const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
 
 
 // --- 主页面组件 ---
-const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; username: string }> = ({ onLogout, permission, username }) => {
+const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; username: string; authToken: string | null; }> = ({ onLogout, permission, username, authToken }) => {
     const [open, setOpen] = useState(true);
     const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback' | 'questionnaire' | 'userSubmissions' | 'settings'>('list');
     
@@ -1110,12 +1110,6 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const [userSubmissions, setUserSubmissions] = useState<UserSubmission[]>([]);
     const [isUserSubmissionsLoading, setIsUserSubmissionsLoading] = useState(true);
     const [userSubmissionsError, setUserSubmissionsError] = useState<string | null>(null);
-
-    // --- 开始修改：获取管理员Token的辅助函数 ---
-    const getAdminToken = () => {
-        return document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1] || null;
-    };
-    // --- 结束修改 ---
 
     useEffect(() => { const script = document.createElement('script'); script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
 
@@ -1164,16 +1158,16 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchUserSubmissions = async () => {
         setIsUserSubmissionsLoading(true); setUserSubmissionsError(null);
         try {
-            // --- 开始修改：为API请求添加认证头 ---
-            const token = getAdminToken();
-            if (!token) throw new Error('管理员凭证丢失，请重新登录。');
+            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
 
             const response = await fetch('/api/user-submissions', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${authToken}` }
             });
-            // --- 结束修改 ---
 
-            if (!response.ok) throw new Error('获取用户资料失败');
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.message || '获取用户资料失败');
+            }
             const data = await response.json();
             setUserSubmissions(data);
         } catch (err: unknown) { setUserSubmissionsError(err instanceof Error ? err.message : '未知错误'); } finally { setIsUserSubmissionsLoading(false); }
@@ -1215,19 +1209,16 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const handleDeleteUserSubmissions = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除资料。"); return; }
         try {
-            // --- 开始修改：为API请求添加认证头 ---
-            const token = getAdminToken();
-            if (!token) throw new Error('管理员凭证丢失，请重新登录。');
+            if (!authToken) throw new Error('管理员凭证丢失，请重新登录。');
 
             const response = await fetch('/api/user-submissions', { 
                 method: 'DELETE', 
                 headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${authToken}`
                 }, 
                 body: JSON.stringify({ keys }), 
             });
-            // --- 结束修改 ---
 
             if (!response.ok) throw new Error('删除失败');
             alert('删除成功！');
@@ -1297,6 +1288,8 @@ export default function AdminPage() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [permission, setPermission] = useState<UserPermission | null>(null);
     const [username, setUsername] = useState<string | null>(null);
+    // --- 开始修改：新增 state 用于存储 Token ---
+    const [authToken, setAuthToken] = useState<string | null>(null);
 
     useEffect(() => {
         const token = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
@@ -1305,6 +1298,7 @@ export default function AdminPage() {
                 const decoded: { permission: UserPermission, username: string } = jwtDecode(token);
                 setPermission(decoded.permission);
                 setUsername(decoded.username);
+                setAuthToken(token); // --- 新增：将 Token 存入 state ---
                 setIsLoggedIn(true);
             } catch (e) {
                 console.error("Invalid token", e);
@@ -1314,15 +1308,15 @@ export default function AdminPage() {
     }, []);
 
     const handleLoginSuccess = (data: { username: string, permission: UserPermission }) => {
-        setUsername(data.username);
-        setPermission(data.permission);
-        setIsLoggedIn(true);
+        // 登录成功后，重新加载页面以确保 cookie 被正确读取
+        window.location.reload();
     };
 
     const handleLogout = () => {
         setIsLoggedIn(false);
         setPermission(null);
         setUsername(null);
+        setAuthToken(null); // --- 新增：清除 Token state ---
         document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         window.location.href = '/admin';
     };
@@ -1333,5 +1327,6 @@ export default function AdminPage() {
         return <LoginForm onLoginSuccess={handleLoginSuccess} />;
     }
 
-    return <AdminDashboard onLogout={handleLogout} permission={permission} username={username} />;
+    // --- 开始修改：将 Token 作为 prop 传递下去 ---
+    return <AdminDashboard onLogout={handleLogout} permission={permission} username={username} authToken={authToken} />;
 }
