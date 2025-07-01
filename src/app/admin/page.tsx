@@ -1312,7 +1312,7 @@ export default function AdminPage() {
         }
     }, []);
 
-    const handleLoginSuccess = (data: { username: string, permission: UserPermission }) => {
+    const handleLoginSuccess = (_data: { username: string, permission: UserPermission }) => {
         window.location.reload();
     };
 
