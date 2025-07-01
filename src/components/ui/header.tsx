@@ -102,9 +102,9 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                                                 {item.description}
                                                             </p>
                                                         </div>
-                                                        <Link href="/business">
+                                                        <Link href="/admin">
                                                             <Button size="sm" className="mt-10 text-base md:text-lg" variant="outline">
-                                                                商业洞察
+                                                                管理员
                                                             </Button>
                                                         </Link>
                                                     </div>
@@ -169,7 +169,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                             </div>
                             
                             <Link href="/admin">
-                                <Button variant="default" className="text-base md:text-lg">管理员</Button>
+                                <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
                             </Link>
                         </>
                     ) : (
@@ -178,7 +178,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                 登录
                             </Button>
                             <Link href="/admin">
-                                <Button variant="default" className="text-base md:text-lg">管理员</Button>
+                                <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
                             </Link>
                         </>
                     )}
