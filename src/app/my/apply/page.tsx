@@ -105,7 +105,7 @@ const Header: FC<{ user: User | null; onBack: () => void; onLogout: () => void; 
 );
 
 // --- 光球和文本框组件 ---
-const ApplicationStatusDisplay: FC<{ status: ApplicationStatusType }> = ({ status }) => {
+const ApplicationStatusDisplay: FC<{ status: ApplicationStatusType; serviceName: string; }> = ({ status, serviceName }) => {
     const statusConfig = {
         pending: {
             orbColor: "from-amber-400 to-amber-600",
@@ -141,9 +141,9 @@ const ApplicationStatusDisplay: FC<{ status: ApplicationStatusType }> = ({ statu
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.2 }}
-                className="relative w-32 h-32 md:w-40 md:h-40"
+                className="relative w-32 h-32 md:w-40 md:h-40 flex items-center justify-center"
             >
-                <div className={`w-full h-full rounded-full bg-gradient-to-br ${currentStatus.orbColor} shadow-lg`}></div>
+                <div className={`absolute inset-0 w-full h-full rounded-full bg-gradient-to-br ${currentStatus.orbColor} shadow-lg`}></div>
                 <motion.div
                     className="absolute inset-0 rounded-full"
                     style={{ boxShadow: currentStatus.glowShadow }}
@@ -158,6 +158,10 @@ const ApplicationStatusDisplay: FC<{ status: ApplicationStatusType }> = ({ statu
                         transition={{ duration: 2.5, repeat: Infinity, ease: 'linear', delay: 0.5 }}
                     />
                 </div>
+                {/* 修复：在球体中心显示服务名称 */}
+                <span className="relative z-10 text-white font-bold text-lg text-center break-words px-2">
+                    {serviceName}
+                </span>
             </motion.div>
 
             <motion.div
@@ -220,7 +224,6 @@ export default function ApplyPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                // 修复：明确地从响应中获取 'submissions' 数组
                 const newApplications = (data && Array.isArray(data.submissions)) ? data.submissions : [];
                 setApplications(newApplications);
             } else {
@@ -332,7 +335,8 @@ export default function ApplyPage() {
                                         exit={{ opacity: 0, scale: 0.5 }}
                                         transition={{ type: 'spring', stiffness: 200, damping: 25 }}
                                     >
-                                        <ApplicationStatusDisplay status={app.status} />
+                                        {/* 修复：将服务名称传递给状态显示组件 */}
+                                        <ApplicationStatusDisplay status={app.status} serviceName={app.services[0] || '未知服务'} />
                                     </motion.div>
                                 ))}
                             </AnimatePresence>
