@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
+import { jwtDecode } from 'jwt-decode';
 import { LogOut, Loader, ServerCrash, FileDown, X, FileText, ClipboardList, MessageSquare, Trash2 } from 'lucide-react';
 import { PutBlobResult } from '@vercel/blob';
 
@@ -237,7 +238,7 @@ export default function MyProfilePage() {
             const response = await fetch('/api/my-data', { headers: { 'Authorization': `Bearer ${token}` } });
             if (!response.ok) throw new Error('获取资料失败，请重新登录。');
             const data = await response.json();
-            if (data.error) throw new Error(data.error); // Handle API-level errors
+            if (data.error) throw new Error(data.error);
             setAllData({
                 submissions: data.submissions.sort((a: UserSubmission, b: UserSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
                 questionnaires: data.questionnaires.sort((a: QuestionnaireSubmission, b: QuestionnaireSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
@@ -256,10 +257,14 @@ export default function MyProfilePage() {
         
         if (token && userInfo) {
             try {
+                // **FIX**: Add client-side token validation
+                jwtDecode(token); 
                 const parsedUser = JSON.parse(userInfo);
                 setUser(parsedUser);
             } catch (e) {
-                console.error("解析用户信息失败:", e);
+                console.error("无效的Token或用户信息:", e);
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userInfo');
                 router.push('/');
             }
         } else {
