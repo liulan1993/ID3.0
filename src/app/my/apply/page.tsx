@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useRef, FC, useEffect } from 'react';
+import React, { useState, useMemo, useRef, FC, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -136,7 +136,7 @@ const ApplicationStatusDisplay: FC<{ status: ApplicationStatusType }> = ({ statu
     const currentStatus = statusConfig[status] || statusConfig.pending;
 
     return (
-        <div className="flex flex-col items-center justify-center gap-8 mt-16">
+        <div className="flex flex-col items-center justify-center gap-8">
             <motion.div
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -179,7 +179,7 @@ export default function ApplyPage() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [selectedService, setSelectedService] = useState<ServiceCategory | null>(null);
-    const [application, setApplication] = useState<Application | null>(null);
+    const [applications, setApplications] = useState<Application[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -208,35 +208,38 @@ export default function ApplyPage() {
         }
     }, [router]);
 
+    const fetchStatus = useCallback(async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token || !user) {
+            setIsLoading(false);
+            return;
+        }
+        try {
+            const response = await fetch('/api/my-application-status', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                // 假设API返回 { submissions: Application[] }
+                setApplications(data.submissions || []);
+            }
+        } catch (err) {
+            console.error("获取申请状态失败:", err);
+            // 不在此处设置错误状态，以免干扰提交表单的错误信息
+        } finally {
+            setIsLoading(false);
+        }
+    }, [user]);
+
     useEffect(() => {
         if (!user) return;
-
-        const fetchStatus = async () => {
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                setIsLoading(false);
-                return;
-            }
-            try {
-                const response = await fetch('/api/my-application-status', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setApplication(data.submission);
-                }
-            } catch (err) {
-                console.error("获取申请状态失败:", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
+        
         fetchStatus();
         // 设置一个定时器来轮询状态
         const intervalId = setInterval(fetchStatus, 30000); // 每30秒查询一次
         return () => clearInterval(intervalId); // 组件卸载时清除定时器
-    }, [user]);
+    }, [user, fetchStatus]);
+
 
     const services: { name: ServiceCategory; icon: React.FC<LucideProps> }[] = [
         { name: '留学教育', icon: School },
@@ -280,97 +283,15 @@ export default function ApplyPage() {
             }
             
             const data = await response.json();
-            setApplication(data.submission); // 提交成功后立即更新状态
+            // 将新申请添加到现有列表中
+            setApplications(prev => [...prev, data.submission]);
+            setSelectedService(null); // 提交成功后清空选项
 
         } catch (err) {
             setError(err instanceof Error ? err.message : '发生未知网络错误。');
         } finally {
             setIsSubmitting(false);
         }
-    };
-
-    const renderContent = () => {
-        if (isLoading) {
-            return <Loader className="animate-spin h-12 w-12 text-cyan-400 z-10 mt-20" />;
-        }
-
-        if (application) {
-            return (
-                <motion.div
-                    key="status"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.7 }}
-                    className="w-full"
-                >
-                    <ApplicationStatusDisplay status={application.status} />
-                </motion.div>
-            );
-        }
-
-        return (
-            <motion.div
-                key="form"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="w-full max-w-4xl flex flex-col items-center"
-            >
-                <h1 className="text-4xl font-bold mb-4 text-center text-gray-100">申请新服务</h1>
-                <p className="text-gray-400 mb-10 text-center">请选择您需要申请的服务，然后点击申请按钮。</p>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 w-full mb-12">
-                    {services.map((service) => {
-                        const Icon = service.icon;
-                        const isSelected = selectedService === service.name;
-                        return (
-                            <motion.div
-                                key={service.name}
-                                onClick={() => setSelectedService(service.name)}
-                                className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 bg-black/30 backdrop-blur-md ${isSelected ? 'border-cyan-400 shadow-cyan-500/20 shadow-lg' : 'border-gray-500/30 hover:border-cyan-400/50'}`}
-                                whileHover={{ y: -5 }}
-                            >
-                                <div className="flex flex-col items-center justify-center gap-4 text-center">
-                                    <Icon size={36} className={isSelected ? 'text-cyan-400' : 'text-gray-300'} />
-                                    <h3 className={`font-semibold text-base md:text-lg ${isSelected ? 'text-white' : 'text-gray-300'}`}>{service.name}</h3>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
-                </div>
-
-                {error && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mb-6 flex items-center gap-2 text-red-400 bg-red-500/10 p-3 rounded-lg border border-red-500/20"
-                    >
-                        <AlertTriangle size={20} />
-                        <span>{error}</span>
-                    </motion.div>
-                )}
-
-                <motion.button
-                    onClick={handleApply}
-                    disabled={!selectedService || isSubmitting}
-                    className="flex items-center justify-center gap-3 px-10 py-4 font-bold text-lg text-white bg-cyan-600 rounded-full shadow-lg shadow-cyan-500/30 transition-all duration-300 disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed hover:bg-cyan-500 hover:shadow-xl hover:shadow-cyan-500/40"
-                    whileTap={{ scale: 0.95 }}
-                >
-                    {isSubmitting ? (
-                        <>
-                            <Loader className="animate-spin h-5 w-5" />
-                            <span>提交中...</span>
-                        </>
-                    ) : (
-                        <>
-                            <Send size={20} />
-                            <span>申 请</span>
-                        </>
-                    )}
-                </motion.button>
-            </motion.div>
-        );
     };
 
     if (!user) {
@@ -388,9 +309,108 @@ export default function ApplyPage() {
             <Header user={user} onBack={() => router.back()} onLogout={handleLogout} />
             
             <main className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 mt-24 w-full flex flex-col items-center">
-                <AnimatePresence mode="wait">
-                    {renderContent()}
-                </AnimatePresence>
+                {/* --- 申请表单 --- */}
+                <motion.div
+                    key="form"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full max-w-4xl flex flex-col items-center"
+                >
+                    <h1 className="text-4xl font-bold mb-4 text-center text-gray-100">申请新服务</h1>
+                    <p className="text-gray-400 mb-10 text-center">请选择您需要申请的服务，然后点击申请按钮。</p>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 w-full mb-12">
+                        {services.map((service) => {
+                            const Icon = service.icon;
+                            const isSelected = selectedService === service.name;
+                            return (
+                                <motion.div
+                                    key={service.name}
+                                    onClick={() => setSelectedService(service.name)}
+                                    className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 bg-black/30 backdrop-blur-md ${isSelected ? 'border-cyan-400 shadow-cyan-500/20 shadow-lg' : 'border-gray-500/30 hover:border-cyan-400/50'}`}
+                                    whileHover={{ y: -5 }}
+                                >
+                                    <div className="flex flex-col items-center justify-center gap-4 text-center">
+                                        <Icon size={36} className={isSelected ? 'text-cyan-400' : 'text-gray-300'} />
+                                        <h3 className={`font-semibold text-base md:text-lg ${isSelected ? 'text-white' : 'text-gray-300'}`}>{service.name}</h3>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+
+                    {error && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mb-6 flex items-center gap-2 text-red-400 bg-red-500/10 p-3 rounded-lg border border-red-500/20"
+                        >
+                            <AlertTriangle size={20} />
+                            <span>{error}</span>
+                        </motion.div>
+                    )}
+
+                    <motion.button
+                        onClick={handleApply}
+                        disabled={!selectedService || isSubmitting}
+                        className="flex items-center justify-center gap-3 px-10 py-4 font-bold text-lg text-white bg-cyan-600 rounded-full shadow-lg shadow-cyan-500/30 transition-all duration-300 disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed hover:bg-cyan-500 hover:shadow-xl hover:shadow-cyan-500/40"
+                        whileTap={{ scale: 0.95 }}
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <Loader className="animate-spin h-5 w-5" />
+                                <span>提交中...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Send size={20} />
+                                <span>申 请</span>
+                            </>
+                        )}
+                    </motion.button>
+                </motion.div>
+
+                {/* --- 分割线和标题 --- */}
+                <div className="w-full max-w-4xl my-16">
+                    <div className="h-px bg-gray-500/30"></div>
+                    <h2 className="text-3xl font-bold text-center text-gray-100 -mt-5">
+                        <span className="bg-[#000] px-4">我的申请</span>
+                    </h2>
+                </div>
+                
+                {/* --- 现有申请列表 --- */}
+                <div className="w-full max-w-5xl">
+                    {isLoading ? (
+                        <div className="flex justify-center mt-8">
+                            <Loader className="animate-spin h-12 w-12 text-cyan-400" />
+                        </div>
+                    ) : applications.length > 0 ? (
+                        <motion.div 
+                            layout
+                            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-12"
+                        >
+                            <AnimatePresence>
+                                {applications.map((app) => (
+                                    <motion.div
+                                        key={app.key}
+                                        layout
+                                        initial={{ opacity: 0, y: 50, scale: 0.8 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.5 }}
+                                        transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                                    >
+                                        <ApplicationStatusDisplay status={app.status} />
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </motion.div>
+                    ) : (
+                        <div className="text-center text-gray-400 mt-8">
+                            <p>您当前没有正在处理的申请。</p>
+                        </div>
+                    )}
+                </div>
             </main>
         </div>
     );
