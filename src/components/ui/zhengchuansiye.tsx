@@ -9,7 +9,7 @@ import {
 } from 'framer-motion';
 
 // 辅助函数：用于条件性地合并 CSS 类名
-const cn = (...inputs: any[]) => {
+const cn = (...inputs: (string | boolean | undefined | null)[]) => {
   return inputs.filter(Boolean).join(' ');
 };
 
