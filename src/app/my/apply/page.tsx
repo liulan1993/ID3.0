@@ -7,18 +7,25 @@ import { useRouter } from 'next/navigation';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
-import { School, Briefcase, HeartPulse, User, ArrowLeft, Send, LogOut, Loader, type LucideProps } from 'lucide-react';
+import { School, Briefcase, HeartPulse, User, ArrowLeft, Send, LogOut, Loader, type LucideProps, AlertTriangle } from 'lucide-react';
 
 // --- 类型定义 ---
 type ServiceCategory = '留学教育' | '企业服务' | '医疗健康' | '个人咨询';
+type ApplicationStatusType = 'pending' | 'accepted' | 'completed' | 'rejected';
 
-// 用户信息接口，基于您的 login API
 interface User {
   username: string;
   email: string;
 }
 
-// --- 3D背景动画组件 (复用自 my/page.tsx 以保持风格统一) ---
+interface Application {
+    key: string;
+    services: string[];
+    status: ApplicationStatusType;
+    submittedAt: string;
+}
+
+// --- 3D背景动画组件 ---
 const AnimatedBoxes = React.memo(() => {
     const groupRef = useRef<THREE.Group>(null!);
     const meshRef = useRef<THREE.InstancedMesh>(null!);
@@ -98,7 +105,36 @@ const Header: FC<{ user: User | null; onBack: () => void; onLogout: () => void; 
 );
 
 // --- 光球和文本框组件 ---
-const ApplicationStatus: FC = () => {
+const ApplicationStatusDisplay: FC<{ status: ApplicationStatusType }> = ({ status }) => {
+    const statusConfig = {
+        pending: {
+            orbColor: "from-amber-400 to-amber-600",
+            glowShadow: "0 0 40px 10px #f59e0b, 0 0 80px 30px #b45309",
+            title: "申请已提交",
+            message: "我们已收到您的申请请求。处理过程通常需要3-5个工作日。请您耐心等待，我们的顾问会尽快通过邮件与您联系。"
+        },
+        accepted: {
+            orbColor: "from-blue-500 to-blue-700",
+            glowShadow: "0 0 40px 10px #3b82f6, 0 0 80px 30px #1d4ed8",
+            title: "申请已受理",
+            message: "您的申请已受理，正在加急处理中，请耐心等待。"
+        },
+        completed: {
+            orbColor: "from-green-400 to-green-600",
+            glowShadow: "0 0 40px 10px #4ade80, 0 0 80px 30px #16a34a",
+            title: "申请已完成",
+            message: "您的申请已受理，请保持电话畅通。"
+        },
+        rejected: {
+            orbColor: "from-gray-500 to-gray-700",
+            glowShadow: "0 0 40px 10px #6b7280, 0 0 80px 30px #374151",
+            title: "申请未通过",
+            message: "很遗憾，您的申请未通过审核。详情请查阅您的邮箱或联系客服。"
+        }
+    };
+
+    const currentStatus = statusConfig[status] || statusConfig.pending;
+
     return (
         <div className="flex flex-col items-center justify-center gap-8 mt-16">
             <motion.div
@@ -107,27 +143,17 @@ const ApplicationStatus: FC = () => {
                 transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.2 }}
                 className="relative w-32 h-32 md:w-40 md:h-40"
             >
-                {/* 哑光金球体 */}
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg"></div>
-                
-                {/* 辉光效果 */}
+                <div className={`w-full h-full rounded-full bg-gradient-to-br ${currentStatus.orbColor} shadow-lg`}></div>
                 <motion.div
                     className="absolute inset-0 rounded-full"
-                    style={{
-                        boxShadow: '0 0 40px 10px #f59e0b, 0 0 80px 30px #b45309'
-                    }}
+                    style={{ boxShadow: currentStatus.glowShadow }}
                     animate={{ scale: [1, 1.05, 1], opacity: [0.7, 1, 0.7] }}
                     transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 />
-
-                {/* 闪光效果 */}
                 <div className="absolute top-0 left-0 w-full h-full overflow-hidden rounded-full">
                     <motion.div
                         className="absolute -top-1/4 -left-full w-1/2 h-[150%] bg-white/40"
-                        style={{
-                            transform: 'rotate(35deg)',
-                            filter: 'blur(30px)',
-                        }}
+                        style={{ transform: 'rotate(35deg)', filter: 'blur(30px)' }}
                         animate={{ x: ['-100%', '300%'] }}
                         transition={{ duration: 2.5, repeat: Infinity, ease: 'linear', delay: 0.5 }}
                     />
@@ -140,10 +166,8 @@ const ApplicationStatus: FC = () => {
                 transition={{ duration: 0.5, delay: 0.5 }}
                 className="p-6 bg-black/30 backdrop-blur-md border border-gray-500/20 rounded-xl text-center"
             >
-                <h3 className="text-xl font-semibold text-cyan-300">申请已提交</h3>
-                <p className="text-gray-300 mt-2 max-w-sm">
-                    我们已收到您的申请请求。处理过程通常需要3-5个工作日。请您耐心等待，我们的顾问会尽快通过邮件与您联系。
-                </p>
+                <h3 className="text-xl font-semibold text-cyan-300">{currentStatus.title}</h3>
+                <p className="text-gray-300 mt-2 max-w-sm">{currentStatus.message}</p>
             </motion.div>
         </div>
     );
@@ -155,7 +179,10 @@ export default function ApplyPage() {
     const router = useRouter();
     const [user, setUser] = useState<User | null>(null);
     const [selectedService, setSelectedService] = useState<ServiceCategory | null>(null);
-    const [isSubmitted, setIsSubmitted] = useState(false);
+    const [application, setApplication] = useState<Application | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleLogout = () => {
         localStorage.removeItem('authToken');
@@ -181,6 +208,36 @@ export default function ApplyPage() {
         }
     }, [router]);
 
+    useEffect(() => {
+        if (!user) return;
+
+        const fetchStatus = async () => {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                setIsLoading(false);
+                return;
+            }
+            try {
+                const response = await fetch('/api/my-application-status', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setApplication(data.submission);
+                }
+            } catch (err) {
+                console.error("获取申请状态失败:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchStatus();
+        // 设置一个定时器来轮询状态
+        const intervalId = setInterval(fetchStatus, 30000); // 每30秒查询一次
+        return () => clearInterval(intervalId); // 组件卸载时清除定时器
+    }, [user]);
+
     const services: { name: ServiceCategory; icon: React.FC<LucideProps> }[] = [
         { name: '留学教育', icon: School },
         { name: '企业服务', icon: Briefcase },
@@ -188,12 +245,132 @@ export default function ApplyPage() {
         { name: '个人咨询', icon: User },
     ];
 
-    const handleApply = () => {
-        if (selectedService) {
-            setIsSubmitted(true);
-        } else {
+    const handleApply = async () => {
+        if (!selectedService) {
             alert("请先选择一个服务类别。");
+            return;
         }
+        
+        setIsSubmitting(true);
+        setError(null);
+
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            setError("登录会话已过期，请重新登录。");
+            setIsSubmitting(false);
+            setTimeout(() => handleLogout(), 3000);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/submit-application', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    service: selectedService,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '申请提交失败，请稍后重试。');
+            }
+            
+            const data = await response.json();
+            setApplication(data.submission); // 提交成功后立即更新状态
+
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '发生未知网络错误。');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const renderContent = () => {
+        if (isLoading) {
+            return <Loader className="animate-spin h-12 w-12 text-cyan-400 z-10 mt-20" />;
+        }
+
+        if (application) {
+            return (
+                <motion.div
+                    key="status"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.7 }}
+                    className="w-full"
+                >
+                    <ApplicationStatusDisplay status={application.status} />
+                </motion.div>
+            );
+        }
+
+        return (
+            <motion.div
+                key="form"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.5 }}
+                className="w-full max-w-4xl flex flex-col items-center"
+            >
+                <h1 className="text-4xl font-bold mb-4 text-center text-gray-100">申请新服务</h1>
+                <p className="text-gray-400 mb-10 text-center">请选择您需要申请的服务，然后点击申请按钮。</p>
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 w-full mb-12">
+                    {services.map((service) => {
+                        const Icon = service.icon;
+                        const isSelected = selectedService === service.name;
+                        return (
+                            <motion.div
+                                key={service.name}
+                                onClick={() => setSelectedService(service.name)}
+                                className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 bg-black/30 backdrop-blur-md ${isSelected ? 'border-cyan-400 shadow-cyan-500/20 shadow-lg' : 'border-gray-500/30 hover:border-cyan-400/50'}`}
+                                whileHover={{ y: -5 }}
+                            >
+                                <div className="flex flex-col items-center justify-center gap-4 text-center">
+                                    <Icon size={36} className={isSelected ? 'text-cyan-400' : 'text-gray-300'} />
+                                    <h3 className={`font-semibold text-base md:text-lg ${isSelected ? 'text-white' : 'text-gray-300'}`}>{service.name}</h3>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </div>
+
+                {error && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-6 flex items-center gap-2 text-red-400 bg-red-500/10 p-3 rounded-lg border border-red-500/20"
+                    >
+                        <AlertTriangle size={20} />
+                        <span>{error}</span>
+                    </motion.div>
+                )}
+
+                <motion.button
+                    onClick={handleApply}
+                    disabled={!selectedService || isSubmitting}
+                    className="flex items-center justify-center gap-3 px-10 py-4 font-bold text-lg text-white bg-cyan-600 rounded-full shadow-lg shadow-cyan-500/30 transition-all duration-300 disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed hover:bg-cyan-500 hover:shadow-xl hover:shadow-cyan-500/40"
+                    whileTap={{ scale: 0.95 }}
+                >
+                    {isSubmitting ? (
+                        <>
+                            <Loader className="animate-spin h-5 w-5" />
+                            <span>提交中...</span>
+                        </>
+                    ) : (
+                        <>
+                            <Send size={20} />
+                            <span>申 请</span>
+                        </>
+                    )}
+                </motion.button>
+            </motion.div>
+        );
     };
 
     if (!user) {
@@ -212,59 +389,7 @@ export default function ApplyPage() {
             
             <main className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 mt-24 w-full flex flex-col items-center">
                 <AnimatePresence mode="wait">
-                    {!isSubmitted ? (
-                        <motion.div
-                            key="form"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.5 }}
-                            className="w-full max-w-4xl flex flex-col items-center"
-                        >
-                            <h1 className="text-4xl font-bold mb-4 text-center text-gray-100">申请新服务</h1>
-                            <p className="text-gray-400 mb-10 text-center">请选择您需要申请的服务，然后点击申请按钮。</p>
-                            
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 w-full mb-12">
-                                {services.map((service) => {
-                                    const Icon = service.icon;
-                                    const isSelected = selectedService === service.name;
-                                    return (
-                                        <motion.div
-                                            key={service.name}
-                                            onClick={() => setSelectedService(service.name)}
-                                            className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 bg-black/30 backdrop-blur-md ${isSelected ? 'border-cyan-400 shadow-cyan-500/20 shadow-lg' : 'border-gray-500/30 hover:border-cyan-400/50'}`}
-                                            whileHover={{ y: -5 }}
-                                        >
-                                            <div className="flex flex-col items-center justify-center gap-4 text-center">
-                                                <Icon size={36} className={isSelected ? 'text-cyan-400' : 'text-gray-300'} />
-                                                <h3 className={`font-semibold text-base md:text-lg ${isSelected ? 'text-white' : 'text-gray-300'}`}>{service.name}</h3>
-                                            </div>
-                                        </motion.div>
-                                    );
-                                })}
-                            </div>
-
-                            <motion.button
-                                onClick={handleApply}
-                                disabled={!selectedService}
-                                className="flex items-center gap-3 px-10 py-4 font-bold text-lg text-white bg-cyan-600 rounded-full shadow-lg shadow-cyan-500/30 transition-all duration-300 disabled:bg-gray-600 disabled:shadow-none disabled:cursor-not-allowed hover:bg-cyan-500 hover:shadow-xl hover:shadow-cyan-500/40"
-                                whileTap={{ scale: 0.95 }}
-                            >
-                                <Send size={20} />
-                                申 请
-                            </motion.button>
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            key="status"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ duration: 0.7 }}
-                            className="w-full"
-                        >
-                            <ApplicationStatus />
-                        </motion.div>
-                    )}
+                    {renderContent()}
                 </AnimatePresence>
             </main>
         </div>

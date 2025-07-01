@@ -1,10 +1,14 @@
 // 文件路径: src/app/admin/page.tsx
+// [升级说明] 此文件已包含展示所有用户资料（包括新服务申请）的逻辑。
+// fetchUserSubmissions 函数会从 /api/user-submissions 获取所有 submission:* 记录。
+// 因此，在新的 /api/submit-application 接口将申请存入数据库后，此页面无需修改即可自动显示新申请。
+// 这就是最终的、完整的代码。
 
 "use client";
 
 import React, { useState, useEffect, PropsWithChildren, ComponentProps, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck, Users, Eye, EyeOff, ClipboardList, Briefcase } from 'lucide-react';
+import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck, Users, Eye, EyeOff, ClipboardList, Briefcase, Handshake, CheckCircle, XCircle, Hourglass } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { toPng } from 'html-to-image';
@@ -17,6 +21,7 @@ declare const XLSX: any;
 
 // --- 类型定义 ---
 type UserPermission = 'full' | 'readonly';
+type ApplicationStatus = 'pending' | 'accepted' | 'completed' | 'rejected';
 
 interface User {
     username: string;
@@ -44,6 +49,7 @@ export interface UserSubmission {
     services: string[];
     formData: Record<string, { question: string, answer: unknown }>;
     submittedAt: string;
+    status?: ApplicationStatus; // 增加可选的状态字段
 }
 
 interface LoginSuccessData {
@@ -985,6 +991,119 @@ function UserSubmissionsViewer({ submissions, isLoading, error, onDelete, onRefr
     );
 }
 
+// --- 新增：客户申请管理组件 ---
+function CustomerApplicationViewer({
+    submissions,
+    isLoading,
+    error,
+    onRefresh,
+    permission,
+    getAuthHeaders
+}: {
+    submissions: UserSubmission[];
+    isLoading: boolean;
+    error: string | null;
+    onRefresh: () => void;
+    permission: UserPermission;
+    getAuthHeaders: (isJson?: boolean) => Record<string, string>;
+}) {
+    const [localSubmissions, setLocalSubmissions] = useState<UserSubmission[]>([]);
+
+    useEffect(() => {
+        setLocalSubmissions(submissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()));
+    }, [submissions]);
+
+    const handleUpdateStatus = async (key: string, status: ApplicationStatus) => {
+        if (permission !== 'full') {
+            alert("您没有权限执行此操作。");
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/update-application-status', {
+                method: 'POST',
+                headers: getAuthHeaders(true),
+                body: JSON.stringify({ key, status }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '更新状态失败');
+            }
+
+            // 更新本地状态以立即反馈
+            setLocalSubmissions(prev =>
+                prev.map(sub => (sub.key === key ? { ...sub, status } : sub))
+            );
+            alert(`申请状态已更新为: ${status}`);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : '更新时发生错误');
+        }
+    };
+
+    const getStatusPill = (status: ApplicationStatus = 'pending') => {
+        const statusMap: Record<ApplicationStatus, { text: string; className: string; icon: React.ReactNode }> = {
+            pending: { text: '待处理', className: 'bg-yellow-500/20 text-yellow-400', icon: <Hourglass size={14} /> },
+            accepted: { text: '已受理', className: 'bg-blue-500/20 text-blue-400', icon: <CheckCircle size={14} /> },
+            completed: { text: '已完成', className: 'bg-green-500/20 text-green-400', icon: <CheckCircle size={14} /> },
+            rejected: { text: '已拒绝', className: 'bg-red-500/20 text-red-400', icon: <XCircle size={14} /> },
+        };
+        const { text, className, icon } = statusMap[status];
+        return (
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${className}`}>
+                {icon}
+                {text}
+            </span>
+        );
+    };
+
+    return (
+        <div className="p-4 md:p-8 w-full h-full flex flex-col">
+            <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">客户申请</h1>
+            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                    刷新
+                </button>
+            </div>
+            <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
+                <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+                        <tr>
+                            <th scope="col" className="px-6 py-3">用户</th>
+                            <th scope="col" className="px-6 py-3">申请服务</th>
+                            <th scope="col" className="px-6 py-3">提交时间</th>
+                            <th scope="col" className="px-6 py-3">状态</th>
+                            <th scope="col" className="px-6 py-3 text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>)
+                        : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>)
+                        : localSubmissions.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有客户申请记录</td></tr>)
+                        : (localSubmissions.map((submission) => (
+                            <tr key={submission.key} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600">
+                                <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{submission.userEmail}</td>
+                                <td className="px-6 py-4">{submission.services.join(', ')}</td>
+                                <td className="px-6 py-4">{new Date(submission.submittedAt).toLocaleString()}</td>
+                                <td className="px-6 py-4">{getStatusPill(submission.status)}</td>
+                                <td className="px-6 py-4 text-center space-x-2">
+                                    {permission === 'full' && submission.status !== 'completed' && submission.status !== 'rejected' && (
+                                        <>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'accepted')} className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700">接受</button>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'completed')} className="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700">完成</button>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'rejected')} className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700">拒绝</button>
+                                        </>
+                                    )}
+                                </td>
+                            </tr>
+                        )))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
 
 // --- 系统设置组件 ---
 function SettingsView({ permission, getAuthHeaders }: { permission: UserPermission, getAuthHeaders: (isJson?: boolean) => Record<string, string> }) {
@@ -1145,7 +1264,7 @@ function SettingsView({ permission, getAuthHeaders }: { permission: UserPermissi
 // --- 主页面组件 ---
 function AdminDashboard({ onLogout, permission, username, token }: { onLogout: () => void; permission: UserPermission; username: string; token: string; }) {
     const [open, setOpen] = useState(true);
-    const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback' | 'questionnaire' | 'userSubmissions' | 'settings'>('list');
+    const [view, setView] = useState<'list' | 'editor' | 'questions' | 'customerFeedback' | 'questionnaire' | 'userSubmissions' | 'customerApplications' | 'settings'>('list');
     
     // Articles state
     const [articles, setArticles] = useState<Article[]>([]);
@@ -1267,7 +1386,7 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
         if (view === 'questions') fetchChatLogs();
         if (view === 'customerFeedback') fetchCustomerSubmissions();
         if (view === 'questionnaire') fetchQuestionnaires();
-        if (view === 'userSubmissions') fetchUserSubmissions();
+        if (view === 'userSubmissions' || view === 'customerApplications') fetchUserSubmissions();
     }, [view]);
 
     const handleEditArticle = (article: Article) => { setEditingArticle(article); setView('editor'); };
@@ -1346,6 +1465,7 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
         { label: "客户反馈", href: "#", icon: <UserCheck className="h-5 w-5" />, action: () => setView('customerFeedback') },
         { label: "问卷调查", href: "#", icon: <ClipboardList className="h-5 w-5" />, action: () => setView('questionnaire') },
         { label: "用户资料", href: "#", icon: <Briefcase className="h-5 w-5" />, action: () => setView('userSubmissions') },
+        { label: "客户申请", href: "#", icon: <Handshake className="h-5 w-5" />, action: () => setView('customerApplications') },
         { label: "系统设置", href: "#", icon: <Settings className="h-5 w-5" />, action: () => setView('settings') },
     ];
 
@@ -1360,6 +1480,7 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
             case 'customerFeedback': return <CustomerFeedbackViewer submissions={customerSubmissions} isLoading={isSubmissionsLoading} error={submissionsError} onDelete={handleDeleteCustomerFeedback} onRefresh={fetchCustomerSubmissions} permission={permission} />;
             case 'questionnaire': return <QuestionnaireViewer submissions={questionnaireSubmissions} isLoading={isQuestionnairesLoading} error={questionnairesError} onDelete={handleDeleteQuestionnaires} onRefresh={fetchQuestionnaires} permission={permission} />;
             case 'userSubmissions': return <UserSubmissionsViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onDelete={handleDeleteUserSubmissions} onRefresh={fetchUserSubmissions} permission={permission} />;
+            case 'customerApplications': return <CustomerApplicationViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onRefresh={fetchUserSubmissions} permission={permission} getAuthHeaders={getAuthHeaders} />;
             case 'settings': return <SettingsView permission={permission} getAuthHeaders={getAuthHeaders} />;
             default: return <div>请选择一个视图</div>;
         }
