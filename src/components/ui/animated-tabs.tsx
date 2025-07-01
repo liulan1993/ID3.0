@@ -62,7 +62,7 @@ const defaultTabs: Tab[] = [
   },
   {
     id: "tab3",
-    label: "财税合规",
+    label: "财税与合规",
     content: (
       <div className="grid grid-cols-1 gap-4 w-full h-full">
         <img

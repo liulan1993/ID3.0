@@ -46,7 +46,7 @@ const VelocityScroll = () => {
 
   const translateX = useTransform(scrollYProgress, [0.2, 0.8], [0, -4500]); 
   
-  const text = "Apex视设立新加坡公司为全球战略，非流程代办。我们以顶层视角构建稳固合规的商业基石，为未来护航。";
+  const text = "Apex是设立新加坡公司为全球战略，非流程代办。我们以顶层视角构建稳固合规的商业基石，为未来护航。";
   const textContent = ` ${text} `.repeat(5);
 
   return (
