@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut, Loader, ServerCrash, FileDown, X, FileText, ClipboardList, MessageSquare, Trash2 } from 'lucide-react';
+import { LogOut, Loader, ServerCrash, FileDown, X, FileText, ClipboardList, MessageSquare, Trash2, Home } from 'lucide-react';
 import { PutBlobResult } from '@vercel/blob';
 
 // --- 类型定义 ---
@@ -236,8 +236,6 @@ export default function MyProfilePage() {
         router.push('/');
     };
 
-    // --- 开始修改 ---
-    // 简化数据获取逻辑，只调用一个统一的API
     const fetchAllData = async () => {
         setIsLoading(true);
         setError(null);
@@ -265,7 +263,6 @@ export default function MyProfilePage() {
                 throw new Error(data.error);
             }
 
-            // 设置从统一API获取的所有数据
             setAllData({
                 submissions: (data.submissions || []).sort((a: UserSubmission, b: UserSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
                 questionnaires: (data.questionnaires || []).sort((a: QuestionnaireSubmission, b: QuestionnaireSubmission) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()),
@@ -278,7 +275,6 @@ export default function MyProfilePage() {
             setIsLoading(false);
         }
     };
-    // --- 结束修改 ---
 
     useEffect(() => {
         const token = localStorage.getItem('authToken');
@@ -308,14 +304,12 @@ export default function MyProfilePage() {
         
         const token = localStorage.getItem('authToken');
         if (!token) {
-            // 使用自定义提示框或UI元素替代 alert
             console.error('会话已过期，请重新登录。');
             handleLogout();
             return;
         }
 
         try {
-            // 删除操作统一调用my-data API
             const response = await fetch('/api/my-data', {
                 method: 'DELETE',
                 headers: { 
@@ -330,7 +324,6 @@ export default function MyProfilePage() {
                 throw new Error(errData.error || '删除失败');
             }
             
-            // 从本地状态中移除已删除项
             setAllData(prevData => ({
                 submissions: prevData.submissions.filter(item => item.key !== key),
                 questionnaires: prevData.questionnaires.filter(item => item.key !== key),
@@ -338,7 +331,6 @@ export default function MyProfilePage() {
             }));
 
         } catch (err) {
-            // 使用自定义提示框或UI元素替代 alert
             setError(err instanceof Error ? err.message : '删除时发生错误');
         }
     };
@@ -385,7 +377,7 @@ export default function MyProfilePage() {
         <div className="relative min-h-screen w-full bg-[#000] text-white flex flex-col items-center p-4 sm:p-8 overflow-hidden">
             <Scene />
             <Header user={user} onLogout={handleLogout} />
-            <main className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 mt-24 w-full">
+            <main className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 mt-24 w-full flex flex-col">
                 <h1 className="text-4xl font-bold mb-8 text-center text-gray-100">我的资料</h1>
                 <div className="flex justify-center mb-8 border-b border-gray-500/20">
                     {tabs.map(tab => {
@@ -398,7 +390,20 @@ export default function MyProfilePage() {
                         );
                     })}
                 </div>
-                {renderContent()}
+                <div className="flex-grow">
+                    {renderContent()}
+                </div>
+                {/* --- 开始修改 --- */}
+                <div className="mt-12 flex justify-center">
+                    <button 
+                        onClick={() => router.push('/')}
+                        className="flex items-center gap-2 px-6 py-3 bg-neutral-800/50 border border-neutral-700 text-neutral-300 rounded-lg hover:bg-neutral-700/50 hover:text-white transition-all duration-300 shadow-lg"
+                    >
+                        <Home size={18} />
+                        返回主页
+                    </button>
+                </div>
+                {/* --- 结束修改 --- */}
             </main>
             <AnimatePresence>
                 {selectedItem && <DetailsModal item={selectedItem} onClose={() => setSelectedItem(null)} type={activeTab} />}
