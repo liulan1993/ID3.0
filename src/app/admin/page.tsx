@@ -252,7 +252,7 @@ const LogoIcon: FC = () => (<div className="font-normal flex space-x-2 items-cen
 
 
 // --- 文章编辑器组件 ---
-const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article | null; permission: UserPermission }> = ({ onArticlePublished, articleToEdit, permission }) => {
+const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article | null; permission: UserPermission, getAuthHeaders: () => Record<string, string> }> = ({ onArticlePublished, articleToEdit, permission, getAuthHeaders }) => {
     const [markdownContent, setMarkdownContent] = useState('');
     const [authorEmail, setAuthorEmail] = useState('admin@example.com');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -281,7 +281,16 @@ const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article
     const handleFileUpload = async (file: File): Promise<string | null> => {
         setIsUploading(true);
         try {
-            const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}&userEmail=${encodeURIComponent(authorEmail)}`, { method: 'POST', body: file });
+            // --- FIX: Use getAuthHeaders but remove Content-Type for file uploads ---
+            const headers = getAuthHeaders();
+            delete headers['Content-Type']; // Let the browser set the correct multipart/form-data header
+
+            const response = await fetch(`/api/upload?filename=${encodeURIComponent(file.name)}&userEmail=${encodeURIComponent(authorEmail)}`, { 
+                method: 'POST', 
+                body: file, 
+                headers: headers 
+            });
+
             const newBlob = await response.json();
             if (!response.ok) throw new Error(newBlob.message || '上传失败');
             return newBlob.url;
@@ -335,7 +344,7 @@ const ArticleEditor: FC<{ onArticlePublished: () => void; articleToEdit: Article
         const body = JSON.stringify(isEditMode ? { id: articleToEdit!.id, ...articleData } : articleData);
 
         try {
-            const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body });
+            const response = await fetch(url, { method, headers: getAuthHeaders(), body });
             if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.message || '提交失败'); }
             onArticlePublished();
         } catch (err: unknown) {
@@ -393,7 +402,7 @@ const ArticleList: FC<{ articles: Article[]; isLoading: boolean; error: string |
             <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th scope="col" className="px-6 py-3">封面图</th><th scope="col" className="px-6 py-3">标题</th><th scope="col" className="px-6 py-3">作者</th><th scope="col" className="px-6 py-3">发布日期</th><th scope="col" className="px-6 py-3 text-center">操作</th></tr></thead>
-                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "[https://placehold.co/100x100/EEE/333?text=N/A](https://placehold.co/100x100/EEE/333?text=N/A)"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button>{!isReadonly && <button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button>}</td></tr>)))}</tbody>
+                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredArticles.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的文章</td></tr>) : (filteredArticles.map((article) => (<tr key={article.id} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><img src={article.coverImageUrl || "https://placehold.co/100x100/EEE/333?text=N/A"} alt={article.title} width={80} height={80} className="rounded-md object-cover w-20 h-20" /></td><th scope="row" className="px-6 py-4 font-medium text-gray-900 dark:text-white">{article.title}</th><td className="px-6 py-4">{article.authorEmail}</td><td className="px-6 py-4">{new Date(article.createdAt).toLocaleDateString()}</td><td className="px-6 py-4 text-center"><button onClick={() => onEdit(article)} className="font-medium text-blue-500 hover:underline mr-4"><Edit className="inline h-5 w-5"/></button>{!isReadonly && <button onClick={() => onDelete(article.id)} className="font-medium text-red-500 hover:underline"><Trash2 className="inline h-5 w-5"/></button>}</td></tr>)))}</tbody>
                 </table>
             </div>
         </div>
@@ -401,7 +410,7 @@ const ArticleList: FC<{ articles: Article[]; isLoading: boolean; error: string |
 };
 
 // --- 客户问题一览组件 ---
-const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | null; onRefresh: () => void; permission: UserPermission }> = ({ logs, isLoading, error, onRefresh, permission }) => {
+const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | null; onRefresh: () => void; onDelete: (keys: string[]) => void; permission: UserPermission }> = ({ logs, isLoading, error, onRefresh, onDelete, permission }) => {
     const [filteredLogs, setFilteredLogs] = useState<ChatLog[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
     const [startDate, setStartDate] = useState('');
@@ -411,16 +420,28 @@ const ChatLogViewer: FC<{ logs: ChatLog[]; isLoading: boolean; error: string | n
     useEffect(() => { let tempLogs = [...logs]; if (startDate) { tempLogs = tempLogs.filter(log => new Date(log.timestamp) >= new Date(startDate)); } if (endDate) { const endOfDay = new Date(endDate); endOfDay.setHours(23, 59, 59, 999); tempLogs = tempLogs.filter(log => new Date(log.timestamp) <= endOfDay); } setFilteredLogs(tempLogs.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())); }, [logs, startDate, endDate]);
     const handleSelect = (key: string) => { const newSelection = new Set(selectedKeys); if (newSelection.has(key)) { newSelection.delete(key); } else { newSelection.add(key); } setSelectedKeys(newSelection); };
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.checked) { setSelectedKeys(new Set(filteredLogs.map(log => log.key))); } else { setSelectedKeys(new Set()); } };
-    const handleDelete = async (keysToDelete: string[]) => { if (isReadonly) { alert("您没有权限执行此操作。"); return; } if (keysToDelete.length === 0 || !window.confirm(`确定要删除选中的 ${keysToDelete.length} 条记录吗？`)) return; try { const response = await fetch('/api/chat-logs', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys: keysToDelete }), }); if (!response.ok) throw new Error('删除失败'); alert('删除成功！'); onRefresh(); setSelectedKeys(new Set()); } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); } };
+    const handleDeleteClick = (keysToDelete: string[]) => {
+        if (isReadonly) {
+            alert("您没有权限执行此操作。");
+            return;
+        }
+        if (keysToDelete.length === 0 || !window.confirm(`确定要删除选中的 ${keysToDelete.length} 条记录吗？`)) return;
+        onDelete(keysToDelete);
+        setSelectedKeys(currentKeys => {
+            const newKeys = new Set(currentKeys);
+            keysToDelete.forEach(key => newKeys.delete(key));
+            return newKeys;
+        });
+    };
     const handleExport = () => { if (typeof XLSX === 'undefined') { alert('导出库正在加载中，请稍后再试。'); return; } const dataToExport = filteredLogs.map(log => ({ '用户邮箱': log.user.email, '用户问题': log.question, '提问时间': new Date(log.timestamp).toLocaleString(), })); const worksheet = XLSX.utils.json_to_sheet(dataToExport); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "客户问题记录"); XLSX.writeFile(workbook, "客户问题记录.xlsx"); };
     return (
         <div className="p-4 md:p-8 w-full h-full flex flex-col">
             <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">客户问题一览</h1>
-            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"><div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-gray-500"/><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/><span>-</span><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/></div><button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"><Download className="h-5 w-5"/>导出 Excel</button>{!isReadonly && <button onClick={() => handleDelete(Array.from(selectedKeys))} disabled={selectedKeys.size === 0} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"><Trash2 className="h-5 w-5"/>删除选中</button>}</div>
+            <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"><div className="flex items-center gap-2"><Calendar className="h-5 w-5 text-gray-500"/><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/><span>-</span><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700"/></div><button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"><Download className="h-5 w-5"/>导出 Excel</button>{!isReadonly && <button onClick={() => handleDeleteClick(Array.from(selectedKeys))} disabled={selectedKeys.size === 0} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400"><Trash2 className="h-5 w-5"/>删除选中</button>}</div>
             <div className="flex-1 overflow-x-auto shadow-md sm:rounded-lg">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"><tr><th scope="col" className="p-4"><input type="checkbox" onChange={handleSelectAll} disabled={isReadonly} checked={filteredLogs.length > 0 && selectedKeys.size === filteredLogs.length}/></th><th scope="col" className="px-6 py-3">用户</th><th scope="col" className="px-6 py-3">问题内容</th><th scope="col" className="px-6 py-3">时间</th><th scope="col" className="px-6 py-3">操作</th></tr></thead>
-                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredLogs.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的记录</td></tr>) : (filteredLogs.map((log) => (<tr key={log.key} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><input type="checkbox" checked={selectedKeys.has(log.key)} onChange={() => handleSelect(log.key)} disabled={isReadonly}/></td><td className="px-6 py-4">{log.user.email}</td><td className="px-6 py-4 max-w-md truncate" title={log.question}>{log.question}</td><td className="px-6 py-4">{new Date(log.timestamp).toLocaleString()}</td><td className="px-6 py-4">{!isReadonly && <button onClick={() => handleDelete([log.key])} className="text-red-500 hover:underline"><Trash2 className="h-5 w-5"/></button>}</td></tr>)))}</tbody>
+                    <tbody>{isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>) : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>) : filteredLogs.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有符合条件的记录</td></tr>) : (filteredLogs.map((log) => (<tr key={log.key} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600"><td className="p-4"><input type="checkbox" checked={selectedKeys.has(log.key)} onChange={() => handleSelect(log.key)} disabled={isReadonly}/></td><td className="px-6 py-4">{log.user.email}</td><td className="px-6 py-4 max-w-md truncate" title={log.question}>{log.question}</td><td className="px-6 py-4">{new Date(log.timestamp).toLocaleString()}</td><td className="px-6 py-4">{!isReadonly && <button onClick={() => handleDeleteClick([log.key])} className="text-red-500 hover:underline"><Trash2 className="h-5 w-5"/></button>}</td></tr>)))}</tbody>
                 </table>
             </div>
         </div>
@@ -931,7 +952,7 @@ const UserSubmissionsViewer: FC<{
 
 
 // --- 系统设置组件 ---
-const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
+const SettingsView: FC<{ permission: UserPermission, getAuthHeaders: () => Record<string, string> }> = ({ permission, getAuthHeaders }) => {
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -944,8 +965,11 @@ const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
     const fetchUsers = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch('/api/users');
-            if (!res.ok) throw new Error('获取用户列表失败');
+            const res = await fetch('/api/users', { headers: getAuthHeaders() });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.message || '获取用户列表失败');
+            }
             const data = await res.json();
             setUsers(data);
         } catch (err) {
@@ -956,8 +980,10 @@ const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
     };
 
     useEffect(() => {
-        fetchUsers();
-    }, []);
+        if (permission === 'full') {
+            fetchUsers();
+        }
+    }, [permission]);
 
     const handleAddUser = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -966,7 +992,7 @@ const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
         try {
             const res = await fetch('/api/users', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ username: newUsername, password: newPassword, permission: newPermission }),
             });
             const data = await res.json();
@@ -987,7 +1013,7 @@ const SettingsView: FC<{ permission: UserPermission }> = ({ permission }) => {
         try {
             const res = await fetch('/api/users', {
                 method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ username }),
             });
             const data = await res.json();
@@ -1112,13 +1138,38 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const [isUserSubmissionsLoading, setIsUserSubmissionsLoading] = useState(true);
     const [userSubmissionsError, setUserSubmissionsError] = useState<string | null>(null);
 
-    useEffect(() => { const script = document.createElement('script'); script.src = "[https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js](https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js)"; script.async = true; document.body.appendChild(script); return () => { document.body.removeChild(script); }; }, []);
+    // --- FIX: Correctly load XLSX script ---
+    useEffect(() => { 
+        const script = document.createElement('script'); 
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; 
+        script.async = true; 
+        document.body.appendChild(script); 
+        return () => { document.body.removeChild(script); }; 
+    }, []);
+
+    // --- FIX: Add auth token to API requests ---
+    const getAuthHeaders = (): Record<string, string> => {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+        const token = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            console.error("Auth token not found.");
+            onLogout();
+        }
+        return headers;
+    };
 
     const fetchArticles = async () => { 
         setIsArticlesLoading(true); setArticlesError(null); 
         try { 
-            const response = await fetch('/api/articles'); 
-            if (!response.ok) throw new Error('获取文章数据失败'); 
+            const response = await fetch('/api/articles', { headers: getAuthHeaders() }); 
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '获取文章数据失败');
+            }
             const data = await response.json(); 
             const parsedArticles = data.map((item: unknown) => typeof item === 'string' ? JSON.parse(item) : item).filter(Boolean); 
             parsedArticles.sort((a:Article, b:Article) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); 
@@ -1129,8 +1180,11 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchChatLogs = async () => {
         setIsChatLogsLoading(true); setChatLogsError(null);
         try {
-            const response = await fetch('/api/chat-logs');
-            if (!response.ok) throw new Error('获取聊天记录失败');
+            const response = await fetch('/api/chat-logs', { headers: getAuthHeaders() });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '获取聊天记录失败');
+            }
             const data = await response.json();
             setChatLogs(data);
         } catch (err: unknown) { setChatLogsError(err instanceof Error ? err.message : '未知错误'); } finally { setIsChatLogsLoading(false); }
@@ -1139,8 +1193,11 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchCustomerSubmissions = async () => {
         setIsSubmissionsLoading(true); setSubmissionsError(null);
         try {
-            const response = await fetch('/api/customer-feedback');
-            if (!response.ok) throw new Error('获取客户反馈数据失败');
+            const response = await fetch('/api/customer-feedback', { headers: getAuthHeaders() });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '获取客户反馈数据失败');
+            }
             const data = await response.json();
             setCustomerSubmissions(data);
         } catch (err: unknown) { setSubmissionsError(err instanceof Error ? err.message : '未知错误'); } finally { setIsSubmissionsLoading(false); }
@@ -1149,8 +1206,11 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchQuestionnaires = async () => {
         setIsQuestionnairesLoading(true); setQuestionnairesError(null);
         try {
-            const response = await fetch('/api/questionnaires');
-            if (!response.ok) throw new Error('获取问卷数据失败');
+            const response = await fetch('/api/questionnaires', { headers: getAuthHeaders() });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '获取问卷数据失败');
+            }
             const data = await response.json();
             setQuestionnaireSubmissions(data);
         } catch (err: unknown) { setQuestionnairesError(err instanceof Error ? err.message : '未知错误'); } finally { setIsQuestionnairesLoading(false); }
@@ -1159,8 +1219,11 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const fetchUserSubmissions = async () => {
         setIsUserSubmissionsLoading(true); setUserSubmissionsError(null);
         try {
-            const response = await fetch('/api/user-submissions');
-            if (!response.ok) throw new Error('获取用户资料失败');
+            const response = await fetch('/api/user-submissions', { headers: getAuthHeaders() });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || '获取用户资料失败');
+            }
             const data = await response.json();
             setUserSubmissions(data);
         } catch (err: unknown) { setUserSubmissionsError(err instanceof Error ? err.message : '未知错误'); } finally { setIsUserSubmissionsLoading(false); }
@@ -1176,14 +1239,32 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
 
     const handleEditArticle = (article: Article) => { setEditingArticle(article); setView('editor'); };
     const handleNewArticle = () => { if (permission === 'readonly') { alert("您没有权限写新文章。"); return; } setEditingArticle(null); setView('editor'); };
-    const handleDeleteArticle = async (articleId: string) => { if (permission === 'readonly') { alert("您没有权限删除文章。"); return; } if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
+    const handleDeleteArticle = async (articleId: string) => { if (permission === 'readonly') { alert("您没有权限删除文章。"); return; } if (!window.confirm(`确定删除文章？`)) return; try { const response = await fetch('/api/articles', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ id: articleId }), }); if (!response.ok) { const d = await response.json(); throw new Error(d.message || '删除失败'); } fetchArticles(); } catch (err: unknown) { alert(err instanceof Error ? err.message : '删除时发生错误'); } };
     const handlePublishSuccess = () => { alert('操作成功！'); setView('list'); fetchArticles(); };
     
+    const handleDeleteChatLogs = async (keys: string[]) => {
+        if (permission === 'readonly') { alert("您没有权限执行此操作。"); return; }
+        try {
+            const response = await fetch('/api/chat-logs', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ keys }), });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '删除失败');
+            }
+            alert('删除成功！');
+            fetchChatLogs();
+        } catch (err) {
+            alert(err instanceof Error ? err.message : '删除时发生未知错误');
+        }
+    };
+
     const handleDeleteCustomerFeedback = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除反馈。"); return; }
         try {
-            const response = await fetch('/api/customer-feedback', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
-            if (!response.ok) throw new Error('删除失败');
+            const response = await fetch('/api/customer-feedback', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ keys }), });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '删除失败');
+            }
             alert('删除成功！');
             fetchCustomerSubmissions();
         } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
@@ -1192,8 +1273,11 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const handleDeleteQuestionnaires = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除问卷。"); return; }
         try {
-            const response = await fetch('/api/questionnaires', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
-            if (!response.ok) throw new Error('删除失败');
+            const response = await fetch('/api/questionnaires', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ keys }), });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || '删除失败');
+            }
             alert('删除成功！');
             fetchQuestionnaires();
         } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
@@ -1202,8 +1286,11 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const handleDeleteUserSubmissions = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除资料。"); return; }
         try {
-            const response = await fetch('/api/user-submissions', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keys }), });
-            if (!response.ok) throw new Error('删除失败');
+            const response = await fetch('/api/user-submissions', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ keys }), });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || '删除失败');
+            }
             alert('删除成功！');
             fetchUserSubmissions();
         } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
@@ -1235,12 +1322,12 @@ const AdminDashboard: FC<{ onLogout: () => void; permission: UserPermission; use
     const renderView = () => {
         switch(view) {
             case 'list': return <ArticleList articles={articles} isLoading={isArticlesLoading} error={articlesError} onEdit={handleEditArticle} onDelete={handleDeleteArticle} permission={permission} />;
-            case 'editor': return <ArticleEditor onArticlePublished={handlePublishSuccess} articleToEdit={editingArticle} permission={permission} />;
-            case 'questions': return <ChatLogViewer logs={chatLogs} isLoading={isChatLogsLoading} error={chatLogsError} onRefresh={fetchChatLogs} permission={permission} />;
+            case 'editor': return <ArticleEditor onArticlePublished={handlePublishSuccess} articleToEdit={editingArticle} permission={permission} getAuthHeaders={getAuthHeaders} />;
+            case 'questions': return <ChatLogViewer logs={chatLogs} isLoading={isChatLogsLoading} error={chatLogsError} onRefresh={fetchChatLogs} onDelete={handleDeleteChatLogs} permission={permission} />;
             case 'customerFeedback': return <CustomerFeedbackViewer submissions={customerSubmissions} isLoading={isSubmissionsLoading} error={submissionsError} onDelete={handleDeleteCustomerFeedback} onRefresh={fetchCustomerSubmissions} permission={permission} />;
             case 'questionnaire': return <QuestionnaireViewer submissions={questionnaireSubmissions} isLoading={isQuestionnairesLoading} error={questionnairesError} onDelete={handleDeleteQuestionnaires} onRefresh={fetchQuestionnaires} permission={permission} />;
             case 'userSubmissions': return <UserSubmissionsViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onDelete={handleDeleteUserSubmissions} onRefresh={fetchUserSubmissions} permission={permission} />;
-            case 'settings': return <SettingsView permission={permission} />;
+            case 'settings': return <SettingsView permission={permission} getAuthHeaders={getAuthHeaders} />;
             default: return <div>请选择一个视图</div>;
         }
     };
@@ -1272,17 +1359,31 @@ export default function AdminPage() {
     const [permission, setPermission] = useState<UserPermission | null>(null);
     const [username, setUsername] = useState<string | null>(null);
 
+    const handleLogout = () => {
+        setIsLoggedIn(false);
+        setPermission(null);
+        setUsername(null);
+        // 清除 cookie
+        document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    };
+
     useEffect(() => {
         const token = document.cookie.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
         if (token) {
             try {
-                const decoded: { permission: UserPermission, username: string } = jwtDecode(token);
-                setPermission(decoded.permission);
-                setUsername(decoded.username);
-                setIsLoggedIn(true);
+                const decoded: { permission: UserPermission, username: string, exp: number } = jwtDecode(token);
+                // 检查token是否过期
+                if (decoded.exp * 1000 > Date.now()) {
+                    setPermission(decoded.permission);
+                    setUsername(decoded.username);
+                    setIsLoggedIn(true);
+                } else {
+                    // Token过期，执行登出
+                    handleLogout();
+                }
             } catch (e) {
                 console.error("Invalid token", e);
-                setIsLoggedIn(false);
+                handleLogout();
             }
         }
     }, []);
@@ -1292,17 +1393,6 @@ export default function AdminPage() {
         setPermission(data.permission);
         setIsLoggedIn(true);
     };
-
-    const handleLogout = () => {
-        setIsLoggedIn(false);
-        setPermission(null);
-        setUsername(null);
-        // 清除 cookie
-        document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-        window.location.href = '/admin';
-    };
-
-
 
     if (!isLoggedIn || !permission || !username) {
         return <LoginForm onLoginSuccess={handleLoginSuccess} />;
