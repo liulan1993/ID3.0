@@ -12,7 +12,7 @@ interface UserJwtPayload extends JWTPayload {
   email: string;
 }
 
-// 修复：为申请记录定义一个明确的类型，以避免使用 'any'
+// 为申请记录定义一个明确的类型，以避免使用 'any'
 interface ApplicationRecord {
     submittedAt: string;
     // 允许其他任何字段存在
@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
     try {
       const { payload } = await jwtVerify(token, secret);
       decodedToken = payload as UserJwtPayload;
-    } catch (e) {
-      // 修复：捕获错误但不在控制台打印，以避免 'e' 未被使用的 lint 错误
+    } catch {
+      // 修复：移除未使用的错误变量 'e'
       return NextResponse.json({ message: '无效的凭证' }, { status: 401 });
     }
 
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     // 3. 找到最新的申请
     const submissions = await kv.mget(...submissionKeys);
     
-    // 修复：过滤并进行类型断言，以进行安全的排序
+    // 过滤并进行类型断言，以进行安全的排序
     const typedSubmissions = submissions.filter(s => s) as ApplicationRecord[];
 
     const latestSubmission = typedSubmissions
@@ -57,7 +57,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ submission: latestSubmission }, { status: 200 });
 
   } catch (e) {
-    // 修复：使用捕获到的错误变量 'e'
     console.error('Get My Application Status API error:', e);
     const errorMessage = e instanceof Error ? e.message : '服务器内部错误';
     return NextResponse.json({ message: errorMessage }, { status: 500 });
