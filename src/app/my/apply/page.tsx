@@ -220,7 +220,8 @@ export default function ApplyPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                const newApplications = Array.isArray(data) ? data : (data && Array.isArray(data.submissions) ? data.submissions : []);
+                // 修复：明确地从响应中获取 'submissions' 数组
+                const newApplications = (data && Array.isArray(data.submissions)) ? data.submissions : [];
                 setApplications(newApplications);
             } else {
                 setApplications([]);

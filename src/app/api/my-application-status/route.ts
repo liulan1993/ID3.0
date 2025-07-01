@@ -12,10 +12,9 @@ interface UserJwtPayload extends JWTPayload {
   email: string;
 }
 
-// 为申请记录定义一个明确的类型，以避免使用 'any'
+// 为申请记录定义一个明确的类型
 interface ApplicationRecord {
     submittedAt: string;
-    // 允许其他任何字段存在
     [key: string]: unknown;
 }
 
@@ -33,7 +32,6 @@ export async function GET(request: NextRequest) {
       const { payload } = await jwtVerify(token, secret);
       decodedToken = payload as UserJwtPayload;
     } catch {
-      // 修复：移除未使用的错误变量 'e'
       return NextResponse.json({ message: '无效的凭证' }, { status: 401 });
     }
 
@@ -42,19 +40,21 @@ export async function GET(request: NextRequest) {
     // 2. 查找该用户的所有申请
     const submissionKeys = await kv.keys(`submission:${userEmail}:*`);
     if (submissionKeys.length === 0) {
-      return NextResponse.json({ submission: null }, { status: 200 });
+      // 如果没有申请，返回一个带空数组的响应
+      return NextResponse.json({ submissions: [] }, { status: 200 });
     }
 
-    // 3. 找到最新的申请
+    // 3. 获取所有申请记录
     const submissions = await kv.mget(...submissionKeys);
     
-    // 过滤并进行类型断言，以进行安全的排序
     const typedSubmissions = submissions.filter(s => s) as ApplicationRecord[];
 
-    const latestSubmission = typedSubmissions
-      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0];
+    // 修复：按时间倒序排序所有申请，而不仅仅是返回最新的一个
+    const sortedSubmissions = typedSubmissions
+      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
 
-    return NextResponse.json({ submission: latestSubmission }, { status: 200 });
+    // 修复：在 'submissions' 键中返回包含所有申请的数组
+    return NextResponse.json({ submissions: sortedSubmissions }, { status: 200 });
 
   } catch (e) {
     console.error('Get My Application Status API error:', e);
