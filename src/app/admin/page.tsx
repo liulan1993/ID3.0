@@ -1374,6 +1374,12 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
     const [isUserSubmissionsLoading, setIsUserSubmissionsLoading] = useState(true);
     const [userSubmissionsError, setUserSubmissionsError] = useState<string | null>(null);
 
+    // Customer Applications state
+    const [customerApplications, setCustomerApplications] = useState<UserSubmission[]>([]);
+    const [isCustomerApplicationsLoading, setIsCustomerApplicationsLoading] = useState(true);
+    const [customerApplicationsError, setCustomerApplicationsError] = useState<string | null>(null);
+
+
     useEffect(() => { 
         const script = document.createElement('script'); 
         script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; 
@@ -1450,35 +1456,52 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
         } catch (err: unknown) { setQuestionnairesError(err instanceof Error ? err.message : '未知错误'); } finally { setIsQuestionnairesLoading(false); }
     };
 
-    const fetchAllSubmissionsForAdmin = async () => {
+    const fetchUserProfiles = async () => {
         setIsUserSubmissionsLoading(true);
         setUserSubmissionsError(null);
         try {
-            const response = await fetch('/api/admin/get-applications', { headers: getAuthHeaders() });
+            const response = await fetch('/api/user-submissions', { headers: getAuthHeaders() });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || '获取用户资料失败');
             }
             const data = await response.json();
-            
-            // 修复：确保从API返回的数据被正确解析。API可能返回JSON字符串数组。
-            const parsedSubmissions = data.map((item: unknown) => {
-                if (typeof item === 'string') {
-                    try {
-                        return JSON.parse(item);
-                    } catch (e) {
-                        console.error("Failed to parse submission item:", item, e);
-                        return null; // or handle error appropriately
-                    }
-                }
-                return item;
-            }).filter(Boolean); // 过滤掉解析失败的null项
-
-            setUserSubmissions(parsedSubmissions);
+            setUserSubmissions(data);
         } catch (err: unknown) {
             setUserSubmissionsError(err instanceof Error ? err.message : '未知错误');
         } finally {
             setIsUserSubmissionsLoading(false);
+        }
+    };
+
+    const fetchCustomerApplications = async () => {
+        setIsCustomerApplicationsLoading(true);
+        setCustomerApplicationsError(null);
+        try {
+            const response = await fetch('/api/admin/get-applications', { headers: getAuthHeaders() });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || '获取客户申请失败');
+            }
+            const data = await response.json();
+            
+            const parsedApplications = data.map((item: unknown) => {
+                if (typeof item === 'string') {
+                    try {
+                        return JSON.parse(item);
+                    } catch (e) {
+                        console.error("Failed to parse application item:", item, e);
+                        return null;
+                    }
+                }
+                return item;
+            }).filter(Boolean);
+
+            setCustomerApplications(parsedApplications);
+        } catch (err: unknown) {
+            setCustomerApplicationsError(err instanceof Error ? err.message : '未知错误');
+        } finally {
+            setIsCustomerApplicationsLoading(false);
         }
     };
 
@@ -1487,7 +1510,8 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
         if (view === 'questions') fetchChatLogs();
         if (view === 'customerFeedback') fetchCustomerSubmissions();
         if (view === 'questionnaire') fetchQuestionnaires();
-        if (view === 'userSubmissions' || view === 'customerApplications') fetchAllSubmissionsForAdmin();
+        if (view === 'userSubmissions') fetchUserProfiles();
+        if (view === 'customerApplications') fetchCustomerApplications();
     }, [view]);
 
     const handleEditArticle = (article: Article) => { setEditingArticle(article); setView('editor'); };
@@ -1536,8 +1560,21 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
         } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
     };
 
-    const handleDeleteUserSubmissions = async (keys: string[]) => {
+    const handleDeleteUserProfiles = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除资料。"); return; }
+        try {
+            const response = await fetch('/api/user-submissions', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ keys }), });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || '删除失败');
+            }
+            alert('删除成功！');
+            fetchUserProfiles();
+        } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
+    };
+
+    const handleDeleteCustomerApplications = async (keys: string[]) => {
+        if (permission === 'readonly') { alert("您没有权限删除申请。"); return; }
         try {
             const response = await fetch('/api/admin/get-applications', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ keys }), });
             if (!response.ok) {
@@ -1545,7 +1582,7 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
                 throw new Error(errorData.error || '删除失败');
             }
             alert('删除成功！');
-            fetchAllSubmissionsForAdmin();
+            fetchCustomerApplications();
         } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
     };
     
@@ -1580,8 +1617,8 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
             case 'questions': return <ChatLogViewer logs={chatLogs} isLoading={isChatLogsLoading} error={chatLogsError} onRefresh={fetchChatLogs} onDelete={handleDeleteChatLogs} permission={permission} />;
             case 'customerFeedback': return <CustomerFeedbackViewer submissions={customerSubmissions} isLoading={isSubmissionsLoading} error={submissionsError} onDelete={handleDeleteCustomerFeedback} onRefresh={fetchCustomerSubmissions} permission={permission} />;
             case 'questionnaire': return <QuestionnaireViewer submissions={questionnaireSubmissions} isLoading={isQuestionnairesLoading} error={questionnairesError} onDelete={handleDeleteQuestionnaires} onRefresh={fetchQuestionnaires} permission={permission} />;
-            case 'userSubmissions': return <UserSubmissionsViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onDelete={handleDeleteUserSubmissions} onRefresh={fetchAllSubmissionsForAdmin} permission={permission} />;
-            case 'customerApplications': return <CustomerApplicationViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onRefresh={fetchAllSubmissionsForAdmin} permission={permission} getAuthHeaders={getAuthHeaders} onDelete={handleDeleteUserSubmissions} />;
+            case 'userSubmissions': return <UserSubmissionsViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onDelete={handleDeleteUserProfiles} onRefresh={fetchUserProfiles} permission={permission} />;
+            case 'customerApplications': return <CustomerApplicationViewer submissions={customerApplications} isLoading={isCustomerApplicationsLoading} error={customerApplicationsError} onRefresh={fetchCustomerApplications} permission={permission} getAuthHeaders={getAuthHeaders} onDelete={handleDeleteCustomerApplications} />;
             case 'settings': return <SettingsView permission={permission} getAuthHeaders={getAuthHeaders} />;
             default: return <div>请选择一个视图</div>;
         }
