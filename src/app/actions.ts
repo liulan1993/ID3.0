@@ -7,6 +7,7 @@
 import { kv } from '@vercel/kv';
 import bcrypt from 'bcryptjs';
 import sgMail from '@sendgrid/mail';
+import { SignJWT } from 'jose'; // --- 新增导入 ---
 
 // --- 类型定义 ---
 interface ContactFormData {
@@ -35,7 +36,6 @@ interface UserCredentials {
   password:string;
 }
 
-// 新增：密码重置信息接口
 interface ResetPasswordInfo {
     email: string;
     emailVerificationCode: string;
@@ -43,7 +43,7 @@ interface ResetPasswordInfo {
 }
 
 
-// --- 原有函数 ---
+// --- 原有函数 (保持不变) ---
 export async function saveContactToRedis(formData: ContactFormData) {
   try {
     const key = `contact:${formData.name}:${formData.email}`; 
@@ -82,35 +82,25 @@ export async function sendVerificationEmail(
     email: string,
     graphicalCaptchaInput: string,
     graphicalCaptchaAnswer: string,
-    phone?: string // 对于注册流程，此参数为字符串；对于忘记密码，此参数为 undefined
+    phone?: string
 ) {
-  // 步骤 1: 验证图形验证码
   if (graphicalCaptchaInput.toLowerCase() !== graphicalCaptchaAnswer.toLowerCase()) {
     return { success: false, message: '图形验证码不正确。' };
   }
 
   const normalizedEmail = email.trim().toLowerCase();
   
-  // 步骤 2: 根据流程类型执行不同的唯一性检查
   if (phone !== undefined) {
-    // --- 这是注册流程 ---
-    // [最终修复] 遵从您的指令，废弃索引，直接扫描所有 user:* 主数据进行唯一性检查。
-    // 警告：此方法在用户数量巨大时会产生严重的性能问题。
-
-    // 检查 1: 手机号唯一性 (通过扫描所有用户主数据)
-    const trimmedPhone = phone.trim();
-    if (trimmedPhone) {
-        const userKeys = await kv.keys('user:*');
+    const userKeys = await kv.keys('user:*');
+    if (phone.trim()) {
         for (const key of userKeys) {
             const userData = await kv.get<{ phone?: string }>(key);
-            // 检查每个用户记录中的 phone 字段
-            if (userData && userData.phone === trimmedPhone) {
+            if (userData && userData.phone === phone.trim()) {
                 return { success: false, message: '此手机号码已被注册。' };
             }
         }
     }
     
-    // 检查 2: 邮箱唯一性 (这个可以继续使用直接查找，因为键本身就是唯一的)
     const emailKey = `user:${normalizedEmail}`;
     const emailExists = await kv.exists(emailKey);
     if (emailExists) {
@@ -118,7 +108,6 @@ export async function sendVerificationEmail(
     }
 
   } else {
-    // --- 这是忘记密码流程 ---
     const emailKey = `user:${normalizedEmail}`;
     const emailExists = await kv.exists(emailKey);
     if (!emailExists) {
@@ -126,7 +115,6 @@ export async function sendVerificationEmail(
     }
   }
 
-  // 步骤 3: 所有检查均已通过。现在可以安全地发送验证邮件。
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = process.env.SENDGRID_FROM_EMAIL;
 
@@ -167,7 +155,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedPhone = phone ? phone.trim() : '';
     
-    // [加固措施] 在写入数据库前的最后一步，执行最终的唯一性检查，作为最后防线。
     const emailKey = `user:${normalizedEmail}`;
     const existingUserByEmail = await kv.exists(emailKey);
     if (existingUserByEmail) {
@@ -183,7 +170,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
         }
     }
 
-    // 步骤 1: 验证邮箱验证码
     const verificationKey = `verification:${normalizedEmail}`;
     const storedCode = await kv.get<string | number | null>(verificationKey);
     if (storedCode === null || storedCode === undefined) {
@@ -193,7 +179,6 @@ export async function registerUser(userInfo: RegistrationInfo) {
       throw new Error('您输入的邮箱验证码与系统记录不符。');
     }
 
-    // 步骤 2: 创建新用户
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -208,12 +193,8 @@ export async function registerUser(userInfo: RegistrationInfo) {
       createdAt: beijingISOString,
     };
     
-    // 步骤 3: 存储用户数据
     await kv.set(emailKey, JSON.stringify(newUser));
     
-    // [最终修复] 移除不再使用的 phone:* 索引的创建逻辑。
-    
-    // 步骤 4: 删除用过的验证码
     await kv.del(verificationKey);
 
     return { success: true };
@@ -225,10 +206,13 @@ export async function registerUser(userInfo: RegistrationInfo) {
   }
 }
 
+// --- 开始修改 ---
 export async function loginUser(credentials: UserCredentials) {
   try {
     const { email, password } = credentials;
     const normalizedEmail = email.trim().toLowerCase();
+    
+    // 假设普通用户的键是 user:${email}
     const userKey = `user:${normalizedEmail}`;
     const storedUser = await kv.get(userKey) as { name: string; email: string; hashedPassword: string; } | null;
 
@@ -240,16 +224,36 @@ export async function loginUser(credentials: UserCredentials) {
       throw new Error('密码不正确。');
     }
     
+    // 验证成功，生成真实的JWT Token
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET 环境变量未在服务器上配置。');
+    }
+    const secretKey = new TextEncoder().encode(secret);
+
+    const payload = {
+      name: storedUser.name,
+      email: storedUser.email,
+      permission: 'user' // 赋予普通用户权限
+    };
+
+    const token = await new SignJWT(payload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('24h')
+        .sign(secretKey);
+
     const userToReturn = {
       name: storedUser.name,
       email: storedUser.email,
     };
 
+    // 返回包含真实Token的数据
     return { 
         success: true, 
         data: { 
             user: userToReturn, 
-            token: 'mock-jwt-token-for-demo-purpose' 
+            token: token // 返回真实的、新生成的Token
         } 
     };
   } catch (error) {
@@ -258,6 +262,7 @@ export async function loginUser(credentials: UserCredentials) {
     return { success: false, message: errorMessage };
   }
 }
+// --- 结束修改 ---
 
 export async function resetPassword(info: ResetPasswordInfo) {
     try {
