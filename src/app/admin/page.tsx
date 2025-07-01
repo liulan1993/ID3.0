@@ -732,6 +732,7 @@ function UserSubmissionsViewer({ submissions, isLoading, error, onDelete, onRefr
     const [endDate, setEndDate] = useState('');
     const [detailModalOpen, setDetailModalOpen] = useState(false);
     const [selectedSubmission, setSelectedSubmission] = useState<UserSubmission | null>(null);
+    const [downloading, setDownloading] = useState<string | null>(null);
     const isReadonly = permission === 'readonly';
 
     useEffect(() => {
@@ -839,6 +840,29 @@ function UserSubmissionsViewer({ submissions, isLoading, error, onDelete, onRefr
         setDetailModalOpen(true);
     };
 
+    const handleDownload = async (fileUrl: string, fileName: string) => {
+        setDownloading(fileUrl);
+        try {
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+                throw new Error(`下载文件失败: ${response.statusText}`);
+            }
+            const blob = await response.blob();
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        } catch (err) {
+            console.error("Download error:", err);
+            alert(err instanceof Error ? err.message : '下载时发生未知错误');
+        } finally {
+            setDownloading(null);
+        }
+    };
+
     const renderAnswer = (answer: unknown) => {
         if (Array.isArray(answer)) {
             const fileBlobs: PutBlobResult[] = answer.filter((item): item is PutBlobResult => typeof item === 'object' && item !== null && 'url' in item);
@@ -847,14 +871,21 @@ function UserSubmissionsViewer({ submissions, isLoading, error, onDelete, onRefr
             return (
                 <div>
                     {otherItems.length > 0 && <p>{otherItems.join(', ')}</p>}
-                    {fileBlobs.map((file, index) => (
-                        <div key={index} className="flex items-center justify-between mt-2 p-2 bg-gray-700/50 rounded">
-                            <span className="truncate text-sm text-gray-300">{file.pathname.split('/').pop()}</span>
-                            <a href={file.url} download target="_blank" rel="noopener noreferrer" className="ml-4 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
-                                下载
-                            </a>
-                        </div>
-                    ))}
+                    {fileBlobs.map((file, index) => {
+                        const fileName = file.pathname.split('/').pop() || 'download';
+                        return (
+                            <div key={index} className="flex items-center justify-between mt-2 p-2 bg-gray-700/50 rounded">
+                                <span className="truncate text-sm text-gray-300">{fileName}</span>
+                                <button
+                                    onClick={() => handleDownload(file.url, fileName)}
+                                    disabled={downloading === file.url}
+                                    className="ml-4 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:bg-gray-500"
+                                >
+                                    {downloading === file.url ? '下载中...' : '下载'}
+                                </button>
+                            </div>
+                        );
+                    })}
                 </div>
             );
         }
