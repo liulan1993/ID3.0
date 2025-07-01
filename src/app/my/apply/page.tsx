@@ -220,18 +220,14 @@ export default function ApplyPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                // 修复：处理API可能直接返回数组或返回一个包含数组的对象的两种情况。
-                // 检查`data`本身是否为数组，如果是，则直接使用。
-                // 如果不是，则尝试从`data.submissions`获取，如果还没有，则默认为空数组。
                 const newApplications = Array.isArray(data) ? data : (data && Array.isArray(data.submissions) ? data.submissions : []);
                 setApplications(newApplications);
             } else {
-                // 如果响应不成功，清空列表以反映错误状态
                 setApplications([]);
             }
         } catch (err) {
             console.error("获取申请状态失败:", err);
-            setApplications([]); // 发生抓取错误时也清空列表
+            setApplications([]);
         } finally {
             setIsLoading(false);
         }
@@ -312,6 +308,46 @@ export default function ApplyPage() {
             <Header user={user} onBack={() => router.back()} onLogout={handleLogout} />
             
             <main className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 mt-24 w-full flex flex-col items-center">
+                
+                {/* --- 现有申请列表 --- */}
+                <div className="w-full max-w-5xl">
+                    <h2 className="text-3xl font-bold text-center text-gray-100 mb-8">我的申请</h2>
+                    {isLoading ? (
+                        <div className="flex justify-center mt-8">
+                            <Loader className="animate-spin h-12 w-12 text-cyan-400" />
+                        </div>
+                    ) : applications.length > 0 ? (
+                        <motion.div 
+                            layout
+                            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-12"
+                        >
+                            <AnimatePresence>
+                                {applications.map((app) => (
+                                    <motion.div
+                                        key={app.key}
+                                        layout
+                                        initial={{ opacity: 0, y: 50, scale: 0.8 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.5 }}
+                                        transition={{ type: 'spring', stiffness: 200, damping: 25 }}
+                                    >
+                                        <ApplicationStatusDisplay status={app.status} />
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </motion.div>
+                    ) : (
+                        <div className="text-center text-gray-400 mt-8">
+                            <p>您当前没有正在处理的申请。</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* --- 分割线 --- */}
+                <div className="w-full max-w-4xl my-16">
+                    <div className="h-px bg-gray-500/30"></div>
+                </div>
+                
                 {/* --- 申请表单 --- */}
                 <motion.div
                     key="form"
@@ -374,46 +410,6 @@ export default function ApplyPage() {
                     </motion.button>
                 </motion.div>
 
-                {/* --- 分割线和标题 --- */}
-                <div className="w-full max-w-4xl my-16">
-                    <div className="h-px bg-gray-500/30"></div>
-                    <h2 className="text-3xl font-bold text-center text-gray-100 -mt-5">
-                        <span className="bg-[#000] px-4">我的申请</span>
-                    </h2>
-                </div>
-                
-                {/* --- 现有申请列表 --- */}
-                <div className="w-full max-w-5xl">
-                    {isLoading ? (
-                        <div className="flex justify-center mt-8">
-                            <Loader className="animate-spin h-12 w-12 text-cyan-400" />
-                        </div>
-                    ) : applications.length > 0 ? (
-                        <motion.div 
-                            layout
-                            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-12"
-                        >
-                            <AnimatePresence>
-                                {applications.map((app) => (
-                                    <motion.div
-                                        key={app.key}
-                                        layout
-                                        initial={{ opacity: 0, y: 50, scale: 0.8 }}
-                                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.5 }}
-                                        transition={{ type: 'spring', stiffness: 200, damping: 25 }}
-                                    >
-                                        <ApplicationStatusDisplay status={app.status} />
-                                    </motion.div>
-                                ))}
-                            </AnimatePresence>
-                        </motion.div>
-                    ) : (
-                        <div className="text-center text-gray-400 mt-8">
-                            <p>您当前没有正在处理的申请。</p>
-                        </div>
-                    )}
-                </div>
             </main>
         </div>
     );
