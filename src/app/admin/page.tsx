@@ -1,8 +1,4 @@
 // 文件路径: src/app/admin/page.tsx
-// [升级说明] 此文件已包含展示所有用户资料（包括新服务申请）的逻辑。
-// fetchUserSubmissions 函数会从 /api/user-submissions 获取所有 submission:* 记录。
-// 因此，在新的 /api/submit-application 接口将申请存入数据库后，此页面无需修改即可自动显示新申请。
-// 这就是最终的、完整的代码。
 
 "use client";
 
@@ -730,7 +726,7 @@ function QuestionnaireViewer({ submissions, isLoading, error, onDelete, onRefres
     );
 }
 
-// --- 用户资料查看器组件 ---
+// --- 用户资料查看器组件 (旧) ---
 function UserSubmissionsViewer({ submissions, isLoading, error, onDelete, onRefresh, permission }: { submissions: UserSubmission[]; isLoading: boolean; error: string | null; onDelete: (keys: string[]) => void; onRefresh: () => void; permission: UserPermission; }) {
     const [filteredSubmissions, setFilteredSubmissions] = useState<UserSubmission[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -742,7 +738,9 @@ function UserSubmissionsViewer({ submissions, isLoading, error, onDelete, onRefr
     const isReadonly = permission === 'readonly';
 
     useEffect(() => {
-        let tempSubmissions = [...submissions];
+        // This viewer should only show submissions with formData
+        const submissionsWithFormData = submissions.filter(s => s.formData && Object.keys(s.formData).length > 0);
+        let tempSubmissions = [...submissionsWithFormData];
         if (startDate) {
             tempSubmissions = tempSubmissions.filter(s => new Date(s.submittedAt) >= new Date(startDate));
         }
@@ -998,7 +996,8 @@ function CustomerApplicationViewer({
     error,
     onRefresh,
     permission,
-    getAuthHeaders
+    getAuthHeaders,
+    onDelete
 }: {
     submissions: UserSubmission[];
     isLoading: boolean;
@@ -1006,12 +1005,28 @@ function CustomerApplicationViewer({
     onRefresh: () => void;
     permission: UserPermission;
     getAuthHeaders: (isJson?: boolean) => Record<string, string>;
+    onDelete: (keys: string[]) => void;
 }) {
-    const [localSubmissions, setLocalSubmissions] = useState<UserSubmission[]>([]);
+    const [filteredSubmissions, setFilteredSubmissions] = useState<UserSubmission[]>([]);
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const isReadonly = permission === 'readonly';
 
     useEffect(() => {
-        setLocalSubmissions(submissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()));
-    }, [submissions]);
+        // This viewer should only show submissions without extensive formData (i.e., new applications)
+        const applicationSubmissions = submissions.filter(s => !s.formData || Object.keys(s.formData).length === 0);
+        let tempSubmissions = [...applicationSubmissions];
+        if (startDate) {
+            tempSubmissions = tempSubmissions.filter(s => new Date(s.submittedAt) >= new Date(startDate));
+        }
+        if (endDate) {
+            const endOfDay = new Date(endDate);
+            endOfDay.setHours(23, 59, 59, 999);
+            tempSubmissions = tempSubmissions.filter(s => new Date(s.submittedAt) <= endOfDay);
+        }
+        setFilteredSubmissions(tempSubmissions.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()));
+    }, [submissions, startDate, endDate]);
 
     const handleUpdateStatus = async (key: string, status: ApplicationStatus) => {
         if (permission !== 'full') {
@@ -1030,15 +1045,49 @@ function CustomerApplicationViewer({
                 const errorData = await response.json();
                 throw new Error(errorData.message || '更新状态失败');
             }
-
-            // 更新本地状态以立即反馈
-            setLocalSubmissions(prev =>
-                prev.map(sub => (sub.key === key ? { ...sub, status } : sub))
-            );
+            
             alert(`申请状态已更新为: ${status}`);
+            onRefresh(); // Refresh data from server to ensure consistency
         } catch (err) {
             alert(err instanceof Error ? err.message : '更新时发生错误');
         }
+    };
+    
+    const handleSelect = (key: string) => {
+        const newSelection = new Set(selectedKeys);
+        if (newSelection.has(key)) { newSelection.delete(key); } else { newSelection.add(key); }
+        setSelectedKeys(newSelection);
+    };
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedKeys(new Set(filteredSubmissions.map(s => s.key)));
+        } else {
+            setSelectedKeys(new Set());
+        }
+    };
+    
+    const handleDelete = () => {
+        if (isReadonly) { alert("您没有权限执行此操作。"); return; }
+        if (selectedKeys.size === 0) { alert('请先选择要删除的申请。'); return; }
+        if (window.confirm(`确定要删除选中的 ${selectedKeys.size} 条申请吗？`)) {
+            onDelete(Array.from(selectedKeys));
+            setSelectedKeys(new Set());
+        }
+    };
+
+    const handleExport = () => {
+        if (typeof XLSX === 'undefined') { alert('导出库正在加载中，请稍后再试。'); return; }
+        const dataToExport = filteredSubmissions.map(s => ({
+            '客户邮箱': s.userEmail,
+            '申请时间': new Date(s.submittedAt).toLocaleString(),
+            '申请业务': s.services.join(', '),
+            '当前状态': s.status || 'pending',
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "客户申请列表");
+        XLSX.writeFile(workbook, "客户申请列表.xlsx");
     };
 
     const getStatusPill = (status: ApplicationStatus = 'pending') => {
@@ -1061,7 +1110,21 @@ function CustomerApplicationViewer({
         <div className="p-4 md:p-8 w-full h-full flex flex-col">
             <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-200">客户申请</h1>
             <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                 <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-gray-500"/>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700 text-gray-800 dark:text-white"/>
+                    <span>-</span>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 rounded border bg-white dark:bg-gray-700 text-gray-800 dark:text-white"/>
+                </div>
+                <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+                    <Download className="h-5 w-5"/>导出 Excel
+                </button>
+                {!isReadonly && (
+                    <button onClick={handleDelete} disabled={selectedKeys.size === 0} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400">
+                        <Trash2 className="h-5 w-5"/>删除选中
+                    </button>
+                )}
+                <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 ml-auto">
                     刷新
                 </button>
             </div>
@@ -1069,29 +1132,35 @@ function CustomerApplicationViewer({
                 <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
                     <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
                         <tr>
-                            <th scope="col" className="px-6 py-3">用户</th>
-                            <th scope="col" className="px-6 py-3">申请服务</th>
-                            <th scope="col" className="px-6 py-3">提交时间</th>
-                            <th scope="col" className="px-6 py-3">状态</th>
+                            <th scope="col" className="p-4">
+                                <input type="checkbox" onChange={handleSelectAll} disabled={isReadonly}/>
+                            </th>
+                            <th scope="col" className="px-6 py-3">客户邮箱</th>
+                            <th scope="col" className="px-6 py-3">申请业务</th>
+                            <th scope="col" className="px-6 py-3">申请时间</th>
+                            <th scope="col" className="px-6 py-3">当前状态</th>
                             <th scope="col" className="px-6 py-3 text-center">操作</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {isLoading ? (<tr><td colSpan={5} className="text-center p-8">正在加载...</td></tr>)
-                        : error ? (<tr><td colSpan={5} className="text-center p-8 text-red-500">{error}</td></tr>)
-                        : localSubmissions.length === 0 ? (<tr><td colSpan={5} className="text-center p-8">没有客户申请记录</td></tr>)
-                        : (localSubmissions.map((submission) => (
+                        {isLoading ? (<tr><td colSpan={6} className="text-center p-8">正在加载...</td></tr>)
+                        : error ? (<tr><td colSpan={6} className="text-center p-8 text-red-500">{error}</td></tr>)
+                        : filteredSubmissions.length === 0 ? (<tr><td colSpan={6} className="text-center p-8">没有客户申请记录</td></tr>)
+                        : (filteredSubmissions.map((submission) => (
                             <tr key={submission.key} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600">
+                                <td className="p-4">
+                                    <input type="checkbox" checked={selectedKeys.has(submission.key)} onChange={() => handleSelect(submission.key)} disabled={isReadonly}/>
+                                </td>
                                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{submission.userEmail}</td>
                                 <td className="px-6 py-4">{submission.services.join(', ')}</td>
                                 <td className="px-6 py-4">{new Date(submission.submittedAt).toLocaleString()}</td>
                                 <td className="px-6 py-4">{getStatusPill(submission.status)}</td>
                                 <td className="px-6 py-4 text-center space-x-2">
-                                    {permission === 'full' && submission.status !== 'completed' && submission.status !== 'rejected' && (
+                                    {permission === 'full' && (
                                         <>
-                                            <button onClick={() => handleUpdateStatus(submission.key, 'accepted')} className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700">接受</button>
-                                            <button onClick={() => handleUpdateStatus(submission.key, 'completed')} className="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700">完成</button>
-                                            <button onClick={() => handleUpdateStatus(submission.key, 'rejected')} className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700">拒绝</button>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'accepted')} className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50" disabled={submission.status !== 'pending'}>接受</button>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'completed')} className="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50" disabled={submission.status !== 'accepted'}>完成</button>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'rejected')} className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50" disabled={submission.status === 'completed' || submission.status === 'rejected'}>拒绝</button>
                                         </>
                                     )}
                                 </td>
@@ -1368,10 +1437,10 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
         } catch (err: unknown) { setQuestionnairesError(err instanceof Error ? err.message : '未知错误'); } finally { setIsQuestionnairesLoading(false); }
     };
 
-    const fetchUserSubmissions = async () => {
+    const fetchAllSubmissionsForAdmin = async () => {
         setIsUserSubmissionsLoading(true); setUserSubmissionsError(null);
         try {
-            const response = await fetch('/api/user-submissions', { headers: getAuthHeaders() });
+            const response = await fetch('/api/admin/get-applications', { headers: getAuthHeaders() });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || '获取用户资料失败');
@@ -1386,7 +1455,7 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
         if (view === 'questions') fetchChatLogs();
         if (view === 'customerFeedback') fetchCustomerSubmissions();
         if (view === 'questionnaire') fetchQuestionnaires();
-        if (view === 'userSubmissions' || view === 'customerApplications') fetchUserSubmissions();
+        if (view === 'userSubmissions' || view === 'customerApplications') fetchAllSubmissionsForAdmin();
     }, [view]);
 
     const handleEditArticle = (article: Article) => { setEditingArticle(article); setView('editor'); };
@@ -1438,13 +1507,13 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
     const handleDeleteUserSubmissions = async (keys: string[]) => {
         if (permission === 'readonly') { alert("您没有权限删除资料。"); return; }
         try {
-            const response = await fetch('/api/user-submissions', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ keys }), });
+            const response = await fetch('/api/admin/get-applications', { method: 'DELETE', headers: getAuthHeaders(), body: JSON.stringify({ keys }), });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || '删除失败');
             }
             alert('删除成功！');
-            fetchUserSubmissions();
+            fetchAllSubmissionsForAdmin();
         } catch (err) { alert(err instanceof Error ? err.message : '删除时发生未知错误'); }
     };
     
@@ -1479,8 +1548,8 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
             case 'questions': return <ChatLogViewer logs={chatLogs} isLoading={isChatLogsLoading} error={chatLogsError} onRefresh={fetchChatLogs} onDelete={handleDeleteChatLogs} permission={permission} />;
             case 'customerFeedback': return <CustomerFeedbackViewer submissions={customerSubmissions} isLoading={isSubmissionsLoading} error={submissionsError} onDelete={handleDeleteCustomerFeedback} onRefresh={fetchCustomerSubmissions} permission={permission} />;
             case 'questionnaire': return <QuestionnaireViewer submissions={questionnaireSubmissions} isLoading={isQuestionnairesLoading} error={questionnairesError} onDelete={handleDeleteQuestionnaires} onRefresh={fetchQuestionnaires} permission={permission} />;
-            case 'userSubmissions': return <UserSubmissionsViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onDelete={handleDeleteUserSubmissions} onRefresh={fetchUserSubmissions} permission={permission} />;
-            case 'customerApplications': return <CustomerApplicationViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onRefresh={fetchUserSubmissions} permission={permission} getAuthHeaders={getAuthHeaders} />;
+            case 'userSubmissions': return <UserSubmissionsViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onDelete={handleDeleteUserSubmissions} onRefresh={fetchAllSubmissionsForAdmin} permission={permission} />;
+            case 'customerApplications': return <CustomerApplicationViewer submissions={userSubmissions} isLoading={isUserSubmissionsLoading} error={userSubmissionsError} onRefresh={fetchAllSubmissionsForAdmin} permission={permission} getAuthHeaders={getAuthHeaders} onDelete={handleDeleteUserSubmissions} />;
             case 'settings': return <SettingsView permission={permission} getAuthHeaders={getAuthHeaders} />;
             default: return <div>请选择一个视图</div>;
         }
