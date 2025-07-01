@@ -13,10 +13,10 @@ import Testimonials from '@/components/ui/testimonials';
 import VelocityScroll from '@/components/ui/velocity-scroll';
 import StackedCircularFooter from '@/components/ui/footer';
 import AuthFormComponent from '@/components/ui/auth-form'; 
-import JinSeXianTiao from '@/components/ui/jinsexiantiao'; // <-- 新增的引用
+import JinSeXianTiao from '@/components/ui/jinsexiantiao'; // <-- 引用保持不变
 // ------------------------------------
 
-// --- 新增: 定义共享类型 ---
+// --- 定义共享类型 ---
 export interface User {
   name: string;
   email: string;
@@ -33,7 +33,6 @@ export default function Page() {
     const [isClient, setIsClient] = useState(false);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    // 修正: 为 user state 添加明确的类型
     const [user, setUser] = useState<User | null>(null);
 
     useEffect(() => {
@@ -43,7 +42,6 @@ export default function Page() {
             setIsAuthenticated(true);
             const userInfo = localStorage.getItem('userInfo');
             if (userInfo) {
-                // 确保解析的数据符合 User 类型
                 const parsedUser: User = JSON.parse(userInfo);
                 setUser(parsedUser);
             }
@@ -53,14 +51,12 @@ export default function Page() {
         }
     }, []);
 
-    // 新增: 根据弹窗状态控制 body 滚动
     useEffect(() => {
         if (isLoginModalOpen) {
             document.body.style.overflow = 'hidden';
         } else {
             document.body.style.overflow = 'unset';
         }
-        // 组件卸载时恢复滚动
         return () => {
             document.body.style.overflow = 'unset';
         };
@@ -78,7 +74,6 @@ export default function Page() {
         setIsLoginModalOpen(false);
     };
 
-    // 修正: 为 data 参数添加明确的类型, 并删除 alert
     const handleLoginSuccess = (data: LoginSuccessData) => {
         setIsAuthenticated(true);
         setUser(data.user);
@@ -89,7 +84,6 @@ export default function Page() {
         handleCloseModal();
     };
 
-    // 修正: 删除 alert
     const handleLogout = () => {
         setIsAuthenticated(false);
         setUser(null);
@@ -97,7 +91,6 @@ export default function Page() {
         localStorage.removeItem('userInfo');
     };
 
-    // 修正: 删除 alert
     const handleProtectedLinkClick = (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => {
         e.preventDefault();
         if (!isAuthenticated) {
@@ -123,7 +116,6 @@ export default function Page() {
             >
                 {isClient && (
                     <>
-                        {/* 修正: 传入 user 对象用于显示欢迎信息 */}
                         <AppNavigationBar 
                             isAuthenticated={isAuthenticated}
                             user={user}
@@ -150,8 +142,11 @@ export default function Page() {
                             
                             <VelocityScroll />
 
-                            {/* --- 新增的组件 --- */}
-                            <JinSeXianTiao />
+                            {/* --- 更新的组件调用 --- */}
+                            <JinSeXianTiao 
+                                title="Flowing Creativity"
+                                description="Explore the seamless flow of creativity and innovation. Our platform brings your ideas to life with stunning visual effects and intuitive design."
+                            />
                             {/* -------------------- */}
 
                             <StackedCircularFooter />
@@ -167,7 +162,6 @@ export default function Page() {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/80 backdrop-blur-sm p-4 pt-8 md:pt-16"
-                        // 移除此处的 onClick 事件
                     >
                         <motion.div
                             initial={{ scale: 0.9, y: 20, opacity: 0 }}
