@@ -1577,7 +1577,12 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
                         <div className="mt-8 flex flex-col gap-2">{adminLinks.map((link, idx) => (<SidebarLink key={idx} link={link} />))}</div>
                     </div>
                     <div className="flex flex-col gap-2">
-                        <SidebarLink link={userLink} />
+                        <div className="flex items-center justify-start gap-4 group/sidebar py-2 w-full text-left px-2">
+                            <Users className="h-5 w-5 text-neutral-700 dark:text-neutral-200" />
+                            <span className="text-neutral-700 dark:text-neutral-200 text-sm whitespace-pre">
+                                {username} ({permission})
+                            </span>
+                        </div>
                         <SidebarLink link={logoutLink} />
                     </div>
                 </SidebarBody>
