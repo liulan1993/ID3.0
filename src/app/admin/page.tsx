@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState, useEffect, FC, PropsWithChildren, ComponentProps, useRef } from 'react';
+import React, { useState, useEffect, PropsWithChildren, ComponentProps, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Settings, Menu, X, FileText, PlusCircle, Trash2, Edit, MessageSquare, Download, Calendar, Search, Upload, LogOut, UserCheck, Users, Eye, EyeOff, ClipboardList, Briefcase } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
