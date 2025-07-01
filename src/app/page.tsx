@@ -10,11 +10,9 @@ import OpeningAnimation from '@/components/ui/opening-animation';
 import MainScene from '@/components/ui/main-scene';
 import HomePageTitle from '@/components/ui/home-page-title';
 import Testimonials from '@/components/ui/testimonials';
-import VelocityScroll from '@/components/ui/velocity-scroll';
 import StackedCircularFooter from '@/components/ui/footer';
 import AuthFormComponent from '@/components/ui/auth-form'; 
-import JinSeXianTiao from '@/components/ui/jinsexiantiao';
-import SmoothScrollHero from '@/components/ui/smooth-scroll-hero'; // <-- 新增的引用
+
 // ------------------------------------
 
 // --- 定义共享类型 ---
@@ -140,16 +138,9 @@ export default function Page() {
                                     </div>
                                 </div>
                             </div>
-                            
-                            <VelocityScroll />
-
-                            <JinSeXianTiao />
-
-                            {/* --- 新增的组件调用 --- */}
-                            <SmoothScrollHero />
-                            {/* -------------------- */}
 
                             <StackedCircularFooter />
+
                         </div>
                     </>
                 )}
