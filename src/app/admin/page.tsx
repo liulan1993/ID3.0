@@ -1451,7 +1451,8 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
     };
 
     const fetchAllSubmissionsForAdmin = async () => {
-        setIsUserSubmissionsLoading(true); setUserSubmissionsError(null);
+        setIsUserSubmissionsLoading(true);
+        setUserSubmissionsError(null);
         try {
             const response = await fetch('/api/admin/get-applications', { headers: getAuthHeaders() });
             if (!response.ok) {
@@ -1459,8 +1460,26 @@ function AdminDashboard({ onLogout, permission, username, token }: { onLogout: (
                 throw new Error(errorData.error || '获取用户资料失败');
             }
             const data = await response.json();
-            setUserSubmissions(data);
-        } catch (err: unknown) { setUserSubmissionsError(err instanceof Error ? err.message : '未知错误'); } finally { setIsUserSubmissionsLoading(false); }
+            
+            // 修复：确保从API返回的数据被正确解析。API可能返回JSON字符串数组。
+            const parsedSubmissions = data.map((item: unknown) => {
+                if (typeof item === 'string') {
+                    try {
+                        return JSON.parse(item);
+                    } catch (e) {
+                        console.error("Failed to parse submission item:", item, e);
+                        return null; // or handle error appropriately
+                    }
+                }
+                return item;
+            }).filter(Boolean); // 过滤掉解析失败的null项
+
+            setUserSubmissions(parsedSubmissions);
+        } catch (err: unknown) {
+            setUserSubmissionsError(err instanceof Error ? err.message : '未知错误');
+        } finally {
+            setIsUserSubmissionsLoading(false);
+        }
     };
 
     useEffect(() => {
