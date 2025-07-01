@@ -1155,7 +1155,10 @@ function CustomerApplicationViewer({
                         {isLoading ? (<tr><td colSpan={6} className="text-center p-8">正在加载...</td></tr>)
                         : error ? (<tr><td colSpan={6} className="text-center p-8 text-red-500">{error}</td></tr>)
                         : filteredSubmissions.length === 0 ? (<tr><td colSpan={6} className="text-center p-8">没有客户申请记录</td></tr>)
-                        : (filteredSubmissions.map((submission) => (
+                        : (filteredSubmissions.map((submission) => {
+                            // 修复: 为 status 提供默认值 'pending' 以解决类型错误
+                            const currentStatus = submission.status || 'pending';
+                            return (
                             <tr key={submission.key} className="bg-white border-b dark:bg-gray-800 hover:bg-gray-600">
                                 <td className="p-4">
                                     <input type="checkbox" checked={selectedKeys.has(submission.key)} onChange={() => handleSelect(submission.key)} disabled={isReadonly}/>
@@ -1163,18 +1166,19 @@ function CustomerApplicationViewer({
                                 <td className="px-6 py-4 font-medium text-gray-900 dark:text-white">{submission.userEmail}</td>
                                 <td className="px-6 py-4">{submission.services.join(', ')}</td>
                                 <td className="px-6 py-4">{new Date(submission.submittedAt).toLocaleString()}</td>
-                                <td className="px-6 py-4">{getStatusPill(submission.status)}</td>
+                                <td className="px-6 py-4">{getStatusPill(currentStatus)}</td>
                                 <td className="px-6 py-4 text-center space-x-2">
                                     {permission === 'full' && (
                                         <>
-                                            <button onClick={() => handleUpdateStatus(submission.key, 'accepted')} className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50" disabled={submission.status !== 'pending'}>接受</button>
-                                            <button onClick={() => handleUpdateStatus(submission.key, 'completed')} className="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50" disabled={submission.status !== 'accepted'}>完成</button>
-                                            <button onClick={() => handleUpdateStatus(submission.key, 'rejected')} className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50" disabled={submission.status === 'completed' || submission.status === 'rejected'}>拒绝</button>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'accepted')} className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50" disabled={currentStatus !== 'pending'}>接受</button>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'completed')} className="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 disabled:opacity-50" disabled={currentStatus !== 'accepted'}>完成</button>
+                                            <button onClick={() => handleUpdateStatus(submission.key, 'rejected')} className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 disabled:opacity-50" disabled={currentStatus === 'completed' || currentStatus === 'rejected'}>拒绝</button>
                                         </>
                                     )}
                                 </td>
                             </tr>
-                        )))}
+                        )
+                        }))}
                     </tbody>
                 </table>
             </div>

@@ -8,13 +8,12 @@ const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'a-very-strong-secret-key-that-is-at-least-32-bytes-long'
 );
 
-// 为JWT载荷定义明确的类型
 interface AdminJwtPayload extends JWTPayload {
-  permission: 'full' | 'readonly';
+    permission: 'full' | 'readonly';
 }
 
 // Helper to verify admin token
-async function verifyAdmin(request: NextRequest) {
+async function verifyAdmin(request: NextRequest): Promise<{ payload?: AdminJwtPayload; error?: string; status?: number }> {
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return { error: '未授权', status: 401 };
@@ -22,11 +21,11 @@ async function verifyAdmin(request: NextRequest) {
     const token = authHeader.split(' ')[1];
     try {
         const { payload } = await jwtVerify(token, secret);
-        const adminPayload = payload as AdminJwtPayload;
-        if (adminPayload.permission !== 'full' && adminPayload.permission !== 'readonly') {
+        const decodedPayload = payload as AdminJwtPayload;
+        if (decodedPayload.permission !== 'full' && decodedPayload.permission !== 'readonly') {
              return { error: '非管理员凭证', status: 403 };
         }
-        return { payload: adminPayload };
+        return { payload: decodedPayload };
     } catch {
         return { error: '无效的凭证', status: 401 };
     }
@@ -35,8 +34,8 @@ async function verifyAdmin(request: NextRequest) {
 // GET method for admin to fetch all submissions
 export async function GET(request: NextRequest) {
     const verification = await verifyAdmin(request);
-    if (verification.error) {
-        return NextResponse.json({ error: verification.error }, { status: verification.status });
+    if (verification.error || !verification.payload) {
+        return NextResponse.json({ error: verification.error || '验证失败' }, { status: verification.status || 401 });
     }
 
     try {
@@ -45,8 +44,19 @@ export async function GET(request: NextRequest) {
             return NextResponse.json([], { status: 200 });
         }
         const submissions = await kv.mget(...keys);
-        // 确保返回的是解析后的对象数组，而不是字符串
-        const parsedSubmissions = submissions.map(sub => sub ? JSON.parse(sub as string) : null).filter(Boolean);
+        
+        const parsedSubmissions = submissions.map(sub => {
+            if (!sub) return null;
+            if (typeof sub === 'string') {
+                try {
+                    return JSON.parse(sub);
+                } catch {
+                    return null; 
+                }
+            }
+            return sub; 
+        }).filter(Boolean);
+
         return NextResponse.json(parsedSubmissions, { status: 200 });
     } catch (error) {
         console.error('Error fetching user submissions:', error);
@@ -57,17 +67,17 @@ export async function GET(request: NextRequest) {
 // DELETE method for admin to delete submissions
 export async function DELETE(request: NextRequest) {
     const verification = await verifyAdmin(request);
-    if (verification.error) {
-        return NextResponse.json({ error: verification.error }, { status: verification.status });
+    // 修复: 增加对 payload 的存在性检查
+    if (verification.error || !verification.payload) {
+        return NextResponse.json({ error: verification.error || '验证失败' }, { status: verification.status || 401 });
     }
     
-    const adminPayload = verification.payload as AdminJwtPayload;
-    if (adminPayload.permission !== 'full') {
+    if (verification.payload.permission !== 'full') {
         return NextResponse.json({ error: '权限不足' }, { status: 403 });
     }
 
     try {
-        const { keys } = await request.json() as { keys: string[] };
+        const { keys } = await request.json();
         if (!keys || !Array.isArray(keys) || keys.length === 0) {
             return NextResponse.json({ error: '未提供要删除的键' }, { status: 400 });
         }
