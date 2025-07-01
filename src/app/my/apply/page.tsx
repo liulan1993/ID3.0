@@ -220,12 +220,10 @@ export default function ApplyPage() {
             });
             if (response.ok) {
                 const data = await response.json();
-                // 假设API返回 { submissions: Application[] }
                 setApplications(data.submissions || []);
             }
         } catch (err) {
             console.error("获取申请状态失败:", err);
-            // 不在此处设置错误状态，以免干扰提交表单的错误信息
         } finally {
             setIsLoading(false);
         }
@@ -235,9 +233,8 @@ export default function ApplyPage() {
         if (!user) return;
         
         fetchStatus();
-        // 设置一个定时器来轮询状态
-        const intervalId = setInterval(fetchStatus, 30000); // 每30秒查询一次
-        return () => clearInterval(intervalId); // 组件卸载时清除定时器
+        const intervalId = setInterval(fetchStatus, 30000);
+        return () => clearInterval(intervalId);
     }, [user, fetchStatus]);
 
 
@@ -282,9 +279,10 @@ export default function ApplyPage() {
                 throw new Error(errorData.message || '申请提交失败，请稍后重试。');
             }
             
-            const data = await response.json();
-            // 将新申请添加到现有列表中
-            setApplications(prev => [...prev, data.submission]);
+            // 关键改动：提交成功后，不再手动向前端列表添加内容。
+            // 而是直接调用 fetchStatus() 重新从服务器获取完整的最新列表。
+            // 这确保了前端显示与后端数据源严格一致，避免了因后台状态变更导致的前端显示问题。
+            await fetchStatus();
             setSelectedService(null); // 提交成功后清空选项
 
         } catch (err) {
