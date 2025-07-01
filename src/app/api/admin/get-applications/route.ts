@@ -2,11 +2,16 @@
 
 import { kv } from '@vercel/kv';
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
+import { jwtVerify, type JWTPayload } from 'jose';
 
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'a-very-strong-secret-key-that-is-at-least-32-bytes-long'
 );
+
+// 为JWT载荷定义明确的类型
+interface AdminJwtPayload extends JWTPayload {
+  permission: 'full' | 'readonly';
+}
 
 // Helper to verify admin token
 async function verifyAdmin(request: NextRequest) {
@@ -17,10 +22,11 @@ async function verifyAdmin(request: NextRequest) {
     const token = authHeader.split(' ')[1];
     try {
         const { payload } = await jwtVerify(token, secret);
-        if ((payload as any).permission !== 'full' && (payload as any).permission !== 'readonly') {
+        const adminPayload = payload as AdminJwtPayload;
+        if (adminPayload.permission !== 'full' && adminPayload.permission !== 'readonly') {
              return { error: '非管理员凭证', status: 403 };
         }
-        return { payload };
+        return { payload: adminPayload };
     } catch {
         return { error: '无效的凭证', status: 401 };
     }
@@ -54,12 +60,14 @@ export async function DELETE(request: NextRequest) {
     if (verification.error) {
         return NextResponse.json({ error: verification.error }, { status: verification.status });
     }
-     if ((verification.payload as any).permission !== 'full') {
+    
+    const adminPayload = verification.payload as AdminJwtPayload;
+    if (adminPayload.permission !== 'full') {
         return NextResponse.json({ error: '权限不足' }, { status: 403 });
     }
 
     try {
-        const { keys } = await request.json();
+        const { keys } = await request.json() as { keys: string[] };
         if (!keys || !Array.isArray(keys) || keys.length === 0) {
             return NextResponse.json({ error: '未提供要删除的键' }, { status: 400 });
         }
