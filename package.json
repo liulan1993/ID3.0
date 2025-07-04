@@ -30,7 +30,6 @@
     "clsx": "^2.1.1",
     "cookies-next": "^6.0.0",
     "framer-motion": "^12.18.1",
-    "gsap": "^3.13.0",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "jose": "^6.0.11",
@@ -47,7 +46,6 @@
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.3.1",
     "three": "^0.177.0",
-    "tweakpane": "^4.0.5",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

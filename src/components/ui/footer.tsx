@@ -5,6 +5,9 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 // --- 路径已修正 ---
+import { Button } from './button';
+import { Input } from './input';
+import { Label } from './label';
 // --------------------
 
 function StackedCircularFooter() {
@@ -26,15 +29,28 @@ function StackedCircularFooter() {
             </div>
           </div>
 
-          {/* --- 修改开始 --- */}
-          <nav className="mb-8 flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-2">
-            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">Apex</Link>
-            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">留学</Link>
-            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">医疗</Link>
-            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">企业服务</Link>
-            <Link href="/" className="text-white hover:text-gray-300 text-base md:text-2xl">敬请期待</Link>
+          <nav className="mb-8 flex flex-wrap justify-center gap-x-4 sm:gap-x-6 gap-y-2 text-sm sm:text-base">
+            <Link href="/" className="text-gray-400 hover:text-white">Apex</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">留学</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">医疗</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">企业服务</Link>
+            <Link href="/" className="text-gray-400 hover:text-white">敬请期待</Link>
           </nav>
-          {/* --- 修改结束 --- */}
+          
+          <div className="mb-8 w-full max-w-md px-4">
+            <form className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+              <div className="flex-grow">
+                <Label htmlFor="email" className="sr-only">Email</Label>
+                <Input 
+                  id="email" 
+                  placeholder="输入您的邮箱" 
+                  type="email" 
+                  className="rounded-full bg-black/50 border-gray-600 text-white placeholder-gray-400 focus:ring-white" 
+                />
+              </div>
+              <Button type="submit" className="rounded-full bg-white text-black hover:bg-gray-200 w-full sm:w-auto">提交</Button>
+            </form>
+          </div>
           
           <div className="text-center">
             <p className="text-xs sm:text-sm text-gray-500">
