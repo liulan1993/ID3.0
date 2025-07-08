@@ -54,6 +54,9 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
         },
     ];
 
+    // --- 新增: 定义无需登录即可访问的公共路径 ---
+    const publicPaths = ["/exchange", "/tax", "/activity"];
+
     const [isOpen, setOpen] = useState(false);
     // --- 修改: 用于控制自定义下拉菜单的状态 ---
     const [isDropdownOpen, setDropdownOpen] = useState(false);
@@ -113,7 +116,12 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                                           <NavigationMenuLink asChild key={subItem.title}>
                                                               <Link
                                                                   href={subItem.href}
-                                                                  onClick={(e) => onProtectedLinkClick(e, subItem.href)}
+                                                                  // --- 修改: 仅在非公共路径上触发登录检查 ---
+                                                                  onClick={(e) => {
+                                                                      if (!publicPaths.includes(subItem.href)) {
+                                                                          onProtectedLinkClick(e, subItem.href);
+                                                                      }
+                                                                  }}
                                                                   className="flex flex-row justify-between items-center hover:bg-slate-800 py-2 px-4 rounded"
                                                               >
                                                                   <span>{subItem.title}</span>
@@ -210,8 +218,11 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                                 <a
                                                     key={subItem.title}
                                                     href={subItem.href}
+                                                    // --- 修改: 仅在非公共路径上触发登录检查 ---
                                                     onClick={(e) => {
-                                                      onProtectedLinkClick(e, subItem.href);
+                                                      if (!publicPaths.includes(subItem.href)) {
+                                                          onProtectedLinkClick(e, subItem.href);
+                                                      }
                                                       setOpen(false);
                                                     }}
                                                     className="flex justify-between items-center pl-2"
