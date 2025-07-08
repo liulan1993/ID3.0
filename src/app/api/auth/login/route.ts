@@ -1,5 +1,3 @@
-// --- START OF FILE route.tsx ---
-
 // 文件路径: src/app/api/auth/login/route.ts
 
 import { kv } from '@vercel/kv';
@@ -27,41 +25,34 @@ export async function POST(request: NextRequest) {
     }
 
     let user: UserData | null = null;
+    let userKey: string | null = null; // 用于存储找到的用户的主键
     
-    // [最终修复] 使用更健壮的正则表达式来区分邮箱和手机号，而不是简单地检查'@'。
     const isEmail = /\S+@\S+\.\S+/.test(username);
 
     if (isEmail) {
-      const userKey = `user:${username}`;
+      userKey = `user:${username}`;
       user = await kv.get<UserData>(userKey);
     } else { // isPhone
-      const phoneIndexKey = `user_phone:${username}`;
-      const userIdentifier = await kv.get<string>(phoneIndexKey);
+      const phone = username;
+      const phoneIndexKey = `user_phone:${phone}`;
+      const userEmail = await kv.get<string>(phoneIndexKey);
 
-      if (userIdentifier) {
-        const userKey = `user:${userIdentifier}`;
+      if (userEmail) {
+        // 方案A: 通过索引快速找到用户
+        userKey = `user:${userEmail}`;
         user = await kv.get<UserData>(userKey);
       } else {
-        console.warn(`Phone index not found for ${username}. Falling back to a full scan.`);
+        // 方案B: 索引不存在，执行全库扫描 (Fallback)
+        console.warn(`Phone index not found for ${phone}. Falling back to a full scan.`);
         let cursor = 0;
         do {
           const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
           for (const key of keys) {
-            const rawData = await kv.get(key);
-            let potentialUser: UserData | null = null;
-
-            if (typeof rawData === 'string') {
-              try {
-                potentialUser = JSON.parse(rawData) as UserData;
-              } catch {
-                continue;
-              }
-            } else if (rawData && typeof rawData === 'object') {
-              potentialUser = rawData as UserData;
-            }
+            const potentialUser = await kv.get<UserData>(key);
             
-            if (potentialUser && potentialUser.phone && String(potentialUser.phone).trim() === String(username).trim()) {
+            if (potentialUser?.phone && String(potentialUser.phone).trim() === String(phone).trim()) {
               user = potentialUser;
+              userKey = key; // 记录下找到的用户的主键
               break;
             }
           }
@@ -70,13 +61,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!user) {
+    if (!user || !userKey) { // 检查 user 和 userKey 是否都存在
       return NextResponse.json({ message: '该用户不存在。' }, { status: 401 });
     }
     
     const passwordMatch = await bcrypt.compare(password, user.hashedPassword);
 
     if (passwordMatch) {
+      // [最终修复] 机会性地创建缺失的索引
+      // 如果是手机登录，并且是通过慢速扫描找到的用户，则为其创建索引以加速未来登录。
+      if (!isEmail) {
+          const phoneIndexKey = `user_phone:${username}`;
+          const existingIndex = await kv.get(phoneIndexKey);
+          if (!existingIndex) {
+              console.log(`Creating missing phone index for ${username}`);
+              await kv.set(phoneIndexKey, user.email);
+          }
+      }
+
       const expirationTime = '24h';
       
       const payload = { 
