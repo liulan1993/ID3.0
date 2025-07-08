@@ -57,9 +57,8 @@ export async function POST(request: NextRequest) {
               potentialUser = rawData as UserData;
             }
 
-            // [FIX] 将数据库中的 phone 字段和输入的 username 都转换为字符串进行比较，
-            // 彻底解决因数据类型不匹配导致的查找失败问题。
-            if (potentialUser && String(potentialUser.phone) === String(username)) {
+            // [最终修复] 增加 .trim() 来移除潜在的空格，确保比较的绝对可靠性。
+            if (potentialUser && potentialUser.phone && String(potentialUser.phone).trim() === String(username).trim()) {
               user = potentialUser;
               break;
             }
