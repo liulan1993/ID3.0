@@ -29,12 +29,9 @@ export async function POST(request: NextRequest) {
     const isPhone = /^\d{11}$/.test(username);
 
     if (isEmail) {
-      // 修正了用户键名以匹配数据库结构 (user:email)
       const userKey = `user:${username}`;
       user = await kv.get<UserData>(userKey);
     } else if (isPhone) {
-      // 增加后备扫描机制以支持无索引的手机号登录
-      // 优先尝试高效的索引查找
       const phoneIndexKey = `user_phone:${username}`;
       const userIdentifier = await kv.get<string>(phoneIndexKey);
 
@@ -42,25 +39,36 @@ export async function POST(request: NextRequest) {
         const userKey = `user:${userIdentifier}`;
         user = await kv.get<UserData>(userKey);
       } else {
-        // 后备方案：扫描所有用户键。警告：此操作在大量用户时效率低下。
         console.warn(`Phone index not found for ${username}. Falling back to a full scan. Consider adding phone-to-email indexes during registration.`);
         let cursor = 0;
         do {
           const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
           for (const key of keys) {
-            const potentialUser = await kv.get<UserData>(key);
-            // 确保 potentialUser 是一个包含 phone 属性的对象
-            if (potentialUser && typeof potentialUser === 'object' && 'phone' in potentialUser && potentialUser.phone === username) {
-              user = potentialUser;
-              break; // 找到用户，跳出内层循环
+            // [FIX START] 增加对从 KV 返回的 JSON 字符串的解析逻辑
+            const rawData = await kv.get(key);
+            let potentialUser: UserData | null = null;
+
+            if (typeof rawData === 'string') {
+              try {
+                potentialUser = JSON.parse(rawData) as UserData;
+              } catch (e) {
+                // 如果值不是有效的JSON字符串，则忽略此键
+                continue;
+              }
+            } else if (rawData && typeof rawData === 'object') {
+              potentialUser = rawData as UserData;
             }
+
+            if (potentialUser && potentialUser.phone === username) {
+              user = potentialUser;
+              break;
+            }
+            // [FIX END]
           }
-          // [FIX] 将 nextCursor 转换为数字类型以解决类型不匹配的错误
           cursor = Number(nextCursor);
-        } while (cursor !== 0 && !user); // 如果找到了用户或扫描完成，则停止
+        } while (cursor !== 0 && !user);
       }
     } else {
-      // 处理管理员或其他非邮箱/手机号的用户名
       const userKey = `user:${username}`;
       user = await kv.get<UserData>(userKey);
     }
