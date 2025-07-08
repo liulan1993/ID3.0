@@ -1,3 +1,5 @@
+// --- START OF FILE auth-form.tsx ---
+
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X, Edit3, ArrowLeft } from 'lucide-react';
 // 引入服务器动作
@@ -172,7 +174,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         setCaptchaInput('');
       }
     } else if (view === 'login') {
-      // [最终修复] 增加前端输入验证，从根源解决歧义
       if (loginMethod === 'phone') {
         if (!/^\d{11}$/.test(phone)) {
           setErrorMessage("请输入有效的11位手机号码。");
@@ -194,7 +195,8 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         return;
       }
 
-      // [最终修复] 使用 'email' 属性来匹配 UserCredentials 类型，彻底解决TS错误
+      // [最终修复] 恢复此处的代码，使用 'email' 字段来传递登录标识符。
+      // 这将解决 TypeScript 编译错误，因为 `loginUser` 函数的类型定义期望接收 'email' 属性。
       const result = await loginUser({ email: identifier, password });
 
       if (result.success && result.data) {
