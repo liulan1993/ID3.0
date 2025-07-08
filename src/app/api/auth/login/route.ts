@@ -19,19 +19,20 @@ interface UserData {
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json();
-    if (!username || !password) {
-      return NextResponse.json({ message: '账号和密码不能为空' }, { status: 400 });
+    // [最终修复] 接收前端明确指定的登录方式 'method'
+    const { username, password, method } = await request.json();
+    if (!username || !password || !method) {
+      return NextResponse.json({ message: '请求参数不完整' }, { status: 400 });
     }
 
     let user: UserData | null = null;
-    const isEmail = username.includes('@');
-    const isPhone = /^\d{11}$/.test(username);
 
-    if (isEmail) {
+    // [最终修复] 根据前端传递的 'method' 决定查找逻辑，不再猜测
+    if (method === 'email') {
       const userKey = `user:${username}`;
       user = await kv.get<UserData>(userKey);
-    } else if (isPhone) {
+    } else if (method === 'phone') {
+      // 手机号登录逻辑保持不变，但现在只有在前端明确指定时才会触发
       const phoneIndexKey = `user_phone:${username}`;
       const userIdentifier = await kv.get<string>(phoneIndexKey);
 
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
         const userKey = `user:${userIdentifier}`;
         user = await kv.get<UserData>(userKey);
       } else {
-        console.warn(`Phone index not found for ${username}. Falling back to a full scan. This can be slow.`);
+        console.warn(`Phone index not found for ${username}. Falling back to a full scan.`);
         let cursor = 0;
         do {
           const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
@@ -56,8 +57,7 @@ export async function POST(request: NextRequest) {
             } else if (rawData && typeof rawData === 'object') {
               potentialUser = rawData as UserData;
             }
-
-            // [最终修复] 增加 .trim() 来移除潜在的空格，确保比较的绝对可靠性。
+            
             if (potentialUser && potentialUser.phone && String(potentialUser.phone).trim() === String(username).trim()) {
               user = potentialUser;
               break;
@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
         } while (cursor !== 0 && !user);
       }
     } else {
-      const userKey = `user:${username}`;
-      user = await kv.get<UserData>(userKey);
+        // 如果 method 不是 'email' 或 'phone'，则认为是无效请求
+        return NextResponse.json({ message: '不支持的登录方式' }, { status: 400 });
     }
 
     if (!user) {

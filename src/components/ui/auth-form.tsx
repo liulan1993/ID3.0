@@ -172,19 +172,33 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         setCaptchaInput('');
       }
     } else if (view === 'login') {
+      // [最终修复] 增加前端输入验证，从根源解决歧义
+      if (loginMethod === 'phone') {
+        if (!/^\d{11}$/.test(phone)) {
+          setErrorMessage("请输入有效的11位手机号码。");
+          setIsSubmitting(false);
+          return;
+        }
+      } else { // email login
+        if (!/\S+@\S+\.\S+/.test(email)) {
+          setErrorMessage("请输入有效的邮箱地址。");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
       const identifier = loginMethod === 'email' ? email : phone;
-
       if (!identifier || !password) {
         setErrorMessage("账号和密码不能为空");
         setIsSubmitting(false);
         return;
       }
 
-      // [FIX START] 将 identifier (邮箱或手机号) 赋值给 'email' 键,
-      // 以匹配 loginUser action 所期望的 UserCredentials 类型。
-      // 后端 API 会将这个值作为 'username' 来处理。
-      const result = await loginUser({ email: identifier, password });
-      // [FIX END]
+      // 始终传递 email 字段，phone 登录时 email 设为空字符串
+      const credentials = loginMethod === 'email'
+        ? { email: identifier, password }
+        : { email: '', password, phone: identifier };
+      const result = await loginUser(credentials);
 
       if (result.success && result.data) {
         onLoginSuccess(result.data);
