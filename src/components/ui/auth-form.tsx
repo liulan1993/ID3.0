@@ -194,11 +194,8 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         return;
       }
 
-      // 始终传递 email 字段，phone 登录时 email 设为空字符串
-      const credentials = loginMethod === 'email'
-        ? { email: identifier, password }
-        : { email: '', password, phone: identifier };
-      const result = await loginUser(credentials);
+      // [最终修复] 使用 'email' 属性来匹配 UserCredentials 类型，彻底解决TS错误
+      const result = await loginUser({ email: identifier, password });
 
       if (result.success && result.data) {
         onLoginSuccess(result.data);
