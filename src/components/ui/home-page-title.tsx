@@ -14,17 +14,17 @@ const HomePageTitle = () => {
     const overlayDuration = 0.4;
     const springDuration = 600;
     const letterImages = [
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1518837695005-2083093ee35b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1501594907352-04cda38ebc29?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1519904981063-b0cf448d479e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1433086966358-54859d0ed716?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+      "https://zh.apex-elite-service.com/wenjian/20250708-1.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-2.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-3.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-4.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-5.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-6.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-7.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-8.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-9.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-10.jpg",
+      "https://zh.apex-elite-service.com/wenjian/20250708-11.jpg",
     ];
   
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
