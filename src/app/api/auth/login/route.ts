@@ -19,51 +19,48 @@ interface UserData {
 
 export async function POST(request: NextRequest) {
   try {
-    // [修复] 将请求体解构从 { username, password } 更改为 { email: username, password }。
-    // 这是因为前端组件 (auth-form.tsx) 在调用登录接口时，无论是邮箱还是手机号，
-    // 都将其放在了 'email' 字段中发送。通过 `: username` 的语法，我们将 'email' 字段的值
-    // 赋给一个新的 'username' 变量，使得后续的登录逻辑无需修改即可正确处理两种登录方式。
-    const { email: username, password } = await request.json();
-    if (!username || !password) {
+    // [修复第一部分] 明确地处理不一致的请求体。
+    // 前端组件发送的是 { email: '...', password: '...' } 格式。
+    // 当进行手机登录时，'email' 字段实际包含的是手机号。
+    // 我们在这里显式地读取 'email' 字段并将其赋值给 'identifier' 变量，以供后续逻辑使用。
+    const body = await request.json();
+    const identifier = body.email; 
+    const password = body.password;
+
+    if (!identifier || !password) {
       return NextResponse.json({ message: '请求参数不完整' }, { status: 400 });
     }
 
     let user: UserData | null = null;
+    let userKey: string | null = null; // 保存找到的用户主键，例如 'user:email@example.com'
     
-    // 后续逻辑依赖 'username' 变量，现在可以正确判断是邮箱还是手机号
-    const isEmail = username.includes('@');
+    const isEmail = identifier.includes('@');
 
     if (isEmail) {
-      const userKey = `user:${username}`;
+      userKey = `user:${identifier}`;
       user = await kv.get<UserData>(userKey);
     } else { // isPhone
-      const phoneIndexKey = `user_phone:${username}`;
-      const userIdentifier = await kv.get<string>(phoneIndexKey);
+      const phone = identifier;
+      const phoneIndexKey = `user_phone:${phone}`;
+      const userEmail = await kv.get<string>(phoneIndexKey);
 
-      if (userIdentifier) {
-        const userKey = `user:${userIdentifier}`;
+      if (userEmail) {
+        // 方案A: 通过索引快速找到用户
+        userKey = `user:${userEmail}`;
         user = await kv.get<UserData>(userKey);
       } else {
-        console.warn(`Phone index not found for ${username}. Falling back to a full scan.`);
+        // 方案B: 索引不存在，执行全库扫描 (Fallback)
+        console.warn(`Phone index not found for ${phone}. Falling back to a full scan.`);
         let cursor = 0;
         do {
           const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
           for (const key of keys) {
-            const rawData = await kv.get(key);
-            let potentialUser: UserData | null = null;
-
-            if (typeof rawData === 'string') {
-              try {
-                potentialUser = JSON.parse(rawData) as UserData;
-              } catch {
-                continue;
-              }
-            } else if (rawData && typeof rawData === 'object') {
-              potentialUser = rawData as UserData;
-            }
+            const potentialUser = await kv.get<UserData>(key);
             
-            if (potentialUser && potentialUser.phone && String(potentialUser.phone).trim() === String(username).trim()) {
+            // [修复第二部分] 增强了 fallback 扫描的健壮性
+            if (potentialUser?.phone && String(potentialUser.phone).trim() === String(phone).trim()) {
               user = potentialUser;
+              userKey = key; // 找到了用户，记录其主键
               break;
             }
           }
@@ -79,6 +76,19 @@ export async function POST(request: NextRequest) {
     const passwordMatch = await bcrypt.compare(password, user.hashedPassword);
 
     if (passwordMatch) {
+      // [修复第三部分] 机会性地创建缺失的索引
+      // 如果是手机登录，并且是通过慢速扫描找到的用户，则为其创建索引以加速未来登录。
+      if (!isEmail && userKey) {
+          const phoneIndexKey = `user_phone:${identifier}`;
+          // 检查索引是否已存在，避免不必要的写入
+          const existingIndex = await kv.get(phoneIndexKey);
+          if (!existingIndex) {
+              console.log(`Creating missing phone index for ${identifier}`);
+              // 使用 user.email 作为索引的值，因为它是用户的主标识符
+              await kv.set(phoneIndexKey, user.email);
+          }
+      }
+
       const expirationTime = '24h';
       
       const payload = { 
