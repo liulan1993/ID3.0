@@ -102,9 +102,9 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                                                 {item.description}
                                                             </p>
                                                         </div>
-                                                        <Link href="/admin">
+                                                        <Link href="/">
                                                             <Button size="sm" className="mt-10 text-base md:text-lg" variant="outline">
-                                                                管理员
+                                                                Apex
                                                             </Button>
                                                         </Link>
                                                     </div>
