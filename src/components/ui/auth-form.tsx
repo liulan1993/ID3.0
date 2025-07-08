@@ -21,7 +21,7 @@ interface FormFieldProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   icon: React.ReactNode;
-  autoComplete?: string; // [最终修复] 增加 autoComplete 属性以指导浏览器行为
+  autoComplete?: string;
   children?: React.ReactNode;
   disabled?: boolean;
 }
@@ -33,7 +33,6 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, 
     setMousePosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
   return (<div className="relative group"><div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out ${disabled ? 'opacity-60' : ''}`} onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div>
-  {/* [最终修复] 将 autoComplete 属性应用到 input 元素上 */}
   <input type={type} value={value} onChange={onChange} disabled={disabled} autoComplete={autoComplete} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} />
   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && !disabled && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
 };
@@ -173,12 +172,24 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         setCaptchaInput('');
       }
     } else if (view === 'login') {
-      const credentials = { email, password };
-      const result = await loginUser(credentials);
+      const identifier = loginMethod === 'email' ? email : phone;
+
+      if (!identifier || !password) {
+        setErrorMessage("账号和密码不能为空");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // [FIX START] 将 identifier (邮箱或手机号) 赋值给 'email' 键,
+      // 以匹配 loginUser action 所期望的 UserCredentials 类型。
+      // 后端 API 会将这个值作为 'username' 来处理。
+      const result = await loginUser({ email: identifier, password });
+      // [FIX END]
+
       if (result.success && result.data) {
         onLoginSuccess(result.data);
       } else {
-        setErrorMessage(`登录失败: ${result.message}`);
+        setErrorMessage(`登录失败: ${result.message || '未知错误'}`);
       }
     } else if (view === 'forgotPassword') {
         if (password !== confirmPassword) {

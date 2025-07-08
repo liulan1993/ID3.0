@@ -11,43 +11,65 @@ const secret = new TextEncoder().encode(
 
 export async function POST(request: NextRequest) {
   try {
+    // 请求体中的 'username' 现在可以是邮箱或手机号
     const { username, password } = await request.json();
     if (!username || !password) {
       return NextResponse.json({ message: '账号和密码不能为空' }, { status: 400 });
     }
 
-    // --- 开始修改：兼容普通用户和管理员登录 ---
-    // 假设普通用户使用邮箱登录，管理员使用用户名
+    // [FIX START] 重构用户查找逻辑以支持邮箱、手机和管理员登录
+    let user: any = null; // 使用 any 以便后续处理不同结构的用户对象
     const isEmail = username.includes('@');
-    const userKey = isEmail ? `user_email:${username}` : `user:${username}`;
-    const user = await kv.get(userKey);
-    // --- 结束修改 ---
+    // 简单的正则表达式，用于判断 'username' 是否为手机号格式
+    // 应与注册时的验证规则保持一致
+    const isPhone = /^\d{11}$/.test(username);
+
+    if (isEmail) {
+      // 邮箱登录，直接查找用户
+      const userKey = `user_email:${username}`;
+      user = await kv.get(userKey);
+    } else if (isPhone) {
+      // 手机号登录，需要先通过手机号索引找到用户的主标识（如邮箱）
+      // 预期的 KV 结构: key="user_phone:16670120287", value="plj453369670@gmail.com"
+      const phoneIndexKey = `user_phone:${username}`;
+      const userEmail = await kv.get<string>(phoneIndexKey);
+
+      if (userEmail) {
+        // 获得邮箱后，再查找完整的用户对象
+        const userKey = `user_email:${userEmail}`;
+        user = await kv.get(userKey);
+      }
+    } else {
+      // 默认为管理员用户名登录
+      const userKey = `user:${username}`;
+      user = await kv.get(userKey);
+    }
+    // [FIX END]
 
     if (!user || typeof user !== 'object') {
-      return NextResponse.json({ message: '账号或密码错误' }, { status: 401 });
+      // 此错误现在可以正确地在邮箱/手机/用户名未找到时触发
+      return NextResponse.json({ message: '该用户不存在。' }, { status: 401 });
     }
-
-    // --- 开始修改：统一用户数据结构 ---
+    
+    // 统一用户数据结构
     const userData = user as { 
         passwordHash: string; 
-        permission?: 'full' | 'readonly'; // 管理员有
-        name?: string; // 普通用户有
-        email?: string; // 普通用户有
+        permission?: 'full' | 'readonly';
+        name: string; // 假设所有用户（普通和管理员）都有 name
+        email: string; // 假设所有用户都有 email
     };
-    // --- 结束修改 ---
     
     const passwordMatch = await bcrypt.compare(password, userData.passwordHash);
 
     if (passwordMatch) {
       const expirationTime = '24h';
       
-      // --- 开始修改：统一JWT载荷 ---
+      // 统一 JWT 载荷
       const payload = { 
-        username: isEmail ? userData.name : username, // JWT中统一使用name
-        email: isEmail ? userData.email : `${username}@admin.local`, // 赋予管理员一个虚拟邮箱
-        permission: userData.permission || 'user' // 普通用户赋予'user'权限
+        username: userData.name, // 使用数据库中存储的 name
+        email: userData.email,   // 使用数据库中存储的 email
+        permission: userData.permission || 'user'
       };
-      // --- 结束修改 ---
 
       const token = await new SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256' })
@@ -55,29 +77,30 @@ export async function POST(request: NextRequest) {
         .setExpirationTime(expirationTime)
         .sign(secret);
 
-      // --- 开始修改：在JSON响应中返回所有需要的信息，包括token ---
+      // [FIX START] 优化响应结构以匹配前端类型定义
       const responsePayload = {
           success: true,
-          username: payload.username,
-          email: payload.email,
-          permission: payload.permission,
-          token: token // 将Token添加到JSON响应中
+          user: { // 将用户信息嵌套在 user 对象中
+            name: payload.username,
+            email: payload.email,
+          },
+          token: token
       };
       
       const response = NextResponse.json(responsePayload, { status: 200 });
-      // --- 结束修改 ---
+      // [FIX END]
 
       response.cookies.set('auth_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         path: '/',
-        maxAge: 60 * 60 * 24, // 24小时
+        maxAge: 60 * 60 * 24, // 24 小时
       });
 
       return response;
     } else {
-      return NextResponse.json({ message: '账号或密码错误' }, { status: 401 });
+      return NextResponse.json({ message: '密码错误。' }, { status: 401 });
     }
   } catch (error) {
     console.error('Login API error:', error);
