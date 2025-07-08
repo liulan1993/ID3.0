@@ -206,7 +206,7 @@ const projectShowcaseData: Testimonial[] = [
 ];
 
 // ProjectShowcase 组件
-const ProjectShowcase = ({ testimonials, onProtectedLinkClick }: { testimonials: Testimonial[], onProtectedLinkClick: (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => void; }) => {
+const ProjectShowcase = ({ testimonials }: { testimonials: Testimonial[] }) => {
   const [active, setActive] = useState(0);
   
   return (
@@ -1403,7 +1403,6 @@ export default function Page() {
                             <div id="study-abroad-education" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                                 <ProjectShowcase 
                                     testimonials={projectShowcaseData}
-                                    onProtectedLinkClick={handleProtectedLinkClick}
                                 />
                             </div>
 
