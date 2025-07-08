@@ -19,7 +19,7 @@ import OpeningAnimation from '@/components/ui/opening-animation';
 import MainScene from '@/components/ui/main-scene';
 import HomePageTitle from '@/components/ui/home-page-title';
 import Testimonials from '@/components/ui/testimonials';
-import VelocityScroll from '@/components/ui/CorporateServicesTimeline';
+import CorporateServicesTimeline from '@/components/ui/CorporateServicesTimeline';
 import StackedCircularFooter from '@/components/ui/footer';
 import AuthFormComponent from '@/components/ui/auth-form'; 
 // ------------------------------------
@@ -1406,7 +1406,7 @@ export default function Page() {
                                 </div>
                             </div>
                             
-                            <VelocityScroll />
+                            <CorporateServicesTimeline />
 
                             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                                 <ProjectShowcase 
