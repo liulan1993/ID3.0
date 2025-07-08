@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
 
     if (isEmail) {
       const userKey = `user:${username}`;
+      console.log(`Attempting to log in with email. Key: ${userKey}`);
       user = await kv.get<UserData>(userKey);
     } else if (isPhone) {
       const phoneIndexKey = `user_phone:${username}`;
@@ -37,31 +38,42 @@ export async function POST(request: NextRequest) {
 
       if (userIdentifier) {
         const userKey = `user:${userIdentifier}`;
+        console.log(`Found phone index. Looking for user with key: ${userKey}`);
         user = await kv.get<UserData>(userKey);
       } else {
-        console.warn(`Phone index not found for ${username}. Falling back to a full scan. Consider adding phone-to-email indexes during registration.`);
+        // [DEBUG] 在此处加入详细的日志记录
+        console.warn(`Phone index not found for ${username}. Falling back to a full scan. This can be slow.`);
         let cursor = 0;
         do {
           const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
+          console.log(`Scanning... Found keys: ${keys.join(', ')}`);
           for (const key of keys) {
+            console.log(`--- Checking key: ${key} ---`);
             const rawData = await kv.get(key);
+            console.log(`Raw data from KV for key ${key}:`, rawData);
+            
             let potentialUser: UserData | null = null;
 
             if (typeof rawData === 'string') {
-              // [FIX] 移除未使用的 'e' 变量以解决 linting 错误
               try {
                 potentialUser = JSON.parse(rawData) as UserData;
+                console.log(`Successfully parsed string data for key ${key}:`, potentialUser);
               } catch {
-                // 如果值不是有效的JSON字符串，则忽略此键
+                console.error(`Failed to parse JSON string for key ${key}. Skipping.`);
                 continue;
               }
             } else if (rawData && typeof rawData === 'object') {
               potentialUser = rawData as UserData;
+              console.log(`Data for key ${key} is already an object:`, potentialUser);
             }
 
-            if (potentialUser && potentialUser.phone === username) {
-              user = potentialUser;
-              break;
+            if (potentialUser) {
+                console.log(`Comparing DB phone: "${potentialUser.phone}" (type: ${typeof potentialUser.phone}) with input username: "${username}" (type: ${typeof username})`);
+                if (potentialUser.phone === username) {
+                    console.log(`SUCCESS: Match found for key ${key}!`);
+                    user = potentialUser;
+                    break;
+                }
             }
           }
           cursor = Number(nextCursor);
@@ -69,16 +81,20 @@ export async function POST(request: NextRequest) {
       }
     } else {
       const userKey = `user:${username}`;
+      console.log(`Attempting to log in with username. Key: ${userKey}`);
       user = await kv.get<UserData>(userKey);
     }
 
     if (!user) {
+      console.error(`Login failed: User not found for identifier "${username}" after all checks.`);
       return NextResponse.json({ message: '该用户不存在。' }, { status: 401 });
     }
     
+    console.log('User found, proceeding to password check:', user);
     const passwordMatch = await bcrypt.compare(password, user.hashedPassword);
 
     if (passwordMatch) {
+      console.log('Password match successful. Generating token.');
       const expirationTime = '24h';
       
       const payload = { 
@@ -114,6 +130,7 @@ export async function POST(request: NextRequest) {
 
       return response;
     } else {
+      console.error(`Login failed: Password mismatch for user: ${user.email}`);
       return NextResponse.json({ message: '密码错误。' }, { status: 401 });
     }
   } catch (error) {
