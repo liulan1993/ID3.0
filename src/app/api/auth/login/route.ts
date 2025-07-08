@@ -17,6 +17,24 @@ interface UserData {
   permission?: 'full' | 'readonly';
 }
 
+// 辅助函数：安全地获取和解析用户数据
+async function getUserData(key: string): Promise<UserData | null> {
+    const rawData = await kv.get(key);
+    if (!rawData) return null;
+
+    if (typeof rawData === 'string') {
+        try {
+            return JSON.parse(rawData) as UserData;
+        } catch {
+            return null;
+        }
+    } else if (typeof rawData === 'object') {
+        return rawData as UserData;
+    }
+    return null;
+}
+
+
 export async function POST(request: NextRequest) {
   try {
     const { email: username, password } = await request.json();
@@ -25,56 +43,33 @@ export async function POST(request: NextRequest) {
     }
 
     let user: UserData | null = null;
-    let userKey: string | null = null;
     
     const isEmail = /\S+@\S+\.\S+/.test(username);
 
     if (isEmail) {
-      userKey = `user:${username}`;
-      // 直接获取，后续逻辑会处理格式
-      const rawData = await kv.get(userKey);
-      if (typeof rawData === 'string') {
-          user = JSON.parse(rawData) as UserData;
-      } else if (rawData && typeof rawData === 'object') {
-          user = rawData as UserData;
-      }
-
+      const userKey = `user:${username}`;
+      user = await getUserData(userKey);
     } else { // isPhone
       const phone = username;
       const phoneIndexKey = `user_phone:${phone}`;
+      
+      // [最终修复] 优先并依赖于索引查找
       const userEmail = await kv.get<string>(phoneIndexKey);
 
       if (userEmail) {
-        userKey = `user:${userEmail}`;
-        const rawData = await kv.get(userKey);
-        if (typeof rawData === 'string') {
-            user = JSON.parse(rawData) as UserData;
-        } else if (rawData && typeof rawData === 'object') {
-            user = rawData as UserData;
-        }
+        const userKey = `user:${userEmail}`;
+        user = await getUserData(userKey);
       } else {
-        console.warn(`Phone index not found for ${phone}. Falling back to a full scan.`);
+        // 备用扫描方案仍然保留，但已知其不可靠。
+        // 主要用于处理未来可能出现的、没有索引的新用户。
+        console.warn(`Phone index not found for ${phone}. Falling back to an unreliable full scan.`);
         let cursor = 0;
         do {
           const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
           for (const key of keys) {
-            // [最终修复] 恢复并加固了对 STRING 和 JSON 两种格式的处理逻辑
-            const rawData = await kv.get(key);
-            let potentialUser: UserData | null = null;
-
-            if (typeof rawData === 'string') {
-              try {
-                potentialUser = JSON.parse(rawData) as UserData;
-              } catch {
-                continue; // 如果字符串无法解析，则跳过
-              }
-            } else if (rawData && typeof rawData === 'object') {
-              potentialUser = rawData as UserData;
-            }
-            
-            if (potentialUser && potentialUser.phone && String(potentialUser.phone).trim() === String(phone).trim()) {
+            const potentialUser = await getUserData(key);
+            if (potentialUser?.phone && String(potentialUser.phone).trim() === String(phone).trim()) {
               user = potentialUser;
-              userKey = key;
               break;
             }
           }
@@ -95,7 +90,7 @@ export async function POST(request: NextRequest) {
           const phoneIndexKey = `user_phone:${user.phone}`;
           const existingIndex = await kv.get(phoneIndexKey);
           if (!existingIndex) {
-              console.log(`Creating missing phone index for ${user.phone}`);
+              console.log(`Self-healing: Creating missing phone index for ${user.phone}`);
               await kv.set(phoneIndexKey, user.email);
           }
       }
