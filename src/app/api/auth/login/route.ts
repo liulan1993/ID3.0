@@ -44,14 +44,14 @@ export async function POST(request: NextRequest) {
         do {
           const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
           for (const key of keys) {
-            // [FIX START] 增加对从 KV 返回的 JSON 字符串的解析逻辑
             const rawData = await kv.get(key);
             let potentialUser: UserData | null = null;
 
             if (typeof rawData === 'string') {
+              // [FIX] 移除未使用的 'e' 变量以解决 linting 错误
               try {
                 potentialUser = JSON.parse(rawData) as UserData;
-              } catch (e) {
+              } catch {
                 // 如果值不是有效的JSON字符串，则忽略此键
                 continue;
               }
@@ -63,7 +63,6 @@ export async function POST(request: NextRequest) {
               user = potentialUser;
               break;
             }
-            // [FIX END]
           }
           cursor = Number(nextCursor);
         } while (cursor !== 0 && !user);
