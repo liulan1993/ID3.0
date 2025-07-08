@@ -206,7 +206,7 @@ const projectShowcaseData: Testimonial[] = [
 ];
 
 // ProjectShowcase 组件
-const ProjectShowcase = ({ testimonials }: { testimonials: Testimonial[] }) => {
+const ProjectShowcase = ({ testimonials, onProtectedLinkClick }: { testimonials: Testimonial[], onProtectedLinkClick: (e: React.MouseEvent<HTMLAnchorElement | HTMLButtonElement>, href: string) => void; }) => {
   const [active, setActive] = useState(0);
   
   return (
@@ -276,6 +276,16 @@ const ProjectShowcase = ({ testimonials }: { testimonials: Testimonial[] }) => {
                 fixedWidth="120px"
               />
             ))}
+            <HalomotButton 
+              inscription="了解更多" 
+              onClick={(e) => onProtectedLinkClick(e, testimonials[active].link || 'https://www.apex-elite-service.com/')} 
+              href={testimonials[active].link || '#'}
+              padding="0.6rem 1.2rem"
+              backgroundColor='#161616' 
+              hoverTextColor='#fff' 
+              gradient='linear-gradient(to right, #603dec, #a123f4)'
+              fixedWidth="120px"
+            />
           </div>
         </div>
       </div>
@@ -1403,6 +1413,7 @@ export default function Page() {
                             <div id="study-abroad-education" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                                 <ProjectShowcase 
                                     testimonials={projectShowcaseData}
+                                    onProtectedLinkClick={handleProtectedLinkClick}
                                 />
                             </div>
 
