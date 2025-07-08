@@ -26,8 +26,9 @@ interface FormFieldProps {
   autoComplete?: string;
   children?: React.ReactNode;
   disabled?: boolean;
+  inputMode?: "numeric" | "text" | "email" | "tel" | "search" | "url" | "none" | "decimal";
 }
-const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, autoComplete, children, disabled = false}) => {
+const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, autoComplete, children, disabled = false, inputMode}) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -35,7 +36,7 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, 
     setMousePosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
   return (<div className="relative group"><div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out ${disabled ? 'opacity-60' : ''}`} onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div>
-  <input type={type} value={value} onChange={onChange} disabled={disabled} autoComplete={autoComplete} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} />
+  <input type={type} value={value} onChange={onChange} disabled={disabled} autoComplete={autoComplete} inputMode={inputMode} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} />
   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && !disabled && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
 };
 
@@ -195,8 +196,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         return;
       }
 
-      // [最终修复] 恢复此处的代码，使用 'email' 字段来传递登录标识符。
-      // 这将解决 TypeScript 编译错误，因为 `loginUser` 函数的类型定义期望接收 'email' 属性。
       const result = await loginUser({ email: identifier, password });
 
       if (result.success && result.data) {
@@ -263,7 +262,16 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
               {loginMethod === 'email' ? 
               <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} autoComplete="email" />
               : 
-              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} autoComplete="tel" />}
+              // [最终修复] 1. 强制输入框只接受数字。2. 优化移动端键盘。
+              <AnimatedFormField 
+                type="tel" 
+                placeholder="手机号码" 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} 
+                icon={<Phone size={18} />} 
+                autoComplete="tel"
+                inputMode="numeric"
+              />}
                <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="current-password">
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -298,9 +306,10 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                   type="tel" 
                   placeholder="手机号码" 
                   value={phone} 
-                  onChange={(e) => setPhone(e.target.value)} 
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} 
                   icon={<Phone size={18} />} 
                   autoComplete="tel"
+                  inputMode="numeric"
               />
               <AnimatedFormField type="password" placeholder="设置密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="new-password" />
                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />} autoComplete="off">

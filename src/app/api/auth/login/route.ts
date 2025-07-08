@@ -21,9 +21,6 @@ interface UserData {
 
 export async function POST(request: NextRequest) {
   try {
-    // [最终修复] 从请求体中解构出 'email' 字段，并将其值赋给新的 'username' 变量。
-    // 这样后端逻辑就可以统一使用 'username' 作为登录标识符，而无需关心前端发送的具体字段名。
-    // 这使得后端能够正确处理前端发送的 { email: '...' } 格式的数据。
     const { email: username, password } = await request.json();
     if (!username || !password) {
       return NextResponse.json({ message: '请求参数不完整' }, { status: 400 });
@@ -31,8 +28,8 @@ export async function POST(request: NextRequest) {
 
     let user: UserData | null = null;
     
-    // 后续逻辑依赖 'username' 变量，现在可以正确判断是邮箱还是手机号
-    const isEmail = username.includes('@');
+    // [最终修复] 使用更健壮的正则表达式来区分邮箱和手机号，而不是简单地检查'@'。
+    const isEmail = /\S+@\S+\.\S+/.test(username);
 
     if (isEmail) {
       const userKey = `user:${username}`;
