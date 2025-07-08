@@ -19,15 +19,18 @@ interface UserData {
 
 export async function POST(request: NextRequest) {
   try {
-    // [最终修复] 后端现在接收 'username'，它可以是邮箱或手机号
-    const { username, password } = await request.json();
+    // [修复] 将请求体解构从 { username, password } 更改为 { email: username, password }。
+    // 这是因为前端组件 (auth-form.tsx) 在调用登录接口时，无论是邮箱还是手机号，
+    // 都将其放在了 'email' 字段中发送。通过 `: username` 的语法，我们将 'email' 字段的值
+    // 赋给一个新的 'username' 变量，使得后续的登录逻辑无需修改即可正确处理两种登录方式。
+    const { email: username, password } = await request.json();
     if (!username || !password) {
       return NextResponse.json({ message: '请求参数不完整' }, { status: 400 });
     }
 
     let user: UserData | null = null;
     
-    // [最终修复] 依赖前端验证，通过 'includes' 判断是邮箱还是手机号
+    // 后续逻辑依赖 'username' 变量，现在可以正确判断是邮箱还是手机号
     const isEmail = username.includes('@');
 
     if (isEmail) {
