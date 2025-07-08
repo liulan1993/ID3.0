@@ -1,5 +1,3 @@
-// --- START OF FILE auth-form.tsx ---
-
 import React, { useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Phone, ShieldCheck, RefreshCw, X, Edit3, ArrowLeft } from 'lucide-react';
 // 引入服务器动作
@@ -23,12 +21,11 @@ interface FormFieldProps {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   icon: React.ReactNode;
-  autoComplete?: string;
+  autoComplete?: string; // [最终修复] 增加 autoComplete 属性以指导浏览器行为
   children?: React.ReactNode;
   disabled?: boolean;
-  inputMode?: "numeric" | "text" | "email" | "tel" | "search" | "url" | "none" | "decimal";
 }
-const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, autoComplete, children, disabled = false, inputMode}) => {
+const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, onChange, icon, autoComplete, children, disabled = false}) => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -36,7 +33,8 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, 
     setMousePosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
   return (<div className="relative group"><div className={`relative overflow-hidden rounded-lg border border-gray-800 bg-black transition-all duration-300 ease-in-out ${disabled ? 'opacity-60' : ''}`} onMouseMove={handleMouseMove} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}><div className="absolute left-3 top-1/2 -translate-y-1/2 text-white pointer-events-none">{icon}</div>
-  <input type={type} value={value} onChange={onChange} disabled={disabled} autoComplete={autoComplete} inputMode={inputMode} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} />
+  {/* [最终修复] 将 autoComplete 属性应用到 input 元素上 */}
+  <input type={type} value={value} onChange={onChange} disabled={disabled} autoComplete={autoComplete} className={`w-full bg-transparent pl-10 py-3 text-white placeholder:text-gray-400 focus:outline-none ${disabled ? 'cursor-not-allowed' : ''} ${children ? 'pr-32' : 'pr-12'}`} placeholder={placeholder} />
   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">{children}</div>{isHovering && !disabled && (<div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(200px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(255, 255, 255, 0.05) 0%, transparent 70%)` }} />)}</div></div>);
 };
 
@@ -175,33 +173,12 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         setCaptchaInput('');
       }
     } else if (view === 'login') {
-      if (loginMethod === 'phone') {
-        if (!/^\d{11}$/.test(phone)) {
-          setErrorMessage("请输入有效的11位手机号码。");
-          setIsSubmitting(false);
-          return;
-        }
-      } else { // email login
-        if (!/\S+@\S+\.\S+/.test(email)) {
-          setErrorMessage("请输入有效的邮箱地址。");
-          setIsSubmitting(false);
-          return;
-        }
-      }
-      
-      const identifier = loginMethod === 'email' ? email : phone;
-      if (!identifier || !password) {
-        setErrorMessage("账号和密码不能为空");
-        setIsSubmitting(false);
-        return;
-      }
-
-      const result = await loginUser({ email: identifier, password });
-
+      const credentials = { email, password };
+      const result = await loginUser(credentials);
       if (result.success && result.data) {
         onLoginSuccess(result.data);
       } else {
-        setErrorMessage(`登录失败: ${result.message || '未知错误'}`);
+        setErrorMessage(`登录失败: ${result.message}`);
       }
     } else if (view === 'forgotPassword') {
         if (password !== confirmPassword) {
@@ -262,16 +239,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
               {loginMethod === 'email' ? 
               <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} autoComplete="email" />
               : 
-              // [最终修复] 1. 强制输入框只接受数字。2. 优化移动端键盘。
-              <AnimatedFormField 
-                type="tel" 
-                placeholder="手机号码" 
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} 
-                icon={<Phone size={18} />} 
-                autoComplete="tel"
-                inputMode="numeric"
-              />}
+              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} autoComplete="tel" />}
                <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="current-password">
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -306,10 +274,9 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                   type="tel" 
                   placeholder="手机号码" 
                   value={phone} 
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))} 
+                  onChange={(e) => setPhone(e.target.value)} 
                   icon={<Phone size={18} />} 
                   autoComplete="tel"
-                  inputMode="numeric"
               />
               <AnimatedFormField type="password" placeholder="设置密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="new-password" />
                <AnimatedFormField type="text" placeholder="图形验证码" value={captchaInput} onChange={(e) => setCaptchaInput(e.target.value)} icon={<ShieldCheck size={18} />} autoComplete="off">

@@ -9,99 +9,45 @@ const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'a-very-strong-secret-key-that-is-at-least-32-bytes-long'
 );
 
-interface UserData {
-  hashedPassword: string;
-  name: string;
-  email: string;
-  phone?: string;
-  permission?: 'full' | 'readonly';
-}
-
-// 辅助函数：安全地获取和解析用户数据
-async function getUserData(key: string): Promise<UserData | null> {
-    const rawData = await kv.get(key);
-    if (!rawData) return null;
-
-    if (typeof rawData === 'string') {
-        try {
-            return JSON.parse(rawData) as UserData;
-        } catch {
-            return null;
-        }
-    } else if (typeof rawData === 'object') {
-        return rawData as UserData;
-    }
-    return null;
-}
-
-
 export async function POST(request: NextRequest) {
   try {
-    const { email: username, password } = await request.json();
+    const { username, password } = await request.json();
     if (!username || !password) {
-      return NextResponse.json({ message: '请求参数不完整' }, { status: 400 });
+      return NextResponse.json({ message: '账号和密码不能为空' }, { status: 400 });
     }
 
-    let user: UserData | null = null;
+    // --- 开始修改：兼容普通用户和管理员登录 ---
+    // 假设普通用户使用邮箱登录，管理员使用用户名
+    const isEmail = username.includes('@');
+    const userKey = isEmail ? `user_email:${username}` : `user:${username}`;
+    const user = await kv.get(userKey);
+    // --- 结束修改 ---
+
+    if (!user || typeof user !== 'object') {
+      return NextResponse.json({ message: '账号或密码错误' }, { status: 401 });
+    }
+
+    // --- 开始修改：统一用户数据结构 ---
+    const userData = user as { 
+        passwordHash: string; 
+        permission?: 'full' | 'readonly'; // 管理员有
+        name?: string; // 普通用户有
+        email?: string; // 普通用户有
+    };
+    // --- 结束修改 ---
     
-    const isEmail = /\S+@\S+\.\S+/.test(username);
-
-    if (isEmail) {
-      const userKey = `user:${username}`;
-      user = await getUserData(userKey);
-    } else { // isPhone
-      const phone = username;
-      const phoneIndexKey = `user_phone:${phone}`;
-      
-      // [最终修复] 优先并依赖于索引查找
-      const userEmail = await kv.get<string>(phoneIndexKey);
-
-      if (userEmail) {
-        const userKey = `user:${userEmail}`;
-        user = await getUserData(userKey);
-      } else {
-        // 备用扫描方案仍然保留，但已知其不可靠。
-        // 主要用于处理未来可能出现的、没有索引的新用户。
-        console.warn(`Phone index not found for ${phone}. Falling back to an unreliable full scan.`);
-        let cursor = 0;
-        do {
-          const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
-          for (const key of keys) {
-            const potentialUser = await getUserData(key);
-            if (potentialUser?.phone && String(potentialUser.phone).trim() === String(phone).trim()) {
-              user = potentialUser;
-              break;
-            }
-          }
-          cursor = Number(nextCursor);
-        } while (cursor !== 0 && !user);
-      }
-    }
-
-    if (!user) {
-      return NextResponse.json({ message: '该用户不存在。' }, { status: 401 });
-    }
-    
-    const passwordMatch = await bcrypt.compare(password, user.hashedPassword);
+    const passwordMatch = await bcrypt.compare(password, userData.passwordHash);
 
     if (passwordMatch) {
-      // 机会性地创建缺失的索引
-      if (!isEmail && user.phone) {
-          const phoneIndexKey = `user_phone:${user.phone}`;
-          const existingIndex = await kv.get(phoneIndexKey);
-          if (!existingIndex) {
-              console.log(`Self-healing: Creating missing phone index for ${user.phone}`);
-              await kv.set(phoneIndexKey, user.email);
-          }
-      }
-
       const expirationTime = '24h';
       
+      // --- 开始修改：统一JWT载荷 ---
       const payload = { 
-        username: user.name,
-        email: user.email,
-        permission: user.permission || 'user'
+        username: isEmail ? userData.name : username, // JWT中统一使用name
+        email: isEmail ? userData.email : `${username}@admin.local`, // 赋予管理员一个虚拟邮箱
+        permission: userData.permission || 'user' // 普通用户赋予'user'权限
       };
+      // --- 结束修改 ---
 
       const token = await new SignJWT(payload)
         .setProtectedHeader({ alg: 'HS256' })
@@ -109,28 +55,29 @@ export async function POST(request: NextRequest) {
         .setExpirationTime(expirationTime)
         .sign(secret);
 
+      // --- 开始修改：在JSON响应中返回所有需要的信息，包括token ---
       const responsePayload = {
           success: true,
-          user: {
-            name: payload.username,
-            email: payload.email,
-          },
-          token: token
+          username: payload.username,
+          email: payload.email,
+          permission: payload.permission,
+          token: token // 将Token添加到JSON响应中
       };
       
       const response = NextResponse.json(responsePayload, { status: 200 });
+      // --- 结束修改 ---
 
       response.cookies.set('auth_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         path: '/',
-        maxAge: 60 * 60 * 24,
+        maxAge: 60 * 60 * 24, // 24小时
       });
 
       return response;
     } else {
-      return NextResponse.json({ message: '密码错误。' }, { status: 401 });
+      return NextResponse.json({ message: '账号或密码错误' }, { status: 401 });
     }
   } catch (error) {
     console.error('Login API error:', error);
