@@ -9,12 +9,12 @@ const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'a-very-strong-secret-key-that-is-at-least-32-bytes-long'
 );
 
-// [FIX] 定义用户数据类型以取代 'any'，并确保属性与数据库一致
 interface UserData {
-  hashedPassword: string; // 修正属性名以匹配数据库中的 'hashedPassword'
+  hashedPassword: string;
   name: string;
   email: string;
-  permission?: 'full' | 'readonly'; // 管理员权限
+  phone?: string; // 确保 phone 属性在类型中
+  permission?: 'full' | 'readonly';
 }
 
 export async function POST(request: NextRequest) {
@@ -24,24 +24,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: '账号和密码不能为空' }, { status: 400 });
     }
 
-    // [FIX] 使用定义好的 UserData 类型，不再使用 'any'
     let user: UserData | null = null;
     const isEmail = username.includes('@');
     const isPhone = /^\d{11}$/.test(username);
 
     if (isEmail) {
-      const userKey = `user_email:${username}`;
+      // 修正了用户键名以匹配数据库结构 (user:email)
+      const userKey = `user:${username}`;
       user = await kv.get<UserData>(userKey);
     } else if (isPhone) {
+      // 增加后备扫描机制以支持无索引的手机号登录
+      // 优先尝试高效的索引查找
       const phoneIndexKey = `user_phone:${username}`;
-      const userEmail = await kv.get<string>(phoneIndexKey);
+      const userIdentifier = await kv.get<string>(phoneIndexKey);
 
-      if (userEmail) {
-        const userKey = `user_email:${userEmail}`;
+      if (userIdentifier) {
+        const userKey = `user:${userIdentifier}`;
         user = await kv.get<UserData>(userKey);
+      } else {
+        // 后备方案：扫描所有用户键。警告：此操作在大量用户时效率低下。
+        console.warn(`Phone index not found for ${username}. Falling back to a full scan. Consider adding phone-to-email indexes during registration.`);
+        let cursor = 0;
+        do {
+          const [nextCursor, keys] = await kv.scan(cursor, { match: 'user:*' });
+          for (const key of keys) {
+            const potentialUser = await kv.get<UserData>(key);
+            // 确保 potentialUser 是一个包含 phone 属性的对象
+            if (potentialUser && typeof potentialUser === 'object' && 'phone' in potentialUser && potentialUser.phone === username) {
+              user = potentialUser;
+              break; // 找到用户，跳出内层循环
+            }
+          }
+          // [FIX] 将 nextCursor 转换为数字类型以解决类型不匹配的错误
+          cursor = Number(nextCursor);
+        } while (cursor !== 0 && !user); // 如果找到了用户或扫描完成，则停止
       }
     } else {
-      // 默认为管理员用户名登录
+      // 处理管理员或其他非邮箱/手机号的用户名
       const userKey = `user:${username}`;
       user = await kv.get<UserData>(userKey);
     }
@@ -50,8 +69,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: '该用户不存在。' }, { status: 401 });
     }
     
-    // [FIX] 'user' 已经有正确的类型，无需再进行类型断言。
-    // 同时使用正确的属性名 'hashedPassword'。
     const passwordMatch = await bcrypt.compare(password, user.hashedPassword);
 
     if (passwordMatch) {
