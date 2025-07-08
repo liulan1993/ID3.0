@@ -19,20 +19,21 @@ interface UserData {
 
 export async function POST(request: NextRequest) {
   try {
-    // [最终修复] 接收前端明确指定的登录方式 'method'
-    const { username, password, method } = await request.json();
-    if (!username || !password || !method) {
+    // [最终修复] 后端现在接收 'username'，它可以是邮箱或手机号
+    const { username, password } = await request.json();
+    if (!username || !password) {
       return NextResponse.json({ message: '请求参数不完整' }, { status: 400 });
     }
 
     let user: UserData | null = null;
+    
+    // [最终修复] 依赖前端验证，通过 'includes' 判断是邮箱还是手机号
+    const isEmail = username.includes('@');
 
-    // [最终修复] 根据前端传递的 'method' 决定查找逻辑，不再猜测
-    if (method === 'email') {
+    if (isEmail) {
       const userKey = `user:${username}`;
       user = await kv.get<UserData>(userKey);
-    } else if (method === 'phone') {
-      // 手机号登录逻辑保持不变，但现在只有在前端明确指定时才会触发
+    } else { // isPhone
       const phoneIndexKey = `user_phone:${username}`;
       const userIdentifier = await kv.get<string>(phoneIndexKey);
 
@@ -66,9 +67,6 @@ export async function POST(request: NextRequest) {
           cursor = Number(nextCursor);
         } while (cursor !== 0 && !user);
       }
-    } else {
-        // 如果 method 不是 'email' 或 'phone'，则认为是无效请求
-        return NextResponse.json({ message: '不支持的登录方式' }, { status: 400 });
     }
 
     if (!user) {
