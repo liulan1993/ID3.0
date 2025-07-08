@@ -276,16 +276,6 @@ const ProjectShowcase = ({ testimonials, onProtectedLinkClick }: { testimonials:
                 fixedWidth="120px"
               />
             ))}
-            <HalomotButton 
-              inscription="了解更多" 
-              onClick={(e) => onProtectedLinkClick(e, testimonials[active].link || 'https://www.apex-elite-service.com/')} 
-              href={testimonials[active].link || '#'}
-              padding="0.6rem 1.2rem"
-              backgroundColor='#161616' 
-              hoverTextColor='#fff' 
-              gradient='linear-gradient(to right, #603dec, #a123f4)'
-              fixedWidth="120px"
-            />
           </div>
         </div>
       </div>
