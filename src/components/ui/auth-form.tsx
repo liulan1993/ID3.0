@@ -41,12 +41,12 @@ const AnimatedFormField: React.FC<FormFieldProps> = ({type, placeholder, value, 
 // --- 主组件 ---
 interface AuthFormComponentProps {
     onClose: () => void;
-    onLoginSuccess: (data: LoginSuccessData) => void; 
+    onLoginSuccess: (data: LoginSuccessData) => void;
 }
 
 const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginSuccess }) => {
   const [view, setView] = useState<'login' | 'signup' | 'forgotPassword'>('login');
-  
+
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +55,6 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
   const [captcha, setCaptcha] = useState('');
   const [captchaInput, setCaptchaInput] = useState('');
   const [emailVerificationCode, setEmailVerificationCode] = useState('');
@@ -77,14 +76,14 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     }
     setCaptcha(result);
   };
-  
+
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [countdown]);
-  
+
   useEffect(() => {
     if (view === 'signup' || (view === 'forgotPassword' && resetStep === 1)) {
       generateCaptcha();
@@ -129,14 +128,14 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
     }
 
     setIsSending(true);
-    
+
     let result;
     if (view === 'signup') {
         result = await sendVerificationEmail(email, captchaInput, captcha, phone);
     } else { // 'forgotPassword' view
         result = await sendVerificationEmail(email, captchaInput, captcha);
     }
-    
+
     setIsSending(false);
 
     if (result.success) {
@@ -144,7 +143,7 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
       setCountdown(60);
       setIsEmailLocked(true);
       if (view === 'forgotPassword') {
-          setResetStep(2); 
+          setResetStep(2);
           setSuccessMessage(null);
       }
     } else {
@@ -225,22 +224,12 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
             <h1 className="text-3xl font-bold text-white mb-2">{renderTitle()}</h1>
             <p className="text-gray-400">{renderSubtitle()}</p>
         </div>
-        
-        {view === 'login' && (
-            <div className="flex justify-center bg-gray-900 rounded-lg p-1 mb-6">
-              <button onClick={() => setLoginMethod('email')} className={`w-full py-2 text-sm font-medium rounded-md transition-colors duration-300 ${loginMethod === 'email' ? 'bg-white text-black' : 'text-gray-400 hover:bg-gray-800'}`}>邮箱登录</button>
-              <button onClick={() => setLoginMethod('phone')} className={`w-full py-2 text-sm font-medium rounded-md transition-colors duration-300 ${loginMethod === 'phone' ? 'bg-white text-black' : 'text-gray-400 hover:bg-gray-800'}`}>手机登录</button>
-            </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
         {view === 'login' && (
             <>
-              {loginMethod === 'email' ? 
               <AnimatedFormField type="email" placeholder="邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} icon={<Mail size={18} />} autoComplete="email" />
-              : 
-              <AnimatedFormField type="tel" placeholder="手机号码" value={phone} onChange={(e) => setPhone(e.target.value)} icon={<Phone size={18} />} autoComplete="tel" />}
-               <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="current-password">
+              <AnimatedFormField type={showPassword ? "text" : "password"} placeholder="密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="current-password">
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-white hover:text-gray-300 transition-colors">
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
@@ -250,11 +239,11 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
         {view === 'signup' && (
             <>
               <AnimatedFormField type="text" placeholder="全名" value={name} onChange={(e) => setName(e.target.value)} icon={<User size={18} />} autoComplete="name" />
-              <AnimatedFormField 
-                  type="email" 
-                  placeholder="邮箱地址" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
+              <AnimatedFormField
+                  type="email"
+                  placeholder="邮箱地址"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   icon={<Mail size={18} />}
                   autoComplete="email"
                   disabled={isEmailLocked}
@@ -270,12 +259,12 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
                       </button>
                   )}
               </AnimatedFormField>
-              <AnimatedFormField 
-                  type="tel" 
-                  placeholder="手机号码" 
-                  value={phone} 
-                  onChange={(e) => setPhone(e.target.value)} 
-                  icon={<Phone size={18} />} 
+              <AnimatedFormField
+                  type="tel"
+                  placeholder="手机号码"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  icon={<Phone size={18} />}
                   autoComplete="tel"
               />
               <AnimatedFormField type="password" placeholder="设置密码" value={password} onChange={(e) => setPassword(e.target.value)} icon={<Lock size={18} />} autoComplete="new-password" />
@@ -291,11 +280,11 @@ const AuthFormComponent: React.FC<AuthFormComponentProps> = ({ onClose, onLoginS
 
         {view === 'forgotPassword' && (
              <>
-              <AnimatedFormField 
-                  type="email" 
-                  placeholder="请输入您注册的邮箱地址" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
+              <AnimatedFormField
+                  type="email"
+                  placeholder="请输入您注册的邮箱地址"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   icon={<Mail size={18} />}
                   autoComplete="email"
                   disabled={isEmailLocked}
