@@ -7,8 +7,6 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Slot } from '@radix-ui/react-slot';
-// 假设您的 Server Action 在项目根目录的 actions.ts 或类似文件中
-// import { saveFooterEmailToRedis } from '../../app/actions'; // 已移除，因为不再需要
 
 // ============================================================================
 // 0. 工具函数和依赖组件 (为了使组件独立)
@@ -143,6 +141,22 @@ BilibiliIcon.displayName = "BilibiliIcon";
 // 1. 页脚主组件
 // ============================================================================
 
+/**
+ * 处理平滑滚动到指定ID元素的函数
+ * @param e - 鼠标事件
+ * @param id - 目标元素的ID
+ */
+const handleScrollTo = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+  e.preventDefault();
+  const element = document.getElementById(id);
+  if (element) {
+    element.scrollIntoView({
+      behavior: 'smooth', // 平滑滚动
+      block: 'start',      // 滚动到元素顶部
+    });
+  }
+};
+
 export default function CustomFooter() {
     const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
 
@@ -168,10 +182,10 @@ export default function CustomFooter() {
               />
             </div>
             <nav className="mb-8 flex flex-wrap justify-center gap-6 text-neutral-300 text-base md:text-lg">
-              <Link href="#" className="hover:text-white">Apex</Link>
-              <Link href="#study-abroad" className="hover:text-white">留学</Link>
-              <Link href="#health-management" className="hover:text-white">医疗</Link>
-              <Link href="#corporate-services" className="hover:text-white">企业服务</Link>
+              <Link href="#" onClick={(e) => handleScrollTo(e, 'home')} className="hover:text-white">Apex</Link>
+              <Link href="#study-abroad-education" onClick={(e) => handleScrollTo(e, 'study-abroad-education')} className="hover:text-white">留学</Link>
+              <Link href="#health-management" onClick={(e) => handleScrollTo(e, 'health-management')} className="hover:text-white">医疗</Link>
+              <Link href="#corporate-services" onClick={(e) => handleScrollTo(e, 'corporate-services')} className="hover:text-white">企业服务</Link>
               <Link href="#" className="hover:text-white">敬请期待</Link>
             </nav>
             <div className="mb-8 flex space-x-4">
@@ -200,8 +214,7 @@ export default function CustomFooter() {
                  </a>
               ))}
             </div>
-            {/* 邮件输入表单已被移除 */}
-            <div className="text-center mt-8"> {/* 调整了上边距 */}
+            <div className="text-center mt-8">
               <p className="text-sm text-neutral-400">
                 © 2024 Your Company. All rights reserved.
               </p>

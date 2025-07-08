@@ -1406,18 +1406,20 @@ export default function Page() {
                                 </div>
                             </div>
                             
-                            <CorporateServicesTimeline />
+                            <div id="corporate-services">
+                                <CorporateServicesTimeline />
+                            </div>
 
-                            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div id="study-abroad-education" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                                 <ProjectShowcase 
                                     testimonials={projectShowcaseData}
                                     onProtectedLinkClick={handleProtectedLinkClick}
                                 />
                             </div>
 
-                            {/* --- 从这里开始插入新组件 --- */}
-
-                            <InfoSectionWithMockup {...infoSectionData1} />
+                            <div id="health-management">
+                                <InfoSectionWithMockup {...infoSectionData1} />
+                            </div>
                             
                             <div className="py-16 px-8 flex flex-col justify-center items-center">
                                 <FaqSection items={faqData} className="w-full max-w-4xl"/>
