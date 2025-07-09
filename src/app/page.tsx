@@ -1264,7 +1264,7 @@ TextRevealCard.displayName = "TextRevealCard";
 // ============================================================================
 const infoSectionData1 = {
     title: ( <> 健康管理 <br /> Health Management </> ),
-    description: ( <> 我相信，健康是承载事业版图与人生品质的终极资产，Apex传承于生命管理的独特基因，我们不提供诊疗，而是您最值得信赖的健康战略家与医疗资源导航员，致力于助您主动掌控健康，预见未来。 </> ),
+    description: ( <> 健康是承载事业版图与人生品质的终极资产，Apex传承于生命管理的独特基因，我们不提供诊疗，而是您最值得信赖的健康战略家与医疗资源导航员，致力于助您主动掌控健康，预见未来。 </> ),
     primaryImageSrc: 'https://zh.apex-elite-service.com/wenjian/8-1.png',
     secondaryImageSrc: 'https://zh.apex-elite-service.com/wenjian/9.jpg',
 };

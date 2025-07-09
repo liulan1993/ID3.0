@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 
 const HomePageTitle = () => {
     const text = "为您而来，不止于此";
-    const subtitle = "融通事业与家庭，成为您最信赖的成长伙伴。";
+    const subtitle = "融汇全球洞察，为您成就事业与家庭的非凡格局。";
     const overlayColor = "text-amber-400";
     const textColor = "text-black";
     const letterDelay = 0.08;
