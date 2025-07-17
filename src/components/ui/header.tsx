@@ -40,7 +40,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                 { title: "问卷调查", href: "/questionnaire" },
                 { title: "资料上传", href: "/upload" },
                 { title: "客户反馈", href: "/customer" },
-                { title: "活动报名", href: "/activity" },
+                { title: "活动报名", href: "/" },
             ],
         },
         {
@@ -176,7 +176,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                                 )}
                             </div>
                             
-                            <Link href="/business">
+                            <Link href="/">
                                 <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
                             </Link>
                         </>
@@ -185,7 +185,7 @@ const AppNavigationBar = ({ isAuthenticated, user, onLoginClick, onLogoutClick, 
                             <Button variant="outline" onClick={onLoginClick} className="text-base md:text-lg">
                                 登录
                             </Button>
-                            <Link href="/business">
+                            <Link href="/">
                                 <Button variant="default" className="text-base md:text-lg">商业洞察</Button>
                             </Link>
                         </>

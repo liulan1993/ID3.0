@@ -185,7 +185,7 @@ const projectShowcaseData: Testimonial[] = [
     quote: '我们提供超越择校咨询的长期教育路径规划。通过深度评估家庭理念与孩子特质，为您量身定制从当前到世界名校的清晰成长路线图。',
     designation: "Next.js 项目",
     src: "https://zh.apex-elite-service.com/wenjian/5-1.jpg",
-    link: "https://plum-cave.netlify.app/",
+    link: "https://www.apex-elite-service.com/",
   },
   {
     name: "学校申请支持",
@@ -193,7 +193,7 @@ const projectShowcaseData: Testimonial[] = [
     quote: "精准、高效的全流程申请支持，关注的不仅是文书与面试技巧，更是如何将您孩子最独特的闪光点呈现给招生官，赢得理想的录取通知。",
     designation: "Next.js 项目",
     src: "https://zh.apex-elite-service.com/wenjian/6-1.jpg",
-    link: "https://namer-ui.netlify.app/",
+    link: "https://www.apex-elite-service.com/",
   },
   {
     name: "长期成长陪伴",
@@ -201,7 +201,7 @@ const projectShowcaseData: Testimonial[] = [
     quote: "作为您与学校间的沟通桥梁，我们协助处理从家长会到升学指导的各项事务，确保孩子无缝融入并持续进步。",
     designation: "Vue 项目",
     src: "https://zh.apex-elite-service.com/wenjian/7.jpg",
-    link: "https://namer-ui-for-vue.netlify.app/",
+    link: "https://www.apex-elite-service.com/",
   },
 ];
 
