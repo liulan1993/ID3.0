@@ -279,7 +279,7 @@ const ProjectShowcase = ({ testimonials, onProtectedLinkClick }: { testimonials:
             <HalomotButton 
               inscription="了解更多" 
               onClick={(e) => onProtectedLinkClick(e, testimonials[active].link || 'https://www.apex-elite-service.com/')} 
-              href={testimonials[active].link || '#'}
+              href={testimonials[active].link || 'https://www.apex-elite-service.com/'}
               padding="0.6rem 1.2rem"
               backgroundColor='#161616' 
               hoverTextColor='#fff' 
